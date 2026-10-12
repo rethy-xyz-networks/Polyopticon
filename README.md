@@ -91,7 +91,12 @@ npm run dist       # build a portable Windows .exe into dist/
 The sidebar groups sources by country (USA, Canada, Mexico, EU, UK, Iceland, France, Germany, Ukraine, Russia, Turkey, Syria, Israel, Egypt, Qatar, Saudi Arabia, UAE, Iran, Pakistan, India, Thailand, China, Mongolia, Philippines, North Korea, South Korea, Japan, Australia), then Telegram and Wires & Search. Groups fold with the arrow beside their name. A source's group is the "Group" field in its editor; new group names appear after the countries.
 
 ### Telegram
+
+<img src="docs/screenshots/telegram.png">
+
 To read a public Telegram channel directly, press the button in the toolbar. A new tab opens with a field where the title would be; enter the channel's name or link (`durov`, `@durov`, `t.me/durov`) and press Enter, and the field gives way to Telegram's own web view of the channel (`t.me/s/<channel>`). It's live only: nothing from it is saved, and it runs on its own in-memory browser session. Like article tabs it can be dragged, pinned (it reopens at the next start), zoomed, and moved with Back / Forward / Reload, and middle-clicking a link opens it as another tab in the background.
+
+<img src="docs/screenshots/telegram2.png">
 
 Add and edit sources in **Settings → Sources**; keys and logins go in **Settings → Accounts**
 (encrypted with Windows DPAPI).
@@ -143,6 +148,8 @@ A source that fails twice in a row is retried after twice the wait, then four ti
 
 ## Site Icons
 
+<img src="docs/screenshots/badge.png">
+
 Each story shows its publisher's icon next to the source badge, and each source in the sidebar shows its own: the site's own icon for aggregated
 sources (GDELT, Google News), and the channel's avatar for Telegram. Icons are fetched once from the site
 (falling back to Google's favicon service when a site blocks it), shrunk to 32 px and cached in
@@ -150,11 +157,15 @@ sources (GDELT, Google News), and the channel's avatar for Telegram. Icons are f
 
 ## Story Grouping
 
+<img src="docs/screenshots/grouping.png">
+
 Reports of the same story from different sources are grouped (Group button in the feed header).
 Headlines are compared by their distinctive words, weighted by rarity, within a 36-hour window;
 the "+N" chip on a story expands the other reports. Groups are stored with each item.
 
 ## Map
+
+<img src="docs/screenshots/map.png">
 
 **Map** (Ctrl+M) in the story pane shows where the stories in the live list are happening.
 Each story is a pin in its site's colour, faded as it gets older (< 1h, < 6h, < 24h, older).
@@ -179,6 +190,8 @@ Rebuild the gazetteer after editing its lists with `node scripts/build-geo.js`; 
 re-tagged at the next start. Data: GeoNames (CC BY 4.0) and Natural Earth (public domain).
 
 ## Live Chat
+
+<img src="docs/screenshots/live-chat.png">
 
 **Chat** (toolbar, Ctrl+J) opens a column on the right with Twitch and Kick channel chats, the destiny.gg chat and
 IRC rooms, one tab each. The column is hidden and no chats are set up on a fresh install. The **+** button in its header
@@ -223,6 +236,13 @@ The toolbar also has an optional **4chan** button that opens 4chan /pol/ as a li
 Article and 4chan pages block ads and trackers: a built-in list of ad/tracker hosts, plus EasyList and EasyPrivacy through Ghostery's adblocker engine (URL rules and hiding of empty ad slots). The lists download in the background on first launch, are kept in the data folder and refresh weekly (`src/main/blocker.js`).
 
 ## Translation
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/translate1.png" alt="Translation screenshot 1"></td>
+    <td><img src="docs/screenshots/translate2.png" alt="Translation screenshot 2"></td>
+  </tr>
+</table>
 
 Translation is manual and runs entirely on your computer (no service, no key). Machine-translation models:
 Opus-MT (~75 MB each, ~0.5 s per headline) for ~25 languages, and Meta's NLLB-200 (~1 GB, a few seconds
@@ -308,6 +328,8 @@ To run a separate copy with its own data (e.g. for testing), set `POLYOPTICON_DA
 before `npm start`.
 
 ## Controls
+
+<img src="docs/screenshots/keyboard_shortcuts.png">
 
 - **Ctrl+?** (or the question mark button in the toolbar) opens the full list of keyboard shortcuts and mouse actions in a tab. The list comes from `src/renderer/shortcuts.js`, which also decides which keys the app handles; add new shortcuts there and they show up in the list automatically.
 - **Right-click a source** (in the sidebar, or a story's source badge) to limit the search to it; add several to search across them. The close button on a chip, Backspace in an empty search box, or Esc twice removes them. Works in History too.
