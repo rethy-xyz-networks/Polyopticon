@@ -6,7 +6,7 @@
 
 <p align="center"><b>One screen for every source of a developing story</b></p>
 
-Polyopticon is a desktop news-monitoring dashboard. It pulls news outlets, forum and imageboard posts, Twitch streams and chat, and other public sources into one configurable workspace, so you can follow a protest, a major media event, or any fast-moving story as it develops, without juggling dozens of windows.
+Polyopticon is a desktop news-monitoring dashboard. It pulls news outlets, forums, imageboard posts, Twitch streams and chat, and other public sources into one configurable workspace, so you can follow a protest, a major media event, or any fast-moving story as it develops, in real-time.
 
 Everything it uses is free; no paid APIs. Optional accounts (Telegram, Bluesky, free API keys) are stored encrypted on your computer.
 
@@ -28,22 +28,40 @@ Everything it uses is free; no paid APIs. Optional accounts (Telegram, Bluesky, 
   </tr>
 </table>
 
+## Contents
+
+- [Layout](#layout)
+- [Getting Started](#getting-started)
+- [Source Types](#source-types)
+- [How feeds are polled](#how-feeds-are-polled)
+- [History & Offline Reading](#history--offline-reading)
+- [Site Icons](#site-icons)
+- [Story Grouping](#story-grouping)
+- [Map](#map)
+- [Live Chat](#live-chat)
+- [Ad Blocking](#ad-blocking)
+- [Translation](#translation)
+- [Project Structure](#project-structure)
+- [Data](#data)
+- [Controls](#controls)
+- [Credits](#credits)
+
 ## Layout
 
 <img src="docs/screenshots/views.png" alt="Screenshot of each view">
 
-Polyopticon has four main areas:
+Polyopticon has five main areas, known as views:
 
-- **Sources & Wires View** (fig. 1): The sources sidebar and the story list beside it. The sidebar picks which outlets and wires feed in (grouped by country) and holds the include / exclude keywords (viewable at the bottom). The list shows incoming stories newest first (Live), or the stories you opened and everything stored (History).
-- **Article List View** (fig. 2):
-- **Article Tab View** (fig. 3): The centre area, where stories open. A story opens as a live page, a saved copy or a clean reader view. Map, Scratchpad, 4chan, Telegram pages, and the shortcut list are opened as tabs.
-- **Live Chat View** (fig. 4): Twitch, Kick, destiny.gg and IRC chats (Ctrl+J).
+- **Sources & Wires View** (fig. 1): The sources sidebar. The sidebar picks which outlets and wires feed in (grouped by country) and holds the include / exclude keywords (viewable by scrolling to the bottom).
+- **Article List View** (fig. 2): The story list to the right of the *Sources & Wires View*. The list shows incoming stories newest first (Live), or the stories you opened and everything stored (History).
+- **Article Tab View** (fig. 3): The centre area where articles, and sites open. An article opens as a live page, a saved copy or a clean reader view. Map, Scratchpad, 4chan, Telegram pages, and the shortcut list are all opened as tabs.
+- **Live Chat View** (fig. 4): Twitch, Kick, destiny.gg and IRC chat monitors (Ctrl+J).
 - **Video Player View** (fig. 5): Twitch, Kick or YouTube streams, several at once, each with its own volume and mute (Ctrl+V).
 
 ## Getting Started
 
 ### Binary
-Check the GitHub releases area.
+Check the GitHub <a href="https://github.com/rethy-xyz-networks/Polyopticon/releases">releases</a> page for up-to-date portable binaries, and release information.
 
 ### Building
 
@@ -70,24 +88,15 @@ npm run dist       # build a portable Windows .exe into dist/
 
 
 ### Countries
-The sidebar groups sources by country (USA, Canada, Mexico, EU, UK, Iceland, France, Germany, Ukraine, Russia, Turkey,
-Syria, Israel, Egypt, Qatar, Saudi Arabia, UAE, Iran, Pakistan, India, Thailand, China, Mongolia, Philippines,
-North Korea, South Korea, Japan, Australia), then Telegram and
-Wires & Search. Groups fold with their ▾ chevron. A source's group is the "Group" field in its editor; new
-group names appear after the countries.
+The sidebar groups sources by country (USA, Canada, Mexico, EU, UK, Iceland, France, Germany, Ukraine, Russia, Turkey, Syria, Israel, Egypt, Qatar, Saudi Arabia, UAE, Iran, Pakistan, India, Thailand, China, Mongolia, Philippines, North Korea, South Korea, Japan, Australia), then Telegram and Wires & Search. Groups fold with the arrow beside their name. A source's group is the "Group" field in its editor; new group names appear after the countries.
 
 ### Telegram
-To read a public Telegram channel directly, press the button in the toolbar. A new tab opens with a field where the
-title would be; enter the channel's name or link (`durov`, `@durov`, `t.me/durov`) and press Enter, and the field
-gives way to Telegram's own web view of the channel (`t.me/s/<channel>`). It's live only: nothing from it is saved,
-and it runs on its own in-memory browser session. Like article tabs it can be dragged, pinned (it reopens at the
-next start), zoomed, and moved with Back / Forward / Reload, and middle-clicking a link opens it as another tab in
-the background.
+To read a public Telegram channel directly, press the button in the toolbar. A new tab opens with a field where the title would be; enter the channel's name or link (`durov`, `@durov`, `t.me/durov`) and press Enter, and the field gives way to Telegram's own web view of the channel (`t.me/s/<channel>`). It's live only: nothing from it is saved, and it runs on its own in-memory browser session. Like article tabs it can be dragged, pinned (it reopens at the next start), zoomed, and moved with Back / Forward / Reload, and middle-clicking a link opens it as another tab in the background.
 
 Add and edit sources in **Settings → Sources**; keys and logins go in **Settings → Accounts**
 (encrypted with Windows DPAPI).
 
-### How feeds are polled
+## How feeds are polled
 
 The **Refresh interval** (Settings → General) is the fastest a feed is ever asked. RSS and Atom feeds use conditional
 requests (ETag / Last-Modified), so an unchanged feed costs a 304 and no download; for feeds that send no validators
@@ -102,25 +111,16 @@ instead gives each feed its own schedule, based on what that feed has actually b
 | Busy feed (new story on the last poll) | every 5 s | every 5 s (the Refresh interval) |
 | Feed that has gone quiet | every 5 s, forever | after 2 empty polls the wait grows ×1.5 each time (7.5 s, 11 s, 17 s…) up to a **20 s ceiling** |
 | Wait vs. how often the feed publishes | ignored | never longer than 1/20th of the feed's usual gap between stories (learned from its own item dates, then from what it publishes) |
-| New story appears | – | the feed is back on 5 s on the very next poll |
-| Server's `Cache-Control` hint | – | not obeyed (see below) |
+| New story appears | n/a | the feed is back on 5 s on the very next poll |
+| Server's `Cache-Control` hint | n/a | not obeyed (see below) |
 | Requests | 100% | about 26% (74% fewer) |
 | Story shown | within 5 s of appearing | on average 9 s later than fixed polling (never more than 20 s) |
 
 A feed is only watched closely while it is active, and a quiet one is checked less often but never less than every 20 seconds, so a story is never held back for long. Each wait also gets ±10% random jitter, so feeds that started together don't all hit their servers at the same instant, and the wait is never shorter than the Refresh interval.
 
-The 20 s ceiling is the trade-off: raising it saves more requests but shows stories later (a 30 s ceiling measured 14 s
-late on average for 82% fewer requests; 60 s measured 31 s late for 91% fewer). The server's `Cache-Control` hint is
-deliberately not obeyed: it is only a hint (a CDN can replace the copy as soon as a story is published), and measured
-against a 12-hour recording of the real feeds it made stories later for almost no saving. The numbers are at the top of
-`src/main/adapters/pacing.js`; `scripts/bench-polling/` records the real feeds at fixed 5 s polling and replays the
-scheme against that recording to measure how late it would have shown stories and how many requests it would have saved.
-The figures above come from a 12-hour recording of 71 feeds (1,187 new stories).
+The 20 s ceiling is the trade-off: raising it saves more requests but shows stories later (a 30 s ceiling measured 14 s late on average for 82% fewer requests; 60 s measured 31 s late for 91% fewer). The server's `Cache-Control` hint is deliberately not obeyed: it is only a hint (a CDN can replace the copy as soon as a story is published), and measured against a 12-hour recording of the real feeds it made stories later for almost no saving. The numbers are at the top of `src/main/adapters/pacing.js`; `scripts/bench-polling/` records the real feeds at fixed 5 s polling and replays the scheme against that recording to measure how late it would have shown stories and how many requests it would have saved. The figures above come from a 12-hour recording of 71 feeds (1,187 new stories).
 
-A source that fails twice in a row is retried after twice the wait, then four times, up to five minutes, and goes back
-to the normal interval after one success; a `Retry-After` from the server (429 / 503) is obeyed for up to an hour. Per-source
-counters (`polls · 304 · same body · downloaded`) and the current wait are in the state log as `src.<name>.net` and
-`src.<name>.pacing`. The logic is in `src/main/adapters/pacing.js`.
+A source that fails twice in a row is retried after twice the wait, then four times, up to five minutes, and goes back to the normal interval after one success; a `Retry-After` from the server (429 / 503) is obeyed for up to an hour. Per-source counters (`polls · 304 · same body · downloaded`) and the current wait are in the state log as `src.<name>.net` and `src.<name>.pacing`. The logic is in `src/main/adapters/pacing.js`.
 
 ## History & Offline Reading
 
@@ -139,11 +139,11 @@ counters (`polls · 304 · same body · downloaded`) and the current wait are in
   Text comes from whichever works best: Readability, per-site rules, the page's JSON-LD, or its paragraphs.
   Telegram/Bluesky posts use the post text itself.
 - When a site only sent part of an article (e.g. NYT after the free-article limit), the save is marked
-  "partial". Log in to the site once in a Live tab — the session persists — and later saves get the full text.
+  "partial". Log in to the site once in a Live tab; the session persists, so later saves get the full text.
 
 ## Site Icons
 
-Each story shows its publisher's icon next to the source badge, and each source in the sidebar shows its own — the site's own icon for aggregated
+Each story shows its publisher's icon next to the source badge, and each source in the sidebar shows its own: the site's own icon for aggregated
 sources (GDELT, Google News), and the channel's avatar for Telegram. Icons are fetched once from the site
 (falling back to Google's favicon service when a site blocks it), shrunk to 32 px and cached in
 `%LocalAppData%\Polyopticon\icons` (`src/main/favicons.js`, served as `polyopticon-icon://`).
@@ -181,7 +181,7 @@ re-tagged at the next start. Data: GeoNames (CC BY 4.0) and Natural Earth (publi
 ## Live Chat
 
 **Chat** (toolbar, Ctrl+J) opens a column on the right with Twitch and Kick channel chats, the destiny.gg chat and
-IRC rooms, one tab each. The column is hidden and no chats are set up on a fresh install. **➕** in its header
+IRC rooms, one tab each. The column is hidden and no chats are set up on a fresh install. The **+** button in its header
 shows a row of chat types:
 
 - **Twitch:** a field for the channel name or link.
@@ -193,38 +193,34 @@ shows a row of chat types:
   reconnect by themselves if the link drops. The log shows the connection steps (connecting, connected,
   joined) and people joining, leaving, quitting, changing nick, being kicked and topic changes.
 
-**×** on a tab (or middle-click) removes it. Chat tabs work like the article tabs: drag to reorder, and
-right-click for pin / close others / close to the right. Pinned tabs stay at the left and have no ×; the order and pins
+The close button on a tab (or middle-click) removes it. Chat tabs work like the article tabs: drag to reorder, and
+right-click for pin / close others / close to the right. Pinned tabs stay at the left and have no close button; the order and pins
 are remembered. The list is also in Settings → General → Live chat. Twitch and
 destiny.gg chats are read-only (guest), run on their own browser session, and open links in your browser;
 all chats stay connected while the column is hidden. Twitch chat follows the app's light/dark theme.
 
-The **split** button (📺, in the toolbar next to Chat) adds a live stream below the chat. Press **➕** in the
+The **split** button (in the toolbar, next to Chat) adds a live stream below the chat. Press the **+** button in the
 stream bar (it works like the chat's), pick **Twitch**, **Kick** or **YouTube**, type a channel (or paste its link, which picks
 the site for you) and press Watch. YouTube takes an `@handle` or channel ID and plays that channel's `/live` page,
 trimmed to just the video. Each stream is a tab, like the chats: add as many as you like, drag to reorder, right-click
-to pin or close others, ✕ or middle-click to close. All of them play at the same time and keep playing while you
+to pin or close others, and use the close button or middle-click to close. All of them play at the same time and keep playing while you
 switch between tabs. Each stream has its own volume: the bar in the stream header sets the volume of the tab shown,
 and the small speaker on every tab mutes or unmutes that stream without switching to it. Drag the bar between chat and streams to resize. The streams stop when the split or the chat column is
 closed; the tabs, pins, split and height are remembered.
 
-The **📜** button in the toolbar opens the **Scratchpad** as a tab: one permanent note, like a notepad document.
+The **Scratchpad** button in the toolbar opens the Scratchpad as a tab: one permanent note, like a notepad document.
 Paste or type text (Markdown is highlighted) and paste or drop images into it: each image appears inline,
 right where it was pasted. Click it to enlarge (then scroll to zoom in and out, drag to move), drag its corner or Ctrl+scroll over it to resize,
-and use 🗑️ (or Delete) to remove it. Like every tab in the article area — articles, 4chan, Telegram, the shortcut list and
-the Scratchpad — it can be pinned (right-click the tab or use 📌) and then reopens at the next start. It saves by itself — after a short
-pause in typing, when you leave or close the tab, and when the app closes — and is stored encrypted with your
+and use the delete button (or Delete) to remove it. Like every tab in the article area (articles, 4chan, Telegram, the shortcut list and
+the Scratchpad), it can be pinned (right-click the tab or use the pin button) and then reopens at the next start. It saves by itself: after a short
+pause in typing, when you leave or close the tab, and when the app closes. It is stored encrypted with your
 Windows account (`scratchpad.bin`); if Windows encryption is unavailable it is not written to disk at all.
 
-The toolbar also has an optional **🍀** button that opens 4chan /pol/ as a live-only tab (hide it in Settings →
-General). Middle-click any link there to open it in a background tab. Nothing from these tabs is saved, and they
-run on their own in-memory browser session, so no cookies or cache reach the disk.
+The toolbar also has an optional **4chan** button that opens 4chan /pol/ as a live-only tab (hide it in Settings → General). Middle-click any link there to open it in a background tab. Nothing from these tabs is saved, and they run on their own in-memory browser session, so no cookies or cache reach the disk.
 
 ## Ad Blocking
 
-Article and 4chan pages block ads and trackers: a built-in list of ad/tracker hosts, plus EasyList and
-EasyPrivacy through Ghostery's adblocker engine (URL rules and hiding of empty ad slots). The lists download in
-the background on first launch, are kept in the data folder and refresh weekly (`src/main/blocker.js`).
+Article and 4chan pages block ads and trackers: a built-in list of ad/tracker hosts, plus EasyList and EasyPrivacy through Ghostery's adblocker engine (URL rules and hiding of empty ad slots). The lists download in the background on first launch, are kept in the data folder and refresh weekly (`src/main/blocker.js`).
 
 ## Translation
 
@@ -255,7 +251,7 @@ language is translated and are kept in `%LocalAppData%\Polyopticon\models`.
 
 A 5,000-character article takes around half a minute with an Opus-MT language, 3 minutes with NLLB, and 5 minutes with Hebrew or Persian. The first use of each language also downloads its model (~75 MB, or ~1 GB for NLLB) and loads it (a second or two for Opus-MT; up to a couple of minutes for NLLB the first time).
 
-The **Stop** button next to Translate (or Settings → General → Stop all translation) ends a translation at any time. Headline translation (off by default) repeats all this for every non-English headline, so with the NLLB languages it keeps the CPU busy. leave it off if that's a concern.
+The **Stop** button next to Translate (or Settings → General → Stop all translation) ends a translation at any time. Headline translation (off by default) repeats all this for every non-English headline, so with the NLLB languages it keeps the CPU busy. Leave it off if that's a concern.
 
 ## Project Structure
 
@@ -313,8 +309,8 @@ before `npm start`.
 
 ## Controls
 
-- **Ctrl+?** (or the question mark button in the toolbar) opens the full list of keyboard shortcuts and mouse actions in a tab. The list comes from `src/renderer/shortcuts.js`, which also decides which keys the app handles — add new shortcuts there and they show up in the list automatically.
-- **Right-click a source** (in the sidebar, or a story's source badge) to limit the search to it — add several to search across them; × on a chip, Backspace in an empty search box, or Esc twice removes them. Works in History too.
+- **Ctrl+?** (or the question mark button in the toolbar) opens the full list of keyboard shortcuts and mouse actions in a tab. The list comes from `src/renderer/shortcuts.js`, which also decides which keys the app handles; add new shortcuts there and they show up in the list automatically.
+- **Right-click a source** (in the sidebar, or a story's source badge) to limit the search to it; add several to search across them. The close button on a chip, Backspace in an empty search box, or Esc twice removes them. Works in History too.
 - **Drag a tab** to reorder it · **Right-click a tab** for pin / close others / close to the right
 - **Pinned tabs** (pin button in the story bar, or right-click → Pin) stay at the left, ignore middle-click and Ctrl+W, and reopen in the same view (Live / Saved page / Reader) the next time the app starts (`pinned.json`)
 
