@@ -135,7 +135,7 @@ function goToHeading(span) {
 function paintPlaceholder() {
   for (const el of blocksEl.children) {
     if (isText(el)) el.ta.placeholder = blocksEl.children.length === 1
-      ? 'Scratchpad — type or paste text and images. Markdown is highlighted. Saved automatically and stored encrypted.' : '';
+      ? 'Scratchpad: type or paste text and images. Markdown is highlighted. Saved automatically and stored encrypted.' : '';
   }
 }
 
@@ -181,7 +181,7 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 
 function imageBlock(id, width) {
   const img = h('img', { class: 'scratch-pic', src: images[id], alt: '', draggable: 'false' });
-  const el = h('div', { class: 'scratch-image', tabindex: '0', role: 'img', 'aria-label': 'Image — Enter enlarges, Delete removes', dataset: { id } });
+  const el = h('div', { class: 'scratch-image', tabindex: '0', role: 'img', 'aria-label': 'Image: Enter enlarges, Delete removes', dataset: { id } });
   if (width) { el.dataset.w = width; img.style.width = `${width}px`; }
   else img.addEventListener('load', () => { if (!el.dataset.w) img.style.width = `${Math.max(MIN_WIDTH, Math.min(img.naturalWidth, DEFAULT_WIDTH))}px`; });
 
@@ -345,7 +345,7 @@ function insertImage(id, tb) {
 async function addImages(files, tb) {
   for (const file of files) {
     if (!IMAGE_TYPES.test(file.type)) { setStatus('Only PNG, JPEG, GIF and WebP images can be added.', 'err'); continue; }
-    if (file.size > MAX_IMAGE_BYTES) { setStatus('That image is over 20 MB — too large to add.', 'err'); continue; }
+    if (file.size > MAX_IMAGE_BYTES) { setStatus('That image is too large to add: it is over 20 MB.', 'err'); continue; }
     try {
       const id = newId();
       images[id] = await readFile(file);

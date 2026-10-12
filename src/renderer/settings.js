@@ -186,7 +186,7 @@ function renderSourceEditor(page) {
       h('h4', {}, s.id ? `Edit “${s.name}”` : 'Add source'),
       field('Type', typeSel),
       h('p', { class: 'help' }, meta.help),
-      needsKey && h('p', { class: 'warn-box' }, 'This source type needs an API key — add it under ',
+      needsKey && h('p', { class: 'warn-box' }, 'This source type needs an API key; add it under ',
         h('button', { class: 'link-btn', onclick: () => showTab('accounts') }, 'Accounts'), '.'),
       ...cfgInputs,
       h('div', { class: 'form-row' }, field('Name *', name), field('Badge', cat)),
@@ -228,7 +228,7 @@ export function renderAccounts() {
       ? [h('p', {}, 'Logged in as ', h('b', {}, tg.user), '. Channels are read directly and joined channels arrive instantly.'),
          h('button', { class: 'link-btn danger', onclick: async () => { await api.telegramLogout(); } }, 'Log out')]
       : [
-          h('p', { class: 'help' }, 'Optional — public channels already work without an account. Logging in adds instant delivery and channels without a web preview. Create an app at ',
+          h('p', { class: 'help' }, 'Optional: public channels already work without an account. Logging in adds instant delivery and channels without a web preview. Create an app at ',
             link('https://my.telegram.org/apps', 'my.telegram.org'), ' to get your own api_id and api_hash.'),
           tgPrompt
             ? tgPromptForm()
@@ -246,7 +246,7 @@ export function renderAccounts() {
   const bPass = h('input', { type: 'password', placeholder: acc.bluesky ? '•••••••• saved' : 'App password' });
   const bsky = h('section', { class: 'acct' },
     h('h4', {}, '🦋 Bluesky'),
-    h('p', { class: 'help' }, 'Optional — makes search more reliable. Use an ',
+    h('p', { class: 'help' }, 'Optional: makes search more reliable. Use an ',
       link('https://bsky.app/settings/app-passwords', 'app password'), ', not your main password.'),
     h('div', { class: 'form-grid two' }, bHandle, bPass,
       h('button', { class: 'primary-btn', onclick: async e => {
@@ -299,10 +299,10 @@ function tgPromptForm() {
 function bindTelegramEvents() {
   api.onTelegramAsk((what, hint) => { tgPrompt = { what, hint }; tgBusy = false; renderAccounts(); openSettings('accounts'); });
   api.onTelegramError((message, fatal) => {
-    tgError = /PHONE_CODE_INVALID/.test(message) ? 'That code was wrong — try again.'
-            : /PASSWORD_HASH_INVALID/.test(message) ? 'Wrong password — try again.'
+    tgError = /PHONE_CODE_INVALID/.test(message) ? 'That code was wrong; try again.'
+            : /PASSWORD_HASH_INVALID/.test(message) ? 'Wrong password; try again.'
             : /PHONE_NUMBER_INVALID/.test(message) ? 'Telegram rejected that phone number. Include the country code, e.g. +1…'
-            : /API_ID_INVALID/.test(message) ? 'api_id / api_hash were rejected — copy them again from my.telegram.org.'
+            : /API_ID_INVALID/.test(message) ? 'api_id / api_hash were rejected; copy them again from my.telegram.org.'
             : message;
     if (fatal) { tgPrompt = null; tgBusy = false; }
     renderAccounts();

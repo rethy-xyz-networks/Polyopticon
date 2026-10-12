@@ -33,14 +33,14 @@ export const SHORTCUTS = [
   ] },
   // All but back / forward act on the tabs of the area last clicked: articles, live chat, or the streams below it.
   { group: 'Tabs', items: [
-    { id: 'nextTab',  combos: ['ctrl+pagedown'], keys: [['Ctrl', 'PgDown']], does: 'Next tab (wraps around) — in the articles, chat or streams, whichever you last clicked' },
-    { id: 'prevTab',  combos: ['ctrl+pageup'], keys: [['Ctrl', 'PgUp']], does: 'Previous tab (wraps around) — same' },
-    { id: 'tabN',     combos: DIGITS.map(n => `alt+${n}`), keys: [['Alt', '1 … 9']], does: 'Go to tab 1–9, counting after the pinned tabs — same' },
-    { id: 'closeTab', combos: ['ctrl+w'], keys: [['Ctrl', 'W']], does: 'Close the current tab (pinned tabs stay open) — same' },
-    { id: 'pinTab',   combos: ['ctrl+p'], keys: [['Ctrl', 'P']], does: 'Pin or unpin the current tab — same' },
-    { id: 'searchTabs', combos: ['ctrl+shift+a'], keys: [['Ctrl', 'Shift', 'A']], does: 'Search the open tabs and switch to one (↑ ↓, Enter) — same' },
+    { id: 'nextTab',  combos: ['ctrl+pagedown'], keys: [['Ctrl', 'PgDown']], does: 'Next tab (wraps around): in the articles, chat or streams, whichever you last clicked' },
+    { id: 'prevTab',  combos: ['ctrl+pageup'], keys: [['Ctrl', 'PgUp']], does: 'Previous tab (wraps around); same' },
+    { id: 'tabN',     combos: DIGITS.map(n => `alt+${n}`), keys: [['Alt', '1 … 9']], does: 'Go to tab 1–9, counting after the pinned tabs; same' },
+    { id: 'closeTab', combos: ['ctrl+w'], keys: [['Ctrl', 'W']], does: 'Close the current tab (pinned tabs stay open); same' },
+    { id: 'pinTab',   combos: ['ctrl+p'], keys: [['Ctrl', 'P']], does: 'Pin or unpin the current tab; same' },
+    { id: 'searchTabs', combos: ['ctrl+shift+a'], keys: [['Ctrl', 'Shift', 'A']], does: 'Search the open tabs and switch to one (↑ ↓, Enter); same' },
     { id: 'back',     combos: ['alt+arrowleft'], keys: [['Alt', '←']], does: 'Back, in the current article tab’s page' },
-    { id: 'reload',   combos: ['ctrl+r'], keys: [['Ctrl', 'R']], does: 'Reload the current tab’s page — same' },
+    { id: 'reload',   combos: ['ctrl+r'], keys: [['Ctrl', 'R']], does: 'Reload the current tab’s page; same' },
     { id: 'forward',  combos: ['alt+arrowright'], keys: [['Alt', '→']], does: 'Forward, in the current article tab’s page' },
     { id: 'livePage', combos: ['ctrl+l'], keys: [['Ctrl', 'L']], does: 'Show the live page of the current tab' },
     { id: 'savedPage', combos: ['ctrl+s'], keys: [['Ctrl', 'S']], does: 'Show the saved page of the current tab (saves it first if needed)' },
@@ -128,7 +128,7 @@ export function renderShortcutList(el, tabId) {
   if (el.dataset.tab === String(tabId)) return;
   el.dataset.tab = tabId;
   const notInPages = ENTRIES.filter(e => e.combos && e.inPages === false).map(e => e.keys[0].join(' + '));
-  const search = h('input', { type: 'search', class: 'shortcut-search', placeholder: 'Search shortcuts — e.g. zoom, tab, Ctrl W',
+  const search = h('input', { type: 'search', class: 'shortcut-search', placeholder: 'Search shortcuts: zoom, tab, Ctrl W',
     spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Search shortcuts' });
   const none = h('p', { class: 'muted shortcut-none', hidden: true }, 'No shortcuts match.');
   const sections = SHORTCUTS.map(g => {

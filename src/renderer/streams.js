@@ -8,10 +8,10 @@ const YT_HANDLE = /^[A-Za-z0-9._-]{3,30}$/;
 const YT_CHANNEL = /^UC[A-Za-z0-9_-]{22}$/;
 
 export const SITES = [
-  { id: 'twitch',  label: 'Twitch',  hint: 'Twitch channel — name or link' },
-  { id: 'kick',    label: 'Kick',    hint: 'Kick channel — name or link' },
-  { id: 'youtube', label: 'YouTube', hint: 'YouTube channel — @handle or link' },
-  { id: 'direct',  label: 'Direct',  hint: 'Video link — https://…/video.mp4' },
+  { id: 'twitch',  label: 'Twitch',  hint: 'Twitch channel: name or link' },
+  { id: 'kick',    label: 'Kick',    hint: 'Kick channel: name or link' },
+  { id: 'youtube', label: 'YouTube', hint: 'YouTube channel: @handle or link' },
+  { id: 'direct',  label: 'Direct',  hint: 'Video link: https://…/video.mp4' },
 ];
 
 // The partition direct links play in (main/main.js gives it a memory-only session of its own).

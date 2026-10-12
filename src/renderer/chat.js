@@ -424,7 +424,7 @@ function paintVideo() {
       onauxclick: e => { if (e.button === 1 && !s.pinned) removeStreams([s]); },
       oncontextmenu: e => { e.preventDefault(); streamMenu(s, e.clientX, e.clientY); },
     }, s.pinned && h('span', { class: 'pin' }, icon('pin')), h('span', { class: 'dot' }), h('span', { class: 'name' }, label),
-      h('span', { class: `snd${silent(s) ? ' off' : ''}`, title: silent(s) ? 'Silent — click for sound' : 'Click to mute this stream',
+      h('span', { class: `snd${silent(s) ? ' off' : ''}`, title: silent(s) ? 'Silent: click for sound' : 'Click to mute this stream',
         onclick: e => { e.stopPropagation(); toggleMute(s); } }, icon(silent(s) ? 'muted' : 'volume-2')),
       !s.pinned && h('span', { class: 'x', title: `Close ${label}`, onclick: e => { e.stopPropagation(); removeStreams([s]); } }, icon('close')));
   }));
@@ -459,7 +459,7 @@ function paintVolume() {
   $('video-volume').value = Math.round(vol * 100);
   setIcon($('video-mute'), off ? 'muted' : vol < 0.34 ? 'volume-0' : vol < 0.67 ? 'volume-1' : 'volume-2');
   $('video-mute').classList.toggle('on', muted);
-  $('video-volume').title = s ? `${streamLabel(s.site, s.name)} — volume ${Math.round(vol * 100)}%` : 'Volume';
+  $('video-volume').title = s ? `${streamLabel(s.site, s.name)}: volume ${Math.round(vol * 100)}%` : 'Volume';
 }
 
 /** Set the volume on the players' own <video> elements (webviews have no volume setting of their own). */

@@ -11,9 +11,9 @@ import { toggleSearchSource } from './sourcesearch.js';
 
 const SCOPES     = ['T+D', 'T', 'D'];                // TagScope 0=Both 1=Title 2=Description
 const SCOPE_TIPS = [
-  'Scope: Title + Description — click to switch to Title only',
-  'Scope: Title only — click to switch to Description',
-  'Scope: Description only — click to switch to Both',
+  'Scope: Title + Description; click to switch to Title only',
+  'Scope: Title only; click to switch to Description',
+  'Scope: Description only; click to switch to Both',
 ];
 const TYPE_ICON = { rss: '', googlenews: 'G', gdelt: '◍', bluesky: '🦋', telegram: '✈', guardian: 'API', nyt: 'API', newsapi: 'API' };
 
@@ -188,7 +188,7 @@ function describeSource(s) {
   const t = state.types[s.type]?.label ?? s.type;
   const c = s.config;
   const detail = c.url || c.query || c.channel && `t.me/${c.channel}` || c.handle && `@${c.handle}` || c.keywords || c.section || '';
-  return `${t}${detail ? ` — ${detail}` : ''}`;
+  return `${t}${detail ? `: ${detail}` : ''}`;
 }
 
 export function setStatus(sourceId, label, isError) {
@@ -205,7 +205,7 @@ function paintStatus(sourceId) {
   if (st?.isError) {
     el.textContent = st.label;
     el.className = 'stat red';
-    el.title = 'Last poll failed — see Settings → Sources';
+    el.title = 'Last poll failed; see Settings → Sources';
     return;
   }
   const n = state.sourceCounts.get(sourceId) ?? 0;

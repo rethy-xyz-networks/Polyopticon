@@ -35,9 +35,9 @@
       <button id="btn-chat" class="icon-btn" title="Live chat (Ctrl+J)" data-icon="chat"></button>
       <button id="chat-video-btn" class="icon-btn" title="Split the chat: show a Twitch, Kick or YouTube stream below it (opens the chat if it is hidden) (Ctrl+V)" data-icon="stream"></button>
       <button id="btn-telegram" class="icon-btn" title="Open a public Telegram channel as a tab" aria-label="Telegram channel" data-icon="telegram"></button>
-      <button id="btn-settings" class="icon-btn" title="Settings (Ctrl+,) — click again to close" data-icon="settings"></button>
-      <button id="btn-scratch" class="icon-btn" title="Scratchpad — one permanent, encrypted note (text and images)" aria-label="Scratchpad" data-icon="scratchpad"></button>
-      <button id="btn-chan" class="icon-btn" title="4chan /pol/ — middle-click a link to open it as a tab; nothing is saved" aria-label="4chan /pol/" data-icon="chan"></button>
+      <button id="btn-settings" class="icon-btn" title="Settings (Ctrl+,): click again to close" data-icon="settings"></button>
+      <button id="btn-scratch" class="icon-btn" title="Scratchpad: one permanent, encrypted note (text and images)" aria-label="Scratchpad" data-icon="scratchpad"></button>
+      <button id="btn-chan" class="icon-btn" title="4chan /pol/: middle-click a link to open it as a tab; nothing is saved" aria-label="4chan /pol/" data-icon="chan"></button>
       <button id="btn-theme" class="icon-btn" title="Toggle dark / light theme" data-icon="moon"></button>
       <button id="btn-fullscreen" class="icon-btn" title="Full screen (F11)" aria-label="Full screen"><span class="fs-enter" data-icon="fullscreen"></span><span class="fs-leave" data-icon="fullscreen-exit"></span></button>
       <button id="btn-help" class="icon-btn" title="Keyboard shortcuts (Ctrl+?)" data-icon="help"></button>
@@ -55,7 +55,7 @@
       </div>
       <div class="sidebar-search">
         <input id="source-filter" type="search" placeholder="Find a source or country…" spellcheck="false" autocomplete="off"
-               title="Matches source names and countries — e.g. “canada”, “bbc”, “uk sky”. Esc clears.">
+               title="Matches source names and countries: “canada”, “bbc”, “uk sky”. Esc clears.">
       </div>
       <div class="scroll">
         <div id="source-groups"></div>
@@ -102,7 +102,7 @@
         <button id="btn-group" class="toggle-btn" title="Group reports of the same story from different sources">Group</button>
       </div>
       <div class="search-bar">
-        <span id="place-chip" class="place-chip" hidden title="Only stories mentioning this place — click × to clear"><span id="place-chip-name"></span><button id="place-chip-clear" aria-label="Clear place filter" data-icon="close"></button></span>
+        <span id="place-chip" class="place-chip" hidden title="Only stories mentioning this place; click the close button to clear"><span id="place-chip-name"></span><button id="place-chip-clear" aria-label="Clear place filter" data-icon="close"></button></span>
         <span id="source-chips" class="source-chips" hidden title="Right-click a source in the sidebar to add or remove it"></span>
         <input id="search" type="search" placeholder="Search titles…  (Ctrl+F)">
         <button id="btn-case" class="toggle-btn" title="Toggle case-sensitive search">aa</button>
@@ -131,7 +131,7 @@
         <span id="story-title" class="story-title"></span>
         <!-- A new Telegram tab: a field where the title goes, until it is connected to a channel -->
         <form id="tg-draft" class="tg-draft" hidden>
-          <input type="text" id="tg-channel" list="tg-channels" placeholder="Telegram channel — name or t.me link" spellcheck="false" autocomplete="off">
+          <input type="text" id="tg-channel" list="tg-channels" placeholder="Telegram channel: name or t.me link" spellcheck="false" autocomplete="off">
           <datalist id="tg-channels"></datalist>
           <button type="submit" class="toggle-btn small">Connect</button>
         </form>
@@ -187,22 +187,22 @@
           <button type="button" id="chat-type-irc" class="toggle-btn small" title="Join an IRC room anonymously">IRC</button>
         </div>
         <form id="chat-add-twitch" class="chat-add-form" hidden>
-          <input type="text" id="chat-add-input" placeholder="Twitch channel — name or link" spellcheck="false" autocomplete="off">
+          <input type="text" id="chat-add-input" placeholder="Twitch channel: name or link" spellcheck="false" autocomplete="off">
           <button type="submit" class="toggle-btn small">Add</button>
         </form>
         <form id="chat-add-kick" class="chat-add-form" hidden>
-          <input type="text" id="chat-add-kick-input" placeholder="Kick channel — name or link" spellcheck="false" autocomplete="off">
+          <input type="text" id="chat-add-kick-input" placeholder="Kick channel: name or link" spellcheck="false" autocomplete="off">
           <button type="submit" class="toggle-btn small">Add</button>
         </form>
         <form id="chat-add-irc" class="chat-add-form" hidden>
-          <input type="text" id="chat-irc-server" placeholder="Server — irc.libera.chat" spellcheck="false" autocomplete="off"
+          <input type="text" id="chat-irc-server" placeholder="Server: irc.libera.chat" spellcheck="false" autocomplete="off"
                  title="Host name, optionally with a port (irc.example.org:6697). Encrypted by default; irc://host:6667 for plain text.">
-          <input type="text" id="chat-irc-room" placeholder="Room — #linux" spellcheck="false" autocomplete="off">
+          <input type="text" id="chat-irc-room" placeholder="Room: #linux" spellcheck="false" autocomplete="off">
           <button type="submit" class="toggle-btn small" title="Connect anonymously, without logging in">Connect</button>
         </form>
       </div>
       <div id="chat-views" class="chat-views">
-        <p id="chat-empty" class="chat-empty" hidden>No chats yet — add a Twitch channel, destiny.gg or an IRC room above.<br>(Also in <a href="#" id="chat-settings">Settings → General → Live chat</a>.)</p>
+        <p id="chat-empty" class="chat-empty" hidden>No chats yet; add a Twitch channel, destiny.gg or an IRC room above.<br>(Also in <a href="#" id="chat-settings">Settings → General → Live chat</a>.)</p>
       </div>
       <!-- Split: Twitch / Kick / YouTube streams below the chat, as tabs (chat.js) -->
       <div id="video-splitter" class="video-splitter" title="Drag to resize" hidden></div>

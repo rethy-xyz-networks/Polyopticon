@@ -253,7 +253,7 @@ function setGroupChip(row, clusterId, members) {
   chip.hidden = false;
   chip.dataset.cluster = clusterId;
   chip.classList.toggle('open', expanded.has(clusterId));
-  chip.title = `${others.length} more report${others.length > 1 ? 's' : ''} of this story — ${sources.join(', ')}\nClick to ${expanded.has(clusterId) ? 'collapse' : 'expand'}`;
+  chip.title = `${others.length} more report${others.length > 1 ? 's' : ''} of this story: ${sources.join(', ')}\nClick to ${expanded.has(clusterId) ? 'collapse' : 'expand'}`;
   chip.replaceChildren(
     ...[...new Set(others.map(m => m.sourceId))].slice(0, 5).map(id => h('i', { style: `background:${sourceColor(id)}` })),
     `+${others.length}`);

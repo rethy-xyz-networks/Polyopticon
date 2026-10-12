@@ -55,7 +55,7 @@ export function renderSourceChips() {
   const ids = [...state.searchSources];
   $('source-chips').replaceChildren(...ids.map(id => {
     const s = state.sourcesById.get(id);
-    return h('span', { class: 'source-chip', style: `background:${sourceColor(id)}`, title: `Only stories from ${s?.name ?? 'this source'} — × to remove` },
+    return h('span', { class: 'source-chip', style: `background:${sourceColor(id)}`, title: `Only stories from ${s?.name ?? 'this source'}; click the close button to remove` },
       h('span', { class: 'name' }, s?.name ?? '?'),
       h('button', { 'aria-label': `Remove ${s?.name ?? 'source'}`, onclick: () => removeSearchSource(id) }, icon('close')));
   }));

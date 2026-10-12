@@ -522,7 +522,7 @@ function createView(tab) {
     if (!e.isMainFrame || e.errorCode === -3) return;      // -3 = aborted (redirects etc.)
     if (tab.mode === 'live' && OFFLINE_ERRORS.has(e.errorCode) && (tab.snap?.pageUrl || tab.snap?.hasText)) {
       api.log('info', `Tab: '${tab.item.title}' unreachable (${e.errorDescription}) — showing saved copy`);
-      return setMode(tab, tab.snap.pageUrl ? 'page' : 'reader', `Couldn't reach the site (${e.errorDescription}) — showing the saved copy.`);
+      return setMode(tab, tab.snap.pageUrl ? 'page' : 'reader', `Couldn't reach the site (${e.errorDescription}); showing the saved copy.`);
     }
     tab.failed = `${e.errorDescription || 'Load failed'} (${e.errorCode})`;
     api.log('warn', `StoryViewer: load failed for '${tab.item.title}': ${tab.failed}`);
@@ -574,7 +574,7 @@ export async function showMode(mode) {
     // Still loading: wait for the page (up to 15 s), then save it.
     for (let waited = 0; tab.mode === 'live' && !tab.ready && waited < 15_000; waited += 200) await new Promise(r => setTimeout(r, 200));
     await capture(tab, { force: true });
-    if (!tab.snap?.pageUrl) { tab.notice = 'This page isn’t saved yet — try again once it has loaded.'; return renderStory(); }
+    if (!tab.snap?.pageUrl) { tab.notice = 'This page isn’t saved yet; try again once it has loaded.'; return renderStory(); }
   }
   setMode(tab, mode);
 }
@@ -593,7 +593,7 @@ export function reload() {
 function paintPin(tab) {
   const pin = $('btn-pin');
   pin.classList.toggle('on', tab.pinned);
-  pin.title = tab.pinned ? 'Unpin tab (Ctrl+P)' : 'Pin tab (Ctrl+P) — keeps it at the left and reopens it next time';
+  pin.title = tab.pinned ? 'Unpin tab (Ctrl+P)' : 'Pin tab (Ctrl+P): keeps it at the left and reopens it next time';
   pin.onclick = () => setPinned(tab, !tab.pinned);
 }
 
@@ -653,7 +653,7 @@ function renderInfobar() {
     Object.assign(tr, { disabled: true, textContent: t?.label ? `Translating · ${t.label}` : 'Translating…',
       title: t?.detail ?? 'Translating the article on your computer…' });
   } else if (tab.translated && tab.mode === 'reader') {
-    Object.assign(tr, { disabled: false, textContent: 'Translated', title: 'Translated to English — click to show the article in its original language' });
+    Object.assign(tr, { disabled: false, textContent: 'Translated', title: 'Translated to English: click to show the article in its original language' });
   } else if (lang && lang !== 'en') {
     Object.assign(tr, { disabled: false, textContent: `Translate (${lang.toUpperCase()})`, title: 'Translate this article to English (machine translation on your computer); opens in Reader view' });
   } else if (lang === 'en') {
@@ -686,7 +686,7 @@ export function onArticleTranslateProgress(p) {
   if (!tab) return;
   const first = 'one-time download for this language';
   if (p.stage === 'download') tab.translateProgress = { label: `downloading model ${p.pct}%`, detail: `Downloading the translation model (${first}): ${p.pct}%` };
-  else if (p.stage === 'loading') tab.translateProgress = { label: 'loading model…', detail: 'Loading the translation model into memory — can take a minute for the large one' };
+  else if (p.stage === 'loading') tab.translateProgress = { label: 'loading model…', detail: 'Loading the translation model into memory; this can take a minute for the large one' };
   else if (p.stage === 'translating') {
     const pct = p.total ? Math.floor(100 * p.done / p.total) : 0;
     tab.translateProgress = { label: `${pct}%`, detail: `Translated ${p.done} of ${p.total} parts of the article` };
@@ -791,7 +791,7 @@ export function renderStory() {
     tab.view?.classList.add('inactive');
     const saved = tab.snap?.pageUrl || tab.snap?.hasText;
     showFallback(it.summary || 'No article preview available from this feed.',
-      `Couldn't load the article: ${tab.failed}${saved ? ' — use “Saved page” or “Reader” above for the offline copy.' : ''}`);
+      `Couldn't load the article: ${tab.failed}${saved ? '. Use “Saved page” or “Reader” above for the offline copy.' : ''}`);
     return;
   }
 
