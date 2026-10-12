@@ -17,12 +17,23 @@
   "build": {
     "appId": "com.polyopticon.newsmonitor",
     "productName": "Polyopticon",
+    "npmRebuild": false,
+    "electronLanguages": [
+      "en-US"
+    ],
     "files": [
       "src/**",
-      "package.json"
+      "package.json",
+      "!node_modules/onnxruntime-node/bin/napi-v6/{darwin,linux}/**",
+      "!node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**",
+      "!node_modules/onnxruntime-node/bin/napi-v6/win32/x64/{DirectML,dxcompiler,dxil}.dll",
+      "!node_modules/{onnxruntime-web,flatbuffers,guid-typescript,long,platform,protobufjs,@protobufjs}/**",
+      "!node_modules/@huggingface/transformers/{src,types}/**",
+      "!node_modules/@huggingface/transformers/dist/{transformers.js,transformers.min.js,transformers.web.js,transformers.web.min.js,ort-wasm-simd-threaded.jsep.mjs}"
     ],
     "win": {
       "target": "portable",
+      "icon": "src/renderer/assets/Polyopticon.png",
       "artifactName": "${productName}-${version}-portable.${ext}"
     }
   },
