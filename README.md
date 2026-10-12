@@ -345,3 +345,9 @@ Translation models: Helsinki-NLP Opus-MT and Meta NLLB-200, via Transformers.js.
 Article extraction: Mozilla Readability. Map: Leaflet.
 
 Icons: [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) by Microsoft (MIT, see `src/renderer/assets/fluent-icons-LICENSE.txt`).
+
+<hr>
+
+<p align="center">
+  <a href="https://rethy.xyz"><img src="docs/rethy.xyz-networks-white.png" alt="rethy.xyz networks" width="239"></a>
+</p>
