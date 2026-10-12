@@ -1,0 +1,47 @@
+name: Release
+
+# Push a tag like v2.0.0-alpha.1 to build the portable .exe and publish it as a GitHub release.
+# Tags with a hyphen (alpha, beta, rc) are marked as pre-releases.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run test:unit
+
+      # Use the tag as the app version, so the exe and the About version match the release
+      - name: Set version from tag
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+
+      - name: Build portable exe
+        run: npx electron-builder --win portable --publish never
+        env:
+          # No signing certificate yet; stop electron-builder from looking for one
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=(--generate-notes --title "Polyopticon $GITHUB_REF_NAME")
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" dist/*.exe "${flags[@]}"
