@@ -6,7 +6,7 @@
 
 <p align="center"><b>One screen for every source of a developing story</b></p>
 
-Polyopticon is a desktop situation-monitoring dashboard. It pulls news outlets, forum and imageboard posts, Twitch streams and chat, and other public sources into one configurable workspace, so you can follow a protest, a major media event, or any fast-moving story as it develops, without juggling dozens of windows.
+Polyopticon is a desktop news-monitoring dashboard. It pulls news outlets, forum and imageboard posts, Twitch streams and chat, and other public sources into one configurable workspace, so you can follow a protest, a major media event, or any fast-moving story as it develops, without juggling dozens of windows.
 
 Everything it uses is free; no paid APIs. Optional accounts (Telegram, Bluesky, free API keys) are stored encrypted on your computer.
 
@@ -30,12 +30,15 @@ Everything it uses is free; no paid APIs. Optional accounts (Telegram, Bluesky, 
 
 ## Layout
 
+<img src="docs/screenshots/views.png" alt="Screenshot of each view">
+
 Polyopticon has four main areas:
 
-- **Sources & Wires**: The sources sidebar and the story list beside it. The sidebar picks which outlets and wires feed in (grouped by country) and holds the include / exclude keywords (viewable at the bottom). The list shows incoming stories newest first (Live), or the stories you opened and everything stored (History).
-- **Article View**: The centre area, where stories open. A story opens as a live page, a saved copy or a clean reader view. Map, Scratchpad, 4chan, Telegram pages, and the shortcut list are opened as tabs.
-- **Live Chat**: Twitch, Kick, destiny.gg and IRC chats (Ctrl+J).
-- **Video Player View**: Twitch, Kick or YouTube streams, several at once, each with its own volume and mute (Ctrl+V).
+- **Sources & Wires View** (fig. 1): The sources sidebar and the story list beside it. The sidebar picks which outlets and wires feed in (grouped by country) and holds the include / exclude keywords (viewable at the bottom). The list shows incoming stories newest first (Live), or the stories you opened and everything stored (History).
+- **Article List View** (fig. 2):
+- **Article Tab View** (fig. 3): The centre area, where stories open. A story opens as a live page, a saved copy or a clean reader view. Map, Scratchpad, 4chan, Telegram pages, and the shortcut list are opened as tabs.
+- **Live Chat View** (fig. 4): Twitch, Kick, destiny.gg and IRC chats (Ctrl+J).
+- **Video Player View** (fig. 5): Twitch, Kick or YouTube streams, several at once, each with its own volume and mute (Ctrl+V).
 
 ## Getting Started
 

@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: polyopticon-icon:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Polyopticon</title>
+  <link rel="stylesheet" href="../../node_modules/leaflet/dist/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Toolbar -->
+  <header class="toolbar">
+    <div class="brand">
+      <span class="logo" title="Polyopticon">
+        <canvas id="logo-still" width="32" height="32"></canvas>
+        <img id="logo-anim" src="assets/Polyopticon.png" alt="" width="32" height="32">
+      </span>
+      <span class="app-title">Polyopticon</span>
+      <span class="app-sub">One screen for every source of a developing story</span>
+    </div>
+
+    <div class="status" aria-live="polite">
+      <span id="offline-badge" class="offline-badge" hidden>Offline</span>
+      <span id="bg-task" class="bg-task" hidden></span>
+      <span id="status-text">Connecting…</span>
+      <span id="countdown" class="countdown"></span>
+      <span class="sep">·</span>
+      <span id="age-label"></span>
+    </div>
+
+    <div class="tool-buttons">
+      <button id="btn-refresh" class="icon-btn" title="Refresh all sources (Shift+R)" data-icon="refresh"></button>
+      <button id="btn-chat" class="icon-btn" title="Live chat (Ctrl+J)" data-icon="chat"></button>
+      <button id="chat-video-btn" class="icon-btn" title="Split the chat: show a Twitch, Kick or YouTube stream below it (opens the chat if it is hidden) (Ctrl+V)" data-icon="stream"></button>
+      <button id="btn-telegram" class="icon-btn" title="Open a public Telegram channel as a tab" aria-label="Telegram channel" data-icon="telegram"></button>
+      <button id="btn-settings" class="icon-btn" title="Settings (Ctrl+,) — click again to close" data-icon="settings"></button>
+      <button id="btn-scratch" class="icon-btn" title="Scratchpad — one permanent, encrypted note (text and images)" aria-label="Scratchpad" data-icon="scratchpad"></button>
+      <button id="btn-chan" class="icon-btn" title="4chan /pol/ — middle-click a link to open it as a tab; nothing is saved" aria-label="4chan /pol/" data-icon="chan"></button>
+      <button id="btn-theme" class="icon-btn" title="Toggle dark / light theme" data-icon="moon"></button>
+      <button id="btn-fullscreen" class="icon-btn" title="Full screen (F11)" aria-label="Full screen"><span class="fs-enter" data-icon="fullscreen"></span><span class="fs-leave" data-icon="fullscreen-exit"></span></button>
+      <button id="btn-help" class="icon-btn" title="Keyboard shortcuts (Ctrl+?)" data-icon="help"></button>
+    </div>
+  </header>
+
+  <!-- Three-pane content -->
+  <main class="panes" id="panes">
+
+    <!-- Pane 1: sources & filters -->
+    <aside class="pane sidebar">
+      <div class="pane-header">
+        <span class="caps">Sources &amp; Filters</span>
+        <button id="btn-sources" class="icon-btn push-right" title="Manage sources" data-icon="edit"></button>
+      </div>
+      <div class="sidebar-search">
+        <input id="source-filter" type="search" placeholder="Find a source or country…" spellcheck="false" autocomplete="off"
+               title="Matches source names and countries — e.g. “canada”, “bbc”, “uk sky”. Esc clears.">
+      </div>
+      <div class="scroll">
+        <div id="source-groups"></div>
+        <p id="source-filter-empty" class="muted pad" hidden>No sources match.</p>
+
+        <hr>
+        <div class="caps section-label">Include <span class="hint">(any match)</span></div>
+        <form class="tag-add" data-kind="Inclusions">
+          <input type="text" placeholder="Add keyword…" title="Type a keyword and press Enter or +">
+          <button class="icon-btn" type="submit" title="Add inclusion tag" data-icon="add"></button>
+        </form>
+        <ul class="tag-list" id="tags-Inclusions"></ul>
+
+        <hr>
+        <div class="caps section-label">Exclude <span class="hint">(any match)</span></div>
+        <form class="tag-add" data-kind="Exclusions">
+          <input type="text" placeholder="Add keyword…" title="Type a keyword and press Enter or +">
+          <button class="icon-btn" type="submit" title="Add exclusion tag" data-icon="add"></button>
+        </form>
+        <ul class="tag-list exclude" id="tags-Exclusions"></ul>
+
+        <hr>
+        <!-- target=_blank: the app opens it in the system browser (main.js window-open handler) -->
+        <a class="sidebar-logo" href="https://rethy.xyz" target="_blank" rel="noopener" title="rethy.xyz"><img src="assets/rethy.xyz-networks.png" alt="rethy.xyz networks" width="215" height="40"></a>
+        <p class="sidebar-footer"><span>© 2018-2026 <a href="https://rethy.xyz" target="_blank" rel="noopener">rethy.xyz</a> networks</span> | <span>All rights reserved.</span></p>
+      </div>
+    </aside>
+
+    <div class="splitter" data-col="1" title="Drag to resize"></div>
+
+    <!-- Pane 2: live feed / history -->
+    <section class="pane feed">
+      <div class="pane-header">
+        <div class="segmented compact" id="mode-switch" title="Ctrl+H switches">
+          <button data-mode="live" class="on" title="Live" aria-label="Live"><span class="live-dot"></span></button>
+          <button data-mode="history">History</button>
+        </div>
+        <div class="segmented compact" id="history-scope" hidden>
+          <button data-scope="opened" class="on" title="Articles you opened">Opened</button>
+          <button data-scope="all" title="Everything ever received">All stored</button>
+        </div>
+        <span id="feed-count" class="muted count"></span>
+        <button id="btn-autoscroll" class="icon-btn" title="Auto-scroll to top when new articles arrive" aria-label="Auto-scroll" data-icon="autoscroll"></button>
+        <button id="btn-group" class="toggle-btn" title="Group reports of the same story from different sources">Group</button>
+      </div>
+      <div class="search-bar">
+        <span id="place-chip" class="place-chip" hidden title="Only stories mentioning this place — click × to clear"><span id="place-chip-name"></span><button id="place-chip-clear" aria-label="Clear place filter" data-icon="close"></button></span>
+        <span id="source-chips" class="source-chips" hidden title="Right-click a source in the sidebar to add or remove it"></span>
+        <input id="search" type="search" placeholder="Search titles…  (Ctrl+F)">
+        <button id="btn-case" class="toggle-btn" title="Toggle case-sensitive search">aa</button>
+      </div>
+      <div id="feed-list" class="feed-list" tabindex="0" role="listbox" aria-label="Stories"></div>
+      <div id="feed-empty" class="feed-empty" hidden>Waiting for stories…</div>
+      <div id="history-list" class="feed-list" tabindex="0" role="listbox" aria-label="History" hidden></div>
+      <div id="history-empty" class="feed-empty" hidden></div>
+    </section>
+
+    <div class="splitter" data-col="3" title="Drag to resize"></div>
+
+    <!-- Pane 3: story viewer -->
+    <section class="pane story">
+      <div class="pane-header tabstrip">
+        <button id="btn-map" class="toggle-btn map-btn" title="Map of where the stories in the live list are happening (Ctrl+M)" aria-label="Map" data-icon="map"></button>
+        <div id="tabs" class="tabs"></div>
+      </div>
+      <div id="infobar" class="infobar" hidden>
+        <span class="nav-btns">
+          <button id="btn-back" class="icon-btn" title="Back (Alt+←)" aria-label="Back" disabled data-icon="back"></button>
+          <button id="btn-reload" class="icon-btn" title="Reload (Ctrl+R)" aria-label="Reload" data-icon="reload"></button>
+          <button id="btn-forward" class="icon-btn" title="Forward (Alt+→)" aria-label="Forward" disabled data-icon="forward"></button>
+        </span>
+        <span id="story-source" class="accent-badge"></span>
+        <span id="story-title" class="story-title"></span>
+        <!-- A new Telegram tab: a field where the title goes, until it is connected to a channel -->
+        <form id="tg-draft" class="tg-draft" hidden>
+          <input type="text" id="tg-channel" list="tg-channels" placeholder="Telegram channel — name or t.me link" spellcheck="false" autocomplete="off">
+          <datalist id="tg-channels"></datalist>
+          <button type="submit" class="toggle-btn small">Connect</button>
+        </form>
+        <div id="view-modes" class="segmented compact"></div>
+        <button id="btn-translate" class="toggle-btn">Translate</button>
+        <button id="btn-translate-stop" class="toggle-btn" title="Stop translating: ends the translation process right away" hidden>Stop</button>
+        <button id="save-state" class="save-state"></button>
+        <button id="btn-screenshot" class="icon-btn" title="Screenshot of the whole page (Ctrl+Shift+S): copied to the clipboard and saved as a picture" aria-label="Screenshot" data-icon="screenshot"></button>
+        <button id="btn-pin" class="icon-btn pin-btn" title="Pin tab" data-icon="pin"></button>
+        <button id="btn-copy" class="icon-btn" title="Copy link" data-icon="copy"></button>
+        <button id="btn-scratch-link" class="icon-btn" title="Add link to Scratchpad" aria-label="Add link to Scratchpad" data-icon="note-add"></button>
+        <button id="btn-open" class="icon-btn" title="Open in browser" data-icon="browser"></button>
+      </div>
+      <div id="story-notice" class="story-notice" hidden></div>
+      <div class="story-body">
+        <div id="load-bar" class="load-bar"></div>
+        <div id="webviews" class="webviews"></div>
+        <div id="fallback" class="fallback" hidden><p id="summary"></p></div>
+        <div id="help-view" class="help-view" hidden></div>
+        <div id="scratch-view" class="scratch-view" hidden></div>
+        <div id="map-view" class="map-view">
+          <div id="map-canvas"></div>
+          <div class="map-toolbar">
+            <div class="segmented compact" id="map-window" title="Only stories published within this window">
+              <button data-w="1h">1h</button><button data-w="6h">6h</button><button data-w="24h" class="on">24h</button><button data-w="All">All</button>
+            </div>
+            <span id="map-summary" class="muted"></span>
+          </div>
+          <div class="map-legend"><svg width="12" height="17" viewBox="-6 -16 12 17"><path d="M0 0C-1.2-3.6-5-6.2-5-10a5 5 0 0 1 10 0c0 3.8-3.8 6.4-5 10z" fill="var(--accent)"/><circle cy="-10" r="1.8"/></svg>a story, in its site's colour · faded = older · number = stories · click a cluster for the list</div>
+        </div>
+        <div id="story-empty" class="story-empty">
+          <div class="glyph">◎</div>
+          <div>Middle-click or double-click a story to open it</div>
+          <div class="muted">Ctrl + Click to open in browser · opened articles are saved for offline reading</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pane 4: live chat (Twitch / destiny.gg), toggled from the toolbar -->
+    <div class="splitter chat-splitter" data-col="5" title="Drag to resize"></div>
+    <aside class="pane chat" id="chat-pane">
+      <div class="pane-header chat-head">
+        <div id="chat-tabs" class="chat-tabs"></div>
+        <button id="chat-add-btn" class="icon-btn small" title="Add a chat" data-icon="add"></button>
+        <button id="chat-reload" class="icon-btn small" title="Reload this chat" data-icon="reload"></button>
+      </div>
+      <div id="chat-add" class="chat-add" hidden>
+        <!-- Row 1: what kind of chat. Row 2: the details that kind needs (none for destiny.gg). -->
+        <div class="chat-types">
+          <button type="button" id="chat-type-twitch" class="toggle-btn small" title="Add a Twitch channel's chat">Twitch</button>
+          <button type="button" id="chat-type-kick" class="toggle-btn small" title="Add a Kick channel's chat">Kick</button>
+          <button type="button" id="chat-type-dgg" class="toggle-btn small" title="Show / hide the destiny.gg chat">destiny.gg</button>
+          <button type="button" id="chat-type-irc" class="toggle-btn small" title="Join an IRC room anonymously">IRC</button>
+        </div>
+        <form id="chat-add-twitch" class="chat-add-form" hidden>
+          <input type="text" id="chat-add-input" placeholder="Twitch channel — name or link" spellcheck="false" autocomplete="off">
+          <button type="submit" class="toggle-btn small">Add</button>
+        </form>
+        <form id="chat-add-kick" class="chat-add-form" hidden>
+          <input type="text" id="chat-add-kick-input" placeholder="Kick channel — name or link" spellcheck="false" autocomplete="off">
+          <button type="submit" class="toggle-btn small">Add</button>
+        </form>
+        <form id="chat-add-irc" class="chat-add-form" hidden>
+          <input type="text" id="chat-irc-server" placeholder="Server — irc.libera.chat" spellcheck="false" autocomplete="off"
+                 title="Host name, optionally with a port (irc.example.org:6697). Encrypted by default; irc://host:6667 for plain text.">
+          <input type="text" id="chat-irc-room" placeholder="Room — #linux" spellcheck="false" autocomplete="off">
+          <button type="submit" class="toggle-btn small" title="Connect anonymously, without logging in">Connect</button>
+        </form>
+      </div>
+      <div id="chat-views" class="chat-views">
+        <p id="chat-empty" class="chat-empty" hidden>No chats yet — add a Twitch channel, destiny.gg or an IRC room above.<br>(Also in <a href="#" id="chat-settings">Settings → General → Live chat</a>.)</p>
+      </div>
+      <!-- Split: Twitch / Kick / YouTube streams below the chat, as tabs (chat.js) -->
+      <div id="video-splitter" class="video-splitter" title="Drag to resize" hidden></div>
+      <section id="video-pane" class="video-pane" hidden>
+        <div class="pane-header chat-head">
+          <div id="video-tabs" class="chat-tabs"></div>
+          <span class="video-vol">
+            <button type="button" id="video-mute" class="icon-btn small" title="Mute / unmute the streams" aria-label="Mute" data-icon="volume-2"></button>
+            <input type="range" id="video-volume" min="0" max="100" step="1" value="100" title="Volume" aria-label="Stream volume">
+          </span>
+          <button type="button" id="video-add-btn" class="icon-btn small" title="Watch a stream" data-icon="add"></button>
+          <button type="button" id="video-reload" class="icon-btn small" title="Reload this stream" data-icon="reload"></button>
+        </div>
+        <!-- Same as the chat's plus: row 1 is the site, row 2 the channel -->
+        <div id="video-add" class="chat-add" hidden>
+          <div class="chat-types">
+            <button type="button" class="toggle-btn small" data-site="twitch" title="Watch a Twitch channel">Twitch</button>
+            <button type="button" class="toggle-btn small" data-site="kick" title="Watch a Kick channel">Kick</button>
+            <button type="button" class="toggle-btn small" data-site="youtube" title="Watch a YouTube channel's live stream">YouTube</button>
+            <button type="button" class="toggle-btn small" data-site="direct" title="Play a direct link to a video file (.mp4, .webm …) in the built-in video player">Direct</button>
+          </div>
+          <form id="video-form" class="chat-add-form" hidden>
+            <input type="text" id="video-channel" spellcheck="false" autocomplete="off">
+            <button type="submit" class="toggle-btn small">Watch</button>
+          </form>
+        </div>
+        <div id="video-view" class="video-view">
+          <p id="video-empty" class="chat-empty">Press <span class="inline-icon" data-icon="add"></span> to pick a Twitch, Kick or YouTube stream to watch here.</p>
+        </div>
+      </section>
+    </aside>
+
+  </main>
+
+  <!-- Settings overlay -->
+  <div id="settings-overlay" class="overlay" hidden>
+    <div class="backdrop" data-close></div>
+    <aside class="settings-panel" role="dialog" aria-label="Settings">
+      <div class="pane-header">
+        <span class="caps">Settings</span>
+        <button class="icon-btn close" data-close title="Close (Esc)" data-icon="close"></button>
+      </div>
+      <nav id="settings-tabs" class="settings-tabs">
+        <button data-tab="general" class="on">General</button>
+        <button data-tab="sources">Sources</button>
+        <button data-tab="accounts">Accounts</button>
+        <button data-tab="storage">Storage</button>
+      </nav>
+
+      <div class="scroll settings-body settings-page" data-page="general">
+        <h3>Appearance</h3>
+        <label class="field">Font family
+          <select data-setting="FontFamily">
+            <option>Segoe UI</option><option>Calibri</option><option>Arial</option>
+            <option>Verdana</option><option>Tahoma</option><option>Times New Roman</option>
+            <option>Georgia</option><option>Consolas</option><option>Courier New</option>
+          </select>
+        </label>
+        <label class="field range">Font size <output data-for="FontSize"></output>
+          <input type="range" data-setting="FontSize" min="10" max="18" step="1">
+        </label>
+        <div class="field">Feed density
+          <div class="segmented" data-setting="FeedDensity">
+            <button data-value="0">Compact</button>
+            <button data-value="1">Normal</button>
+            <button data-value="2">Comfortable</button>
+          </div>
+        </div>
+        <label class="field switch">Show source badges
+          <input type="checkbox" data-setting="ShowSourceBadge"><span class="track"></span>
+        </label>
+        <label class="field switch">Scrollable tabs
+          <small>Keeps story, live-chat and video tabs at a readable width and scrolls the strip (scrollbar, mouse wheel) instead of squeezing them to fit.</small>
+          <input type="checkbox" data-setting="ScrollableTabs"><span class="track"></span>
+        </label>
+        <label class="field switch">Show the <span class="inline-icon" data-icon="chan"></span> 4chan button
+          <small>Opens /pol/ as a tab. Hiding it leaves any open 4chan tabs open.</small>
+          <input type="checkbox" data-setting="ShowChanButton"><span class="track"></span>
+        </label>
+        <label class="field range">Story descriptions <output data-for="DescriptionLength"></output>
+          <small>The feed's own summary under each headline, cut to this many characters.</small>
+          <input type="range" data-setting="DescriptionLength" min="0" max="400" step="20">
+        </label>
+
+        <h3>Feed behaviour</h3>
+        <label class="field range">Refresh interval (RSS) <output data-for="RefreshIntervalSeconds"></output>
+          <input type="range" data-setting="RefreshIntervalSeconds" min="5" max="300" step="5">
+        </label>
+        <label class="field range">Max article age <output data-for="MaxArticleAgeHours"></output>
+          <input type="range" data-setting="MaxArticleAgeHours" min="0" max="168" step="6">
+        </label>
+        <label class="field range">Max items in live feed <output data-for="MaxFeedItems"></output>
+          <input type="range" data-setting="MaxFeedItems" min="100" max="5000" step="100">
+        </label>
+        <label class="field switch">Always open in browser
+          <input type="checkbox" data-setting="AlwaysOpenInBrowser"><span class="track"></span>
+        </label>
+        <label class="field switch">Group reports of the same story
+          <input type="checkbox" data-setting="GroupStories"><span class="track"></span>
+        </label>
+
+        <h3>Translation</h3>
+        <label class="field switch">Translate non-English headlines to English automatically
+          <small>Runs entirely on your computer. Models download from Hugging Face the first time each language appears (~75 MB each).</small>
+          <input type="checkbox" data-setting="TranslateEnabled"><span class="track"></span>
+        </label>
+        <label class="field switch">Use the large model for other languages
+          <small>Meta NLLB-200 (~1 GB, a few seconds per item) covers Hebrew, Persian, Urdu, Greek and more.</small>
+          <input type="checkbox" data-setting="TranslateLargeModel"><span class="track"></span>
+        </label>
+        <p id="translate-progress" class="help" hidden></p>
+        <div class="field">Stop all translation
+          <small>Ends the translation process right away, which frees the CPU and memory it was using. Headline translation stays paused until you translate an article or toggle the setting above.</small>
+          <button id="btn-translate-stop-all" class="toggle-btn">Stop</button>
+        </div>
+
+        <h3>Live chat</h3>
+        <label class="field">Twitch channels
+          <small>Comma-separated channel names, e.g. <i>destiny, hasanabi</i>. Each gets a tab in the chat panel (Ctrl+J).</small>
+          <input type="text" data-setting="ChatTwitchChannels" placeholder="channel, channel…" spellcheck="false">
+        </label>
+        <label class="field">Kick channels
+          <small>Comma-separated channel names, e.g. <i>xqc, destiny</i>. Each gets a tab in the chat panel, using Kick's chat embed (chat.kick.cx).</small>
+          <input type="text" data-setting="ChatKickChannels" placeholder="channel, channel…" spellcheck="false">
+        </label>
+        <label class="field switch">destiny.gg chat
+          <small>The destiny.gg chat embed (read-only, as a guest).</small>
+          <input type="checkbox" data-setting="ChatDestiny"><span class="track"></span>
+        </label>
+        <label class="field">IRC rooms
+          <small>Comma-separated, e.g. <i>ircs://irc.libera.chat:6697/#linux</i> (<i>irc://</i> is unencrypted). Joined anonymously, read-only. Easier from <span class="inline-icon" data-icon="add"></span> in the chat panel.</small>
+          <input type="text" data-setting="ChatIrc" placeholder="ircs://server/#room, …" spellcheck="false">
+        </label>
+
+        <h3>Article viewer</h3>
+        <label class="field range">Zoom <output data-for="WebViewZoom"></output>
+          <input type="range" data-setting="WebViewZoom" min="0.5" max="2" step="0.05">
+        </label>
+        <div class="field">Screenshot folder
+          <small>Where <span class="inline-icon" data-icon="screenshot"></span> (Ctrl+Shift+S) saves its pictures of whole pages. Each one is also copied to the clipboard.</small>
+          <span class="folder-pick">
+            <span id="screenshot-folder" class="folder-path"></span>
+            <button type="button" id="btn-screenshot-folder" class="toggle-btn small">Change…</button>
+            <button type="button" id="btn-screenshot-folder-reset" class="link-btn" title="Save to your Pictures folder">Use Pictures</button>
+          </span>
+        </div>
+
+        <h3>Polling</h3>
+        <label class="field range">Source stagger delay <output data-for="SourceStaggerMs"></output>
+          <small>Takes effect on next restart</small>
+          <input type="range" data-setting="SourceStaggerMs" min="0" max="2000" step="100">
+        </label>
+
+        <h3>Logs</h3>
+        <label class="field range">Session log retention <output data-for="LogRetentionCount"></output>
+          <input type="range" data-setting="LogRetentionCount" min="5" max="50" step="5">
+        </label>
+        <label class="field switch">Debug logging
+          <input type="checkbox" data-setting="DebugLogging"><span class="track"></span>
+        </label>
+        <p class="log-path" id="log-path"></p>
+      </div>
+
+      <div class="scroll settings-body settings-page" data-page="sources" id="sources-page" hidden></div>
+      <div class="scroll settings-body settings-page" data-page="accounts" id="accounts-page" hidden></div>
+
+      <div class="scroll settings-body settings-page" data-page="storage" hidden>
+        <h3>Saved data</h3>
+        <div id="storage-stats"></div>
+        <label class="field range">Keep saved pages for <output data-for="SnapshotRetentionDays"></output>
+          <small>Older full-page copies are deleted; their clean text stays searchable forever.</small>
+          <input type="range" data-setting="SnapshotRetentionDays" min="0" max="365" step="15">
+        </label>
+        <div class="storage-actions">
+          <button id="btn-open-data" class="primary-btn">Open data folder</button>
+          <button id="btn-clear-articles" class="primary-btn danger"
+                  title="Delete every saved page and its text (stories stay in the feed and history)">Clear articles</button>
+          <button id="btn-clear-models" class="primary-btn danger"
+                  title="Delete the downloaded translation models (they download again when you next translate)">Clear models</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

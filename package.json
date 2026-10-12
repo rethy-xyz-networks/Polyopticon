@@ -1,0 +1,42 @@
+{
+  "name": "polyopticon",
+  "productName": "Polyopticon",
+  "version": "2.0.0",
+  "description": "One screen for every source of a developing story: news feeds, wires, Telegram, Bluesky and live chat in one desktop app",
+  "main": "src/main/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node --test \"tests/unit/**/*.test.js\"",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report",
+    "dist": "electron-builder --win portable",
+    "test:perf": "playwright test --config playwright.perf.config.js"
+  },
+  "build": {
+    "appId": "com.polyopticon.newsmonitor",
+    "productName": "Polyopticon",
+    "files": [
+      "src/**",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable"
+    }
+  },
+  "dependencies": {
+    "@ghostery/adblocker-electron": "^2.18.2",
+    "@ghostery/adblocker-electron-preload": "^2.18.2",
+    "@huggingface/transformers": "^4.3.0",
+    "@mozilla/readability": "^0.6.0",
+    "fast-xml-parser": "^5.11.2",
+    "leaflet": "^1.9.4",
+    "telegram": "^2.26.22"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}
