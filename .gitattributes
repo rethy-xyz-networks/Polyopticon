@@ -1,0 +1,14 @@
+# Normalise text files to LF in the repository; Windows checkouts get CRLF as configured.
+* text=auto
+*.js     text eol=lf
+*.json   text eol=lf
+*.css    text eol=lf
+*.html   text eol=lf
+*.md     text eol=lf
+
+# Binary assets
+*.gif    binary
+*.png    binary
+*.ico    binary
+*.geojson -diff linguist-generated
+src/main/enrich/gazetteer.json -diff linguist-generated
