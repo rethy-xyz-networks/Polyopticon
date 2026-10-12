@@ -114,7 +114,7 @@ The buttons, from left to right:
 
 ## Sources & Filters View
 
-<img src="docs/screenshots/02.png>
+<img src="docs/screenshots/02.png">
 
 The sidebar on the left. The **edit** button in its header opens Settings → Sources, where sources are added and edited.
 
