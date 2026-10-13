@@ -22,7 +22,7 @@ const VERSION = '1.1.300';
 const SVG = name => `https://cdn.jsdelivr.net/npm/@fluentui/svg-icons@${VERSION}/icons/${name}_20_regular.svg`;
 const LICENSE = 'https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/LICENSE';
 
-// App name → Fluent icon name
+// App name -> Fluent icon name
 const ICONS = {
   refresh:          'arrow_sync',
   chat:             'chat',

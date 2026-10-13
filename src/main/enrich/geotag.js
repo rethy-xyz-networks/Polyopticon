@@ -14,7 +14,7 @@
 // 3. Ambiguous names (Georgia, Tripoli, Hyderabad) take the candidate that best fits
 //    the other places in the text and the source's home country, then the larger one.
 // 4. Selection: the title decides. Places it names are kept, and the summary only adds
-//    places inside them (Russia → Irkutsk). With no place in the title, summary places
+//    places inside them (Russia -> Irkutsk). With no place in the title, summary places
 //    in the title's actor countries come first ("Ukrainian drones…" + "a data center in
 //    Vladimir"), then other summary places, then the actor countries, then the dateline.
 //    A country is dropped when a place inside it is kept.
@@ -29,7 +29,7 @@ const SUMMARY_CHARS = 400;
 const norm = s => s.toLowerCase().replace(/’/g, "'");
 const key  = s => norm(s).replace(/-/g, ' ');      // the tokenizer splits on hyphens
 
-/** name → candidates, with hyphenated names (Rostov-on-Don) under their spaced form. */
+/** name -> candidates, with hyphenated names (Rostov-on-Don) under their spaced form. */
 function nameMap(obj) {
   const map = new Map();
   for (const [k, v] of Object.entries(obj ?? {})) map.set(key(k), [...new Set([...(map.get(key(k)) ?? []), ...v])]);
@@ -177,7 +177,7 @@ function gdeltMentions(summary) {
     const cc = country != null ? places[country][3] : null;
     const inCountry = name => (lookup(name) ?? []).filter(i => places[i][2] !== 'country' && (cc == null || places[i][3] === cc || !places[i][3]));
     const region = name => (lookup(name) ?? []).filter(i => places[i][2] === 'region');   // GDELT files Gaza under Israel
-    // The middle part is a province; only take it when it's one we know as a state (not Kerman province → Kerman city).
+    // The middle part is a province; only take it when it's one we know as a state (not Kerman province -> Kerman city).
     const state = name => inCountry(name).filter(i => places[i][2] === 'state');
     const hit = [inCountry(parts[0]), region(parts[0]), parts.length > 2 ? state(parts[1]) : []].find(h => h.length) ?? [];
     if (hit.length) out.push({ ...at, phrase: norm(parts[0]), cands: hit });
@@ -189,7 +189,7 @@ function gdeltMentions(summary) {
 // Resolution
 
 function resolve(all, homeCc) {
-  const strong = new Map();                 // cc → mentions placing something there
+  const strong = new Map();                 // cc -> mentions placing something there
   const actorCcs = new Set();
   const addStrong = cc => cc && strong.set(cc, (strong.get(cc) ?? 0) + 1);
   for (const m of all) {
@@ -242,7 +242,7 @@ function select(title, summary, dateline, homeCc) {
 
   let chosen;
   if (tNames.length) {
-    // The summary only refines a country or region the title names (Russia → Irkutsk, Scotland →
+    // The summary only refines a country or region the title names (Russia -> Irkutsk, Scotland ->
     // Glasgow). Not with a capital: "Moscow" or "Beijing" in a summary usually means the government.
     const areas = new Set(tNames.filter(i => isCountry(i) || kindOf(i) === 'region').map(ccOf).filter(Boolean));
     chosen = [...tNames, ...sNames.filter(i => !isCountry(i) && kindOf(i) !== 'capital' && areas.has(ccOf(i)))];
@@ -256,7 +256,7 @@ function select(title, summary, dateline, homeCc) {
       actorCount.set(m.actor, (actorCount.get(m.actor) ?? 0) + (m.seg === 'title' ? 2 : 1));
     }
     const topActor = Math.max(0, ...actorCount.values());
-    // Places inside the countries the title's actor words point at ("Ukrainian drones…" → Vladimir)
+    // Places inside the countries the title's actor words point at ("Ukrainian drones…" -> Vladimir)
     const inActors = [...sNames, ...dNames].filter(i => !isCountry(i) && titleActors.has(ccOf(i)));
     chosen = inActors.length ? inActors
       : sNames.length ? dominant(summary)

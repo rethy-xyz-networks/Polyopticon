@@ -21,9 +21,9 @@ const folderFor = setting => (typeof setting === 'string' && setting.trim()) || 
 
 // Runs in the page, in calls that return at once: saved pages run without timers or animation
 // frames, so all the waiting is done here in the main process.
-// start(): lazy images load eagerly; → the scroll height. pending(): images still loading.
-// prepare(): the scrollbar and smooth scrolling go away, sticky bars stay put; → the sizes to capture.
-// at(y): scrolls there; → where it actually got to. hideFixed(): fixed bars (site headers,
+// start(): lazy images load eagerly; -> the scroll height. pending(): images still loading.
+// prepare(): the scrollbar and smooth scrolling go away, sticky bars stay put; -> the sizes to capture.
+// at(y): scrolls there; -> where it actually got to. hideFixed(): fixed bars (site headers,
 // cookie banners) are hidden for the remaining screens. restore(): everything as it was.
 const PAGE_SCRIPT = `window.__polyShot = {
   el: document.scrollingElement || document.documentElement,
@@ -119,7 +119,7 @@ async function capturePage(wc) {
 
 /**
  * Screenshot of a page: copied to the clipboard and saved as a PNG.
- * → { ok: true, file, width, height, truncated } or { ok: false, error }
+ * -> { ok: true, file, width, height, truncated } or { ok: false, error }
  */
 async function take(wc, { title, folder } = {}) {
   const started = Date.now();
@@ -134,7 +134,7 @@ async function take(wc, { title, folder } = {}) {
     fs.mkdirSync(dir, { recursive: true });
     const file = uniquePath(dir, fileName(title));
     fs.writeFileSync(file, png);
-    log.info(`Screenshot: ${width}×${height}${truncated ? ' (cut off: page too tall)' : ''} in ${Date.now() - started} ms → ${file}`);
+    log.info(`Screenshot: ${width}×${height}${truncated ? ' (cut off: page too tall)' : ''} in ${Date.now() - started} ms -> ${file}`);
     return { ok: true, file, width, height, truncated };
   } catch (e) {
     log.warn(`Screenshot failed: ${e.message}`);

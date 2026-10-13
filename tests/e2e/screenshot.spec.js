@@ -2,7 +2,7 @@
 
 // 📸 screenshots: the whole page shown in the article area — a story in Live, Saved page and
 // Reader view, and a 4chan / Telegram tab — copied to the clipboard and saved as a PNG in the
-// screenshot folder (Settings → Article viewer). A local server supplies a tall article.
+// screenshot folder (Settings -> Article viewer). A local server supplies a tall article.
 
 const fs = require('fs');
 const os = require('os');
@@ -72,7 +72,7 @@ async function openStory(window) {
   await expect(window.locator('#btn-screenshot')).toBeEnabled({ timeout: 15_000 });
 }
 
-/** Takes a screenshot with the button; → the new file's path. */
+/** Takes a screenshot with the button; -> the new file's path. */
 async function shoot(window) {
   const before = new Set(pngs());
   const added = () => pngs().filter(f => !before.has(f));

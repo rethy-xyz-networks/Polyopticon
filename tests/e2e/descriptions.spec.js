@@ -63,7 +63,7 @@ test('the setting changes the length of rows already shown, and 0 turns descript
   await expect(window.locator('#feed-list .item', { hasText: 'Talks to resume' })).toBeVisible();
 });
 
-test('the setting is in Settings → Appearance and shows its value', async ({ window }) => {
+test('the setting is in Settings -> Appearance and shows its value', async ({ window }) => {
   await window.locator('#btn-settings').click();
   const out = window.locator('output[data-for="DescriptionLength"]');
   await expect(out).toHaveText('160 characters');

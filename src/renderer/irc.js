@@ -5,9 +5,9 @@
 import { api, h } from './dom.js';
 
 const MAX_LINES = 500;
-const views = new Map();           // chat key → view
+const views = new Map();           // chat key -> view
 
-/** What the user typed → canonical "ircs://host:port/#room" (null if it can't be one). */
+/** What the user typed -> canonical "ircs://host:port/#room" (null if it can't be one). */
 export function parseIrcInput(server, room) {
   const m = /^(?:(ircs?):\/\/)?([a-z0-9.-]+)(?::(\d{1,5}))?\/?$/i.exec(String(server).trim());
   if (!m) return null;
@@ -21,7 +21,7 @@ export function parseIrcInput(server, room) {
   return `${secure ? 'ircs' : 'irc'}://${m[2].toLowerCase()}:${port ?? (secure ? 6697 : 6667)}/${channel}`;
 }
 
-/** "ircs://irc.libera.chat:6697/#linux" → { spec, host, room } for the chat list; null if it isn't one. */
+/** "ircs://irc.libera.chat:6697/#linux" -> { spec, host, room } for the chat list; null if it isn't one. */
 export function parseIrcSpec(spec) {
   const m = /^ircs?:\/\/([a-z0-9.-]+)(?::\d+)?\/?([#&+!].+)$/i.exec(String(spec).trim());
   return m ? { spec: spec.trim(), host: m[1].toLowerCase(), room: m[2] } : null;
@@ -43,20 +43,20 @@ const clock = at => new Date(at).toLocaleTimeString([], { hour: '2-digit', minut
 function eventLine(ev) {
   const who = n => h('span', { class: 'irc-nick', style: `color:${nickColor(n)}` }, n);
   const why = r => (r ? ` (${plain(r)})` : '');
-  let mark = '→', body;
+  let mark = '->', body;
   switch (ev.kind) {
     case 'join': body = [who(ev.nick), ` joined${ev.host ? ` (${ev.host})` : ''}`]; break;
-    case 'part': mark = '←'; body = [who(ev.nick), ` left${why(ev.reason)}`]; break;
-    case 'quit': mark = '←'; body = [who(ev.nick), ` quit${why(ev.reason)}`]; break;
+    case 'part': mark = '<-'; body = [who(ev.nick), ` left${why(ev.reason)}`]; break;
+    case 'quit': mark = '<-'; body = [who(ev.nick), ` quit${why(ev.reason)}`]; break;
     case 'kick': mark = '✕'; body = [who(ev.target), ' was kicked by ', who(ev.nick), why(ev.reason)]; break;
-    case 'nick': mark = '↔'; body = [who(ev.nick), ' is now known as ', who(ev.newNick)]; break;
+    case 'nick': mark = '<->'; body = [who(ev.nick), ' is now known as ', who(ev.newNick)]; break;
     case 'topic': mark = '✎'; body = [who(ev.nick), ` changed the topic to: ${plain(ev.text)}`]; break;
     default: return h('div');
   }
   return h('div', { class: 'irc-line event' }, h('span', { class: 'irc-time' }, clock(ev.at)), h('span', { class: 'irc-mark' }, mark), ...body);
 }
 
-/** Creates the view for a chat tab and starts its connection. → { el, reload, destroy } */
+/** Creates the view for a chat tab and starts its connection. -> { el, reload, destroy } */
 export function createIrcView(chat) {
   const status = h('div', { class: 'irc-status' });
   const log = h('div', { class: 'irc-log' });

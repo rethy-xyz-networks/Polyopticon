@@ -15,7 +15,7 @@ const HOT_CPU = 60;              // % of one core…
 const HOT_SAMPLES = 2;           // …for this many samples in a row (20 s) is worth a line
 const REPEAT_MS = 2 * 60_000;    // then at most one line per process every 2 minutes
 
-const hot = new Map();           // pid → { count, lastLogged }
+const hot = new Map();           // pid -> { count, lastLogged }
 
 /** What a process is, for a log line: "app window", "page https://…", "utility (feed worker)". */
 function describe(proc, pages) {

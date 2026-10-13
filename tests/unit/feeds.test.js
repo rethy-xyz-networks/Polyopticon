@@ -77,7 +77,7 @@ test('hash is stable and prefixed', () => {
 test('parseDate: common feed formats, all as UTC', () => {
   const t = Date.UTC(2026, 9, 5, 9, 30);
   assert.equal(parseDate('2026-10-05T09:30:00Z'), t);
-  assert.equal(parseDate('2026-10-05T09:30:00'), t);          // no zone → UTC, not local
+  assert.equal(parseDate('2026-10-05T09:30:00'), t);          // no zone -> UTC, not local
   assert.equal(parseDate('2026-10-05 09:30:00'), t);
   assert.equal(parseDate('20261005093000'), t);               // GDELT
   assert.equal(parseDate('Mon, 05 Oct 2026 05:30:00 EDT'), t);

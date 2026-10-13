@@ -19,7 +19,7 @@ import { initScratch, focusScratch, flushScratch, appendToScratch } from './scra
 // recently used few stay alive; older ones are discarded and reload on return.
 const MAX_LIVE_VIEWS = 3;
 const CAPTURE_DELAY_MS = 3000;
-// Chromium net errors that mean "can't reach the site" → fall back to the saved copy.
+// Chromium net errors that mean "can't reach the site" -> fall back to the saved copy.
 const OFFLINE_ERRORS = new Set([-7, -21, -100, -101, -102, -104, -105, -106, -109, -118, -130, -137, -324]);
 
 const MODE_LABEL = { live: 'Live', page: 'Saved page', reader: 'Reader' };
@@ -409,7 +409,7 @@ export function onSnapshotSaved(info) {
   if (tab) { tab.snap = info; if (tab.id === state.activeTabId) renderInfobar(); }
 }
 
-/** All saved articles were deleted (Settings → Storage). */
+/** All saved articles were deleted (Settings -> Storage). */
 export function onSnapshotsCleared() {
   unmarkAllSaved();
   for (const tab of state.tabs) if (tab.snap) tab.snap = { itemId: tab.id, saved: false };

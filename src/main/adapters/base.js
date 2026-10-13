@@ -23,7 +23,7 @@ function backoffMs(intervalMs, failures) {
 class Adapter {
   /**
    * @param source  row from the sources table
-   * @param ctx     { ingest(source, items) → added[], status(source, label, isError), log, credentials, intervalMs(source, meta) }
+   * @param ctx     { ingest(source, items) -> added[], status(source, label, isError), log, credentials, intervalMs(source, meta) }
    */
   constructor(source, ctx) {
     this.source    = source;

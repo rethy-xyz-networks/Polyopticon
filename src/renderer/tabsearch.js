@@ -1,6 +1,6 @@
 // Tab search (Ctrl+Shift+A), like Brave's: a box under the tab strip of the area last
 // clicked (articles, live chat or streams) listing that area's open tabs, the current
-// one first. Type to filter by title or site; ↑ / ↓ move the highlight, Enter or a
+// one first. Type to filter by title or site; Up / Down move the highlight, Enter or a
 // click switches to the highlighted tab, × closes a tab, Esc or a click elsewhere
 // closes the box. With nothing typed the highlight starts on the second tab, so
 // Ctrl+Shift+A, Enter goes back to the previous one.
@@ -30,7 +30,7 @@ export function openTabSearch({ anchor, title, tabs, select, close }) {
   box = h('div', { class: 'tab-search', role: 'dialog', 'aria-label': `Search ${title.toLowerCase()}` },
     h('div', { class: 'tab-search-head' }, h('b', {}, title), count),
     input, list,
-    h('div', { class: 'tab-search-hint muted' }, '↑ ↓ move · Enter switches · Esc closes'));
+    h('div', { class: 'tab-search-hint muted' }, 'Up / Down move · Enter switches · Esc closes'));
 
   const choose = e => { closeTabSearch(); select(e.key); };
   const paintHighlight = () => {

@@ -1,6 +1,6 @@
 'use strict';
 
-// Offline machine translation (→ English) in its own utility process, using
+// Offline machine translation (-> English) in its own utility process, using
 // transformers.js + ONNX Runtime on the CPU. Models download from Hugging Face
 // on first use and are cached in %LocalAppData%\Polyopticon\models.
 //
@@ -42,8 +42,8 @@ const NLLB_IDLE_MS = 10 * 60_000; // unload the big model after 10 idle minutes
 let tf = null;
 let cacheDir = null;
 let options = { allowLarge: true };
-const loaded = new Map();         // model id → { pipe, lastUsed }
-const loading = new Map();        // model id → Promise
+const loaded = new Map();         // model id -> { pipe, lastUsed }
+const loading = new Map();        // model id -> Promise
 const queue = [];                 // { id, lang, texts, priority }
 let busy = false;
 let nllbTimer = null;
@@ -64,7 +64,7 @@ async function getPipe(model, tag) {
     tf.env.allowLocalModels = false;
     const started = Date.now();
     // A model is several files (encoder, decoder, tokenizer…): report their combined progress, not each file's.
-    const files = new Map();                                   // file → { loaded, total }
+    const files = new Map();                                   // file -> { loaded, total }
     let lastPct = -1, sentLoading = false;
     const pipe = await tf.pipeline('translation', `Xenova/${model}`, {
       dtype: 'q8',

@@ -97,7 +97,7 @@ test('4chan tabs run on a memory-only session (no cookies or cache on disk)', as
   expect(opened).toEqual([null]);
 });
 
-test('the 🍀 button can be turned off in Settings → General, and the choice is saved', async ({ window, dataDir }) => {
+test('the 🍀 button can be turned off in Settings -> General, and the choice is saved', async ({ window, dataDir }) => {
   const btn = window.locator('#btn-chan');
   await expect(btn).toBeVisible();
   await window.locator('#btn-settings').click();

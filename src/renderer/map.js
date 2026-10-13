@@ -25,7 +25,7 @@ const PLACES_LISTED = 10;        // places named in a merged cluster's header
 
 let map = null;
 let world = null;            // GeoJSON country layer
-let markers = new Map();     // cluster anchor place key → marker
+let markers = new Map();     // cluster anchor place key -> marker
 let markerLayer = null;
 let windowMs = 24 * 3600e3;
 let dirty = true;

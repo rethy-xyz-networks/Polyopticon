@@ -38,8 +38,8 @@ test('detectLang: defaults to English when unsure, null when empty', () => {
 test('tokens: drops stop words, links and short words; stems plurals and -ing', () => {
   const t = tokens('Missile strikes hit Kyiv as officials say attacks are striking power plants reut.rs/4hZzTaC');
   assert.ok(t.has('missile'));
-  assert.ok(t.has('strike'));          // strikes → strike
-  assert.ok(t.has('strik'));           // striking → strik (light stemmer)
+  assert.ok(t.has('strike'));          // strikes -> strike
+  assert.ok(t.has('strik'));           // striking -> strik (light stemmer)
   assert.ok(t.has('kyiv'));
   assert.ok(t.has('plant'));
   assert.ok(!t.has('as') && !t.has('are') && !t.has('say'));

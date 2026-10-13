@@ -220,7 +220,7 @@ test('Ctrl+V shows and hides the video player, but pastes as usual in a text box
   await expect(btn).not.toHaveClass(/\bon\b/);                      // typing: left to paste
 });
 
-test('the stream split works like the chat: plus → Twitch / Kick / YouTube buttons → a field below', async ({ window }) => {
+test('the stream split works like the chat: plus -> Twitch / Kick / YouTube buttons -> a field below', async ({ window }) => {
   await window.locator('#chat-video-btn').click();
   const add = window.locator('#video-add'), input = window.locator('#video-channel'), plus = window.locator('#video-add-btn');
   await expect(add).toBeVisible();                                   // nothing chosen yet: the buttons are already open

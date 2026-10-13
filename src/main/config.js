@@ -1,11 +1,11 @@
 'use strict';
 
 // Sources written to the database on first run. After that, sources are
-// managed in Settings → Sources and live in the `sources` table.
+// managed in Settings -> Sources and live in the `sources` table.
 
 const rss = (name, category, url, color) => ({ type: 'rss', name, category, color, config: { url } });
 
-// Country groups, in sidebar order (regions roughly west → east). `since: 2`
+// Country groups, in sidebar order (regions roughly west -> east). `since: 2`
 // marks sources added after the first release: they're added once to existing
 // databases too (unless a source with the same name is already there).
 const SEED_GROUPS = [

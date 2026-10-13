@@ -1,6 +1,6 @@
 // Remembered entries for a text field (the live chat and stream fields): a list under the
 // field with what was entered before, newest first, narrowed to what's typed. Each entry
-// has a ✕ to forget it. ↑ / ↓ pick an entry, Enter uses it, Shift+Delete forgets it.
+// has a ✕ to forget it. Up / Down pick an entry, Enter uses it, Shift+Delete forgets it.
 // Kept in ui.fieldHistory = { [key]: [value, …] }.
 
 import { h } from './dom.js';

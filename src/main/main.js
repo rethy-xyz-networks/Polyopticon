@@ -38,7 +38,7 @@ const DB_PATH           = renamedFile(path.join(DATA_DIR, 'polyopticon.db'), ['i
 function renamedDir(dir) {
   const old = ['ItsOver', 'ItsJoever'].map(n => path.join(path.dirname(dir), n)).find(fs.existsSync);
   if (fs.existsSync(dir) || !old) return dir;
-  try { fs.renameSync(old, dir); migrated.push(`${old} → ${dir}`); return dir; }
+  try { fs.renameSync(old, dir); migrated.push(`${old} -> ${dir}`); return dir; }
   catch (e) { migrated.push(`could not move ${old} (${e.code || e.message}) — using it as is`); return old; }
 }
 function renamedFile(file, oldNames, suffixes) {
@@ -46,7 +46,7 @@ function renamedFile(file, oldNames, suffixes) {
   if (fs.existsSync(file) || !old) return file;
   try {
     for (const x of suffixes) if (fs.existsSync(old + x)) fs.renameSync(old + x, file + x);
-    migrated.push(`${old} → ${file}`);
+    migrated.push(`${old} -> ${file}`);
     return file;
   } catch (e) { migrated.push(`could not rename ${old} (${e.code || e.message}) — using it as is`); return old; }
 }
@@ -74,7 +74,7 @@ const isWebUrl = u => typeof u === 'string' && /^https?:\/\//i.test(u);
 
 function openExternal(url) {
   if (!isWebUrl(url)) return;
-  log.info(`Open in browser → ${url}`);
+  log.info(`Open in browser -> ${url}`);
   shell.openExternal(url).catch(e => log.warn(`openExternal failed: ${e.message}`));
 }
 
@@ -99,7 +99,7 @@ function seedSources() {
     // Renames first, so a renamed source isn't added again under its new name.
     for (const r of RENAMED.filter(r => r.since > rev)) {
       const s = db.listSources().find(x => x.name === r.from && x.config?.url === r.url);
-      if (s) { db.updateSource(s.id, { ...s, name: r.to }); log.info(`Renamed default source: ${r.from} → ${r.to}`); }
+      if (s) { db.updateSource(s.id, { ...s, name: r.to }); log.info(`Renamed default source: ${r.from} -> ${r.to}`); }
     }
     const names = new Set(db.listSources().map(s => s.name.toLowerCase()));
     const added = [];
@@ -189,7 +189,7 @@ function removePartialDownloads(dir) {
   } catch { /* no models folder yet */ }
 }
 
-/** → { out: string[] | null, reason?, model?, ms? } */
+/** -> { out: string[] | null, reason?, model?, ms? } */
 function translate(lang, texts, priority = 0, tag) {   // tag: lets progress messages name the request (an item id)
   if (translationPaused && priority < 2) return Promise.resolve({ out: null, reason: 'paused' });   // headlines wait; articles are the user's own request
   const id = ++translateSeq;
@@ -233,7 +233,7 @@ function onWorkerMessage(msg) {
       pendingRefreshes.delete(msg.id);
       break;
 
-    // Telegram login conversation: worker ↔ renderer
+    // Telegram login conversation: worker <-> renderer
     case 'tg-ask':   send('telegram:ask', msg.what, msg.hint); break;
     case 'tg-error': send('telegram:error', msg.message, msg.fatal); break;
     case 'tg-done': {
@@ -528,7 +528,7 @@ function createWindow() {
     win.show();
   });
   trackWindow();
-  perfwatch.start(win);                                     // CPU hogs and hangs → session log
+  perfwatch.start(win);                                     // CPU hogs and hangs -> session log
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 
   // The shell page itself never navigates or spawns windows.

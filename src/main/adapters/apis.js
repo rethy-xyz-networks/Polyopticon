@@ -8,7 +8,7 @@ const { SourceError, getJson, cleanHtml, cleanText, trunc, parseDate, sanePublis
 class GuardianAdapter extends Adapter {
   async fetchItems(signal) {
     const key = this.ctx.credentials.guardianKey;
-    if (!key) throw new SourceError('NO KEY', 'Add a free Guardian API key under Settings → Accounts');
+    if (!key) throw new SourceError('NO KEY', 'Add a free Guardian API key under Settings -> Accounts');
     const params = new URLSearchParams({
       'order-by': 'newest', 'page-size': '50', 'show-fields': 'trailText,byline',
       'api-key': key,
@@ -31,7 +31,7 @@ class GuardianAdapter extends Adapter {
 class NytAdapter extends Adapter {
   async fetchItems(signal) {
     const key = this.ctx.credentials.nytKey;
-    if (!key) throw new SourceError('NO KEY', 'Add a free NYT API key under Settings → Accounts');
+    if (!key) throw new SourceError('NO KEY', 'Add a free NYT API key under Settings -> Accounts');
     const section = encodeURIComponent(this.config.section || 'all');
     const url = this.config.feed === 'topstories'
       ? `https://api.nytimes.com/svc/topstories/v2/${section === 'all' ? 'home' : section}.json?api-key=${key}`
@@ -51,7 +51,7 @@ class NytAdapter extends Adapter {
 class NewsApiAdapter extends Adapter {
   async fetchItems(signal) {
     const key = this.ctx.credentials.newsapiKey;
-    if (!key) throw new SourceError('NO KEY', 'Add a free NewsAPI key under Settings → Accounts');
+    if (!key) throw new SourceError('NO KEY', 'Add a free NewsAPI key under Settings -> Accounts');
     const params = new URLSearchParams({ q: this.config.query, sortBy: 'publishedAt', pageSize: '50', language: this.config.language || 'en' });
     const res = await getJson(`https://newsapi.org/v2/everything?${params}`, { signal, headers: { 'X-Api-Key': key } });
     if (res.status !== 'ok') throw new SourceError(res.code === 'rateLimited' ? 'LIMIT' : 'API', res.message || 'NewsAPI error');

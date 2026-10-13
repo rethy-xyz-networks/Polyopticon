@@ -101,12 +101,12 @@ const REGIONS = [
   ['England', 'GB', 52.6, -1.5], ['Khyber Pakhtunkhwa', 'PK', 34.5, 72.0],
 ];
 
-// States and provinces (Natural Earth admin-1) for these countries. Extra names: NE name → aliases.
+// States and provinces (Natural Earth admin-1) for these countries. Extra names: NE name -> aliases.
 const STATE_COUNTRIES = ['US', 'CA', 'AU', 'IN', 'CN'];
 const STATE_ALIASES = { Xizang: 'Tibet', 'Inner Mongol': 'Inner Mongolia', Odisha: 'Orissa', 'British Columbia': 'B.C.' };
 const STATE_DISPLAY = { Xizang: 'Tibet', 'Inner Mongol': 'Inner Mongolia' };
 
-// Landmarks that stand for a city in headlines: name → [city ascii name, country].
+// Landmarks that stand for a city in headlines: name -> [city ascii name, country].
 const LANDMARKS = {
   'White House': ['Washington', 'US'], 'Capitol Hill': ['Washington', 'US'], 'Pentagon': ['Washington', 'US'],
   'Downing Street': ['London', 'GB'], 'Westminster': ['London', 'GB'], 'Whitehall': ['London', 'GB'],
@@ -197,8 +197,8 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
   const ne0 = JSON.parse(ne0Buf), ne1 = JSON.parse(ne1Buf);
 
   const places = [];          // [key, name, kind, cc, lat, lon, pop?]
-  const index = new Map();    // lower name → Set(place index): names that place a story
-  const actors = new Map();   // lower name → country index: words that only point at a country
+  const index = new Map();    // lower name -> Set(place index): names that place a story
+  const actors = new Map();   // lower name -> country index: words that only point at a country
   const norm = name => name.trim().toLowerCase().replace(/’/g, "'");
   const addName = (name, idx, map = index) => {
     const k = norm(name);
@@ -209,7 +209,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
   const addPlace = (key, name, kind, cc, lat, lon) => { places.push([key, name, kind, cc, round(lat), round(lon)]); return places.length - 1; };
 
   // Countries (coords: Natural Earth label point). A dependency can carry its sovereign's code as
-  // ISO_A2_EH (Ashmore and Cartier Islands → AU), so a feature with its own ISO_A2 always wins.
+  // ISO_A2_EH (Ashmore and Cartier Islands -> AU), so a feature with its own ISO_A2 always wins.
   const neByIso = new Map();
   for (const f of ne0.features) {
     const p = f.properties;
@@ -245,7 +245,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
 
   // Cities
   const cityTxt = unzipEntry(citiesZip, 'cities15000.txt').toString('utf8');
-  const cityByKey = new Map();   // "ascii|cc" → idx
+  const cityByKey = new Map();   // "ascii|cc" -> idx
   const cityNames = new Set();   // "lower name|cc", to skip states named after their capital (Delhi, Beijing)
   let nCities = 0;
   const rows = [];
@@ -278,7 +278,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
   // City districts (Brooklyn, Podilskyi, Shinjuku) stand for the larger city they're part of.
   // A district name several cities have (most Ukrainian cities have a Shevchenkivskyi) is dropped.
   const km = (a, b) => Math.hypot(a.lat - b[4], (a.lon - b[5]) * Math.cos(a.lat * Math.PI / 180)) * 111;
-  const districtParents = new Map();   // lower name → Set(parent idx)
+  const districtParents = new Map();   // lower name -> Set(parent idx)
   let nDistricts = 0;
   for (const row of districts) {
     let parent = null;
@@ -342,7 +342,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     weak: [...WEAK].filter(w => index.has(w)),
   };
   fs.writeFileSync(OUT_GAZ, JSON.stringify(gaz));
-  console.log(`Gazetteer: ${places.length} places (${nCities} cities), ${index.size} names, ${actors.size} actor words → ${(fs.statSync(OUT_GAZ).size / 1024).toFixed(0)} KB`);
+  console.log(`Gazetteer: ${places.length} places (${nCities} cities), ${index.size} names, ${actors.size} actor words -> ${(fs.statSync(OUT_GAZ).size / 1024).toFixed(0)} KB`);
 
   // World map: 1:50m countries, 2-decimal coordinates, minimal properties.
   const roundCoords = c => (typeof c[0] === 'number' ? [round(c[0], 2), round(c[1], 2)] : c.map(roundCoords));
@@ -355,5 +355,5 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     })),
   };
   fs.writeFileSync(OUT_MAP, JSON.stringify(world));
-  console.log(`World map: ${world.features.length} countries → ${(fs.statSync(OUT_MAP).size / 1024).toFixed(0)} KB`);
+  console.log(`World map: ${world.features.length} countries -> ${(fs.statSync(OUT_MAP).size / 1024).toFixed(0)} KB`);
 })().catch(e => { console.error(e); process.exit(1); });

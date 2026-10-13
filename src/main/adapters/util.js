@@ -19,7 +19,7 @@ class SourceError extends Error {
   }
 }
 
-/** A Retry-After header (seconds, or an HTTP date) → ms to wait; 0 if absent or unreadable. Capped at an hour. */
+/** A Retry-After header (seconds, or an HTTP date) -> ms to wait; 0 if absent or unreadable. Capped at an hour. */
 function parseRetryAfter(value, now = Date.now()) {
   const v = String(value ?? '').trim();
   if (!v) return 0;
@@ -87,7 +87,7 @@ function decodeEntities(s) {
   });
 }
 
-/** Value → string, unwrapping fast-xml-parser text nodes and arrays. */
+/** Value -> string, unwrapping fast-xml-parser text nodes and arrays. */
 function text(v) {
   if (v == null) return '';
   if (Array.isArray(v)) return text(v[0]);
@@ -100,7 +100,7 @@ function cleanText(s) {
   return t || null;
 }
 
-/** HTML → plain text. Keeps line breaks for <br>/<p> when keepLines is set. */
+/** HTML -> plain text. Keeps line breaks for <br>/<p> when keepLines is set. */
 function cleanHtml(s, { keepLines = false } = {}) {
   let html = text(s);
   if (!html.trim()) return null;
@@ -147,7 +147,7 @@ function parseDate(raw) {
   s = s.replace(/\s*\([^)]*\)\s*$/, '').trim();
   s = s.replace(/\b([A-Z]{1,5})$/, (m, z) => NAMED_ZONES[z.toUpperCase()] ?? m);
 
-  // No zone at all → assume UTC (Date.parse would otherwise assume local time).
+  // No zone at all -> assume UTC (Date.parse would otherwise assume local time).
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(s)) s += 'Z';
   else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/.test(s)) s = s.replace(' ', 'T') + 'Z';
   else if (/^\d{14}$/.test(s)) s = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}Z`;

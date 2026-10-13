@@ -19,7 +19,7 @@ import { applyIcons, setIcon } from './icons.js';
 
 const DENSITY_PAD = ['5px', '9px', '14px'];
 
-// Settings → UI
+// Settings -> UI
 
 function applySetting(key) {
   const s = state.settings;
@@ -89,8 +89,8 @@ function setPlaceFilter(f) {
 
 // Background task indicator (model downloads)
 
-const modelSetup = new Map();           // model → download % (a number) or 'loading'
-const modelLabel = m => m.startsWith('nllb') ? 'large (NLLB)' : m.replace('opus-mt-', '').replace('-en', '→en');
+const modelSetup = new Map();           // model -> download % (a number) or 'loading'
+const modelLabel = m => m.startsWith('nllb') ? 'large (NLLB)' : m.replace('opus-mt-', '').replace('-en', '->en');
 function onTranslateProgress(p) {
   onArticleTranslateProgress(p);
   if (p.stage === 'download') modelSetup.set(p.model, p.pct);

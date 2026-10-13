@@ -17,7 +17,7 @@ const SCOPE_TIPS = [
 ];
 const TYPE_ICON = { rss: '', googlenews: 'G', gdelt: '◍', bluesky: '🦋', telegram: '✈', guardian: 'API', nyt: 'API', newsapi: 'API' };
 
-const statEls = new Map();                         // source id → status element
+const statEls = new Map();                         // source id -> status element
 
 // Sources
 
@@ -27,7 +27,7 @@ export function renderSources() {
 
   const root = $('source-groups');
   if (!groups.length) {
-    root.replaceChildren(h('p', { class: 'muted pad' }, 'No sources enabled. Add some under Settings → Sources.'));
+    root.replaceChildren(h('p', { class: 'muted pad' }, 'No sources enabled. Add some under Settings -> Sources.'));
     return;
   }
 
@@ -205,7 +205,7 @@ function paintStatus(sourceId) {
   if (st?.isError) {
     el.textContent = st.label;
     el.className = 'stat red';
-    el.title = 'Last poll failed; see Settings → Sources';
+    el.title = 'Last poll failed; see Settings -> Sources';
     return;
   }
   const n = state.sourceCounts.get(sourceId) ?? 0;

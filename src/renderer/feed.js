@@ -10,8 +10,8 @@ import { measure } from './perfwatch.js';
 let onCountsChanged = () => {};
 export const setCountsListener = fn => { onCountsChanged = fn; };
 
-const nodes = new Map();                      // item id → row element
-const memberNodes = new Map();                // item id → row element when shown inside an expanded group
+const nodes = new Map();                      // item id -> row element
+const memberNodes = new Map();                // item id -> row element when shown inside an expanded group
 const expanded = new Set();                   // cluster ids the user expanded
 
 let onVisibleChanged = () => {};
@@ -74,7 +74,7 @@ export function siteIcon(it) {
   return img;
 }
 
-const iconCache = new Map();      // url → icon URL (most rows share a handful of hosts)
+const iconCache = new Map();      // url -> icon URL (most rows share a handful of hosts)
 export function iconUrl(it) {
   const key = it.site || it.url;
   if (!key) return null;
@@ -94,8 +94,8 @@ export function iconUrl(it) {
 function langTag(it) {
   if (!it.lang || it.lang === 'en') return null;
   const code = it.lang.toUpperCase();
-  if (it.translating) return h('span', { class: 'xl pending', title: 'Translating on your computer…' }, `${code} → EN…`);
-  if (it.origTitle) return h('span', { class: 'xl', title: `Machine-translated from ${code}. Original:\n${it.origTitle}` }, `${code} → EN`);
+  if (it.translating) return h('span', { class: 'xl pending', title: 'Translating on your computer…' }, `${code} -> EN…`);
+  if (it.origTitle) return h('span', { class: 'xl', title: `Machine-translated from ${code}. Original:\n${it.origTitle}` }, `${code} -> EN`);
   return h('span', { class: 'xl raw', title: 'Not translated (translation off or no model for this language)' }, code);
 }
 
@@ -427,13 +427,13 @@ export function select(list, id, { scroll = false } = {}) {
 
 /**
  * Wires mouse + keyboard on a list of .item rows.
- * lookup(id) → item; opts.preferSaved opens the saved copy instead of the live page.
+ * lookup(id) -> item; opts.preferSaved opens the saved copy instead of the live page.
  */
 export function bindList(list, lookup, { preferSaved = false } = {}) {
   const rowItem = e => { const row = e.target.closest('.item'); return row ? lookup(Number(row.dataset.id)) : null; };
   const open = it => openTab(it, { preferSaved: typeof preferSaved === 'function' ? preferSaved() : preferSaved });
 
-  // Middle-click → tab. Handled on mousedown so it feels instant and suppresses autoscroll.
+  // Middle-click -> tab. Handled on mousedown so it feels instant and suppresses autoscroll.
   list.addEventListener('mousedown', e => {
     if (e.button !== 1) return;
     const it = rowItem(e);
@@ -463,7 +463,7 @@ export function bindList(list, lookup, { preferSaved = false } = {}) {
     toggleSearchSource(it.sourceId);
   });
 
-  // Keyboard: ↑/↓/Home/End move selection, Enter opens, Ctrl+Enter opens in browser.
+  // Keyboard: Up/Down/Home/End move selection, Enter opens, Ctrl+Enter opens in browser.
   list.addEventListener('keydown', e => {
     const rows = [...list.querySelectorAll('.item')];
     if (!rows.length) return;

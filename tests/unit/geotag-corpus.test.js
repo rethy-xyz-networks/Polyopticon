@@ -25,7 +25,7 @@ function score(items) {
     const hit = it.want.filter(l => got.some(p => matches(p, l)));
     predicted += got.length; wrong += bad.length; wanted += it.want.length; found += hit.length;
     if (bad.length || hit.length < it.want.length)
-      failures.push(`#${it.id} ${it.title.slice(0, 70)} → ${got.map(p => p[1]).join(', ') || '—'} (want ${it.want.join(', ') || '—'})`);
+      failures.push(`#${it.id} ${it.title.slice(0, 70)} -> ${got.map(p => p[1]).join(', ') || '—'} (want ${it.want.join(', ') || '—'})`);
   }
   return { precision: 1 - wrong / predicted, recall: found / wanted, failures };
 }

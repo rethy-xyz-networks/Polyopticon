@@ -75,7 +75,7 @@ test('➕ shows the chat types; IRC asks for a server and a room, connects anony
   await expect(log.locator('.irc-line.action')).toContainText('waves');
   await expect(log).not.toContainText('private message');
   await expect(window.locator('.irc-status')).toContainText('#test');
-  // Who is here: op, alice, dave and the guest = 4; carol came and went, dave quit, alice was kicked → 2.
+  // Who is here: op, alice, dave and the guest = 4; carol came and went, dave quit, alice was kicked -> 2.
   await expect(window.locator('.irc-status')).toContainText('2 users');
   await expect(window.locator('.irc-topic')).toHaveText('New topic');
 
@@ -97,7 +97,7 @@ test('➕ shows the chat types; IRC asks for a server and a room, connects anony
   await expect.poll(() => received.some(l => l.startsWith('QUIT'))).toBe(true);
 });
 
-test('Kick chats: ➕ → Kick → a channel name or link opens chat.kick.cx/embed/<channel> as a tab', async ({ window }) => {
+test('Kick chats: ➕ -> Kick -> a channel name or link opens chat.kick.cx/embed/<channel> as a tab', async ({ window }) => {
   await window.locator('#btn-chat').click();
   await window.locator('#chat-add-btn').click();
   await expect(window.locator('#chat-type-kick')).toBeVisible();

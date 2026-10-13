@@ -8,13 +8,13 @@ const net = require('net');
 const tls = require('tls');
 
 const MAX_LINE = 8192;
-const REGISTER_TIMEOUT_MS = 30_000;      // no welcome from the server by then → try again
+const REGISTER_TIMEOUT_MS = 30_000;      // no welcome from the server by then -> try again
 const IDLE_TIMEOUT_MS = 6 * 60_000;      // servers PING every few minutes; silence this long means a dead link
 const RECONNECT_MS = [3_000, 10_000, 30_000, 60_000];
 
-const conns = new Map();                 // id → Conn
+const conns = new Map();                 // id -> Conn
 
-/** "ircs://host:6697/#room" → { host, port, secure, channel } (null if it isn't one). */
+/** "ircs://host:6697/#room" -> { host, port, secure, channel } (null if it isn't one). */
 function parseSpec(text) {
   const m = /^(ircs?):\/\/([a-z0-9.-]+)(?::(\d{1,5}))?\/?([#&+!][^\s,\x00-\x1f\x07]{1,49})$/i.exec(String(text).trim());
   if (!m) return null;
@@ -25,7 +25,7 @@ function parseSpec(text) {
 
 const guestNick = () => `Guest${Math.floor(10000 + Math.random() * 90000)}`;
 
-/** ":nick!user@host PRIVMSG #room :hello" → { prefix, nick, cmd, params[] } */
+/** ":nick!user@host PRIVMSG #room :hello" -> { prefix, nick, cmd, params[] } */
 function parseLine(line) {
   let rest = line;
   if (rest.startsWith('@')) rest = rest.slice(rest.indexOf(' ') + 1);            // IRCv3 message tags: not needed
@@ -52,7 +52,7 @@ class Conn {
     this.timer = null;
     this.nick = guestNick();
     this.registered = false;
-    this.users = new Map();            // lower-case nick → nick as shown, for who is in the room
+    this.users = new Map();            // lower-case nick -> nick as shown, for who is in the room
   }
 
   status(state, text) { this.emit({ id: this.id, type: 'status', state, text }); }
@@ -201,7 +201,7 @@ class Conn {
   }
 }
 
-/** Starts (or restarts) the connection for a chat tab. → { ok, error? } */
+/** Starts (or restarts) the connection for a chat tab. -> { ok, error? } */
 function connect(id, specText, emit) {
   const spec = parseSpec(specText);
   if (!spec) return { ok: false, error: 'Not a valid IRC server and room' };

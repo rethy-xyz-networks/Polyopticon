@@ -44,7 +44,7 @@ const suffixSet = new Set(BLOCKED_SUFFIXES);
 
 function isBlockedHost(host) {
   if (BLOCKED_PREFIX.test(host)) return true;
-  // Walk parent domains: a.b.example.com → b.example.com → example.com
+  // Walk parent domains: a.b.example.com -> b.example.com -> example.com
   for (let h = host; h.includes('.'); h = h.slice(h.indexOf('.') + 1))
     if (suffixSet.has(h)) return true;
   return false;

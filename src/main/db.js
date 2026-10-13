@@ -8,7 +8,7 @@ const { DatabaseSync } = require('node:sqlite');
 const fs   = require('fs');
 const path = require('path');
 
-// Each entry upgrades the database by one version (index 0 → version 2, …).
+// Each entry upgrades the database by one version (index 0 -> version 2, …).
 const MIGRATIONS = [
   // v2: story grouping, places, translation
   `ALTER TABLE items ADD COLUMN cluster_id   INTEGER;
@@ -127,7 +127,7 @@ const ITEM_COLS = `i.id, i.source_id AS sourceId, s.name AS sourceName, i.kind, 
                    i.author, i.published_at AS publishedAt, i.cluster_id AS clusterId, i.places, i.lang,
                    i.orig_title AS origTitle, json_extract(i.extra, '$.site') AS site`;
 
-/** Row → renderer item (places JSON parsed). */
+/** Row -> renderer item (places JSON parsed). */
 const itemRow = r => r && ({ ...r, places: r.places ? JSON.parse(r.places) : [] });
 
 /** FTS5 query from free text: every word must match (prefix match on the last). */
@@ -267,9 +267,9 @@ function wrap(db) {
       q(`INSERT INTO opens (item_id, opened_at, via) VALUES (?, ?, ?)`).run(itemId, Date.now(), via),
 
     /**
-     * scope 'opened' → articles you opened, newest open first.
-     * scope 'all'    → everything stored, newest published first.
-     * query          → full-text search over title, summary and saved article text.
+     * scope 'opened' -> articles you opened, newest open first.
+     * scope 'all'    -> everything stored, newest published first.
+     * query          -> full-text search over title, summary and saved article text.
      */
     history({ scope = 'opened', query = '', sourceIds = [], limit = 200, offset = 0 } = {}) {
       const match = ftsQuery(query);

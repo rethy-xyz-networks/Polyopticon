@@ -1,7 +1,7 @@
 // Public Telegram channels as tabs in the story pane (the ✈️ button): Telegram's own web
 // view of a channel, https://t.me/s/<name>/. Pure helpers; the tab itself is in tabs.js.
 
-/** "durov", "@durov", "t.me/durov", "https://t.me/s/durov/123?x" → "durov"; null if it can't be a channel. */
+/** "durov", "@durov", "t.me/durov", "https://t.me/s/durov/123?x" -> "durov"; null if it can't be a channel. */
 export function parseTelegramChannel(text) {
   const c = String(text).trim()
     .replace(/^(https?:\/\/)?(www\.)?(t|telegram)\.me\//i, '')

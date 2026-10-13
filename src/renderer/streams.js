@@ -41,7 +41,7 @@ export function siteOfLink(text) {
   return null;
 }
 
-/** "twitch.tv/XQC", "@xqc" → "xqc"; "kick.com/xqc", "player.kick.com/xqc"; "youtube.com/@name/live", "@name", "UC…" → the channel; null if it can't be one. */
+/** "twitch.tv/XQC", "@xqc" -> "xqc"; "kick.com/xqc", "player.kick.com/xqc"; "youtube.com/@name/live", "@name", "UC…" -> the channel; null if it can't be one. */
 export function parseStream(site, text) {
   if (site === 'direct') return directUrl(text);
   let c = bare(text);

@@ -7,14 +7,14 @@ export const state = {
   accounts: null,               // which keys / logins are configured (no secrets)
   sources: [],
   sourcesById: new Map(),
-  statuses: new Map(),          // source id → { label, isError } from the last poll
-  sourceCounts: new Map(),      // source id → items in the live list
+  statuses: new Map(),          // source id -> { label, isError } from the last poll
+  sourceCounts: new Map(),      // source id -> items in the live list
   hiddenSources: new Set(),     // unticked in the sidebar (view filter, kept in ui.json)
 
   tags: { Inclusions: [], Exclusions: [] },
   activeTags: { inc: [], exc: [] },
 
-  items: [],                    // live feed, newest → oldest
+  items: [],                    // live feed, newest -> oldest
   itemsById: new Map(),
   seenKeys: new Set(),          // url/title keys already shown (cross-source de-dup)
 
@@ -40,7 +40,7 @@ export function setSources(list) {
 
 export const sourceColor = id => state.sourcesById.get(id)?.color ?? '#4A4A4A';
 
-// Sidebar groups fall into three sections: countries (A → Z), areas spanning
+// Sidebar groups fall into three sections: countries (A -> Z), areas spanning
 // several countries, then groups that aren't places at all. A group not listed
 // below counts as a country (groups are named after countries by convention).
 export const SECTIONS = [

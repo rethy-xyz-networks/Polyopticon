@@ -53,7 +53,7 @@ test('RssAdapter: an identical body is dropped before parsing; a changed one is 
     const a = adapterFor(url);
     const first = await a.fetchItems();
     assert.deepEqual(first.map(i => i.title), ['one', 'two']);
-    assert.equal(await a.fetchItems(), null);                     // same bytes → "not modified", nothing to ingest
+    assert.equal(await a.fetchItems(), null);                     // same bytes -> "not modified", nothing to ingest
     assert.equal(a.net.sameBody, 1);
 
     body = rss('three', 'one', 'two');

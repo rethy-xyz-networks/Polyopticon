@@ -14,9 +14,9 @@ const COMMON_RATIO  = 0.04;          // stems in more than 4% of items aren't us
 
 class Clusterer {
   constructor() {
-    this.docs = new Map();           // id → { tokens, publishedAt, clusterId }
-    this.df = new Map();             // stem → number of docs containing it
-    this.postings = new Map();       // stem → Set(id)
+    this.docs = new Map();           // id -> { tokens, publishedAt, clusterId }
+    this.df = new Map();             // stem -> number of docs containing it
+    this.postings = new Map();       // stem -> Set(id)
   }
 
   get size() { return this.docs.size; }
@@ -29,7 +29,7 @@ class Clusterer {
   /** Best matching existing doc for a token set, or null. */
   match(toks, publishedAt, excludeId = null) {
     const cap = Math.max(3, this.docs.size * COMMON_RATIO);
-    const cand = new Map();          // id → shared count
+    const cand = new Map();          // id -> shared count
     for (const t of toks) {
       const posting = this.postings.get(t);
       if (!posting || posting.size > cap) continue;

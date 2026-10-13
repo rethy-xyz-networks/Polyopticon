@@ -279,7 +279,7 @@ test('Ctrl+S shows the saved page (saving it first), Ctrl+L the live page', asyn
   await expect(view()).toHaveAttribute('src', /^http:\/\/127\.0\.0\.1:\d+\/a\/3$/);
 });
 
-test('Ctrl+Shift+A searches the open tabs: type to filter, ↑ ↓ and Enter or a click switch, × closes, Esc leaves', async ({ window }) => {
+test('Ctrl+Shift+A searches the open tabs: type to filter, Up / Down and Enter or a click switch, × closes, Esc leaves', async ({ window }) => {
   await openAll(window);
   await window.locator('#feed-list').focus();
   const box = window.locator('.tab-search');

@@ -22,7 +22,7 @@ const log = {
 let store = null;
 let settings = { intervalSeconds: 5, staggerMs: 300 };
 let credentials = {};
-const running = new Map();             // source id → { adapter, sig }
+const running = new Map();             // source id -> { adapter, sig }
 
 const ctx = {
   log,

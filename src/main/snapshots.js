@@ -29,7 +29,7 @@ let db = null;
 let partition = null;
 let notify = () => {};
 const inProgress = new Set();
-const httpStatus = new WeakMap();   // webContents → status of its last main-frame navigation
+const httpStatus = new WeakMap();   // webContents -> status of its last main-frame navigation
 const backgroundQueue = [];
 let backgroundBusy = false;
 

@@ -2,8 +2,8 @@
 
 // Runs in the feed worker. For every new item:
 //   1. detect its language
-//   2. English → group with related stories + tag places, right away
-//      Other  → post it as-is, translate it in the background, then group/tag
+//   2. English -> group with related stories + tag places, right away
+//      Other  -> post it as-is, translate it in the background, then group/tag
 //               the English text and post an update.
 // On startup the grouping index is rebuilt from the database and anything
 // stored before these features existed is backfilled. When the place matcher
@@ -29,14 +29,14 @@ function splitBreaking(text) {
 class Enricher {
   /**
    * @param store      db wrapper (feed worker's connection)
-   * @param translate  (lang, texts, priority) → Promise<string[]|null>
-   * @param emitUpdate (items[]) → void   posts updated items to the UI
+   * @param translate  (lang, texts, priority) -> Promise<string[]|null>
+   * @param emitUpdate (items[]) -> void   posts updated items to the UI
    */
   constructor({ store, log, translate, emitUpdate, translateEnabled = true }) {
     Object.assign(this, { store, log, translate, emitUpdate, translateEnabled });
     this.clusterer = new Clusterer();
     this.pending = new Set();          // item ids being translated
-    this.homes = new Map();            // source id → ISO code of its group's country (or null)
+    this.homes = new Map();            // source id -> ISO code of its group's country (or null)
   }
 
   /** The source's home country, from its sidebar group ("USA", "India"); breaks ties between places. */

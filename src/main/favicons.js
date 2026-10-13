@@ -21,9 +21,9 @@ const FETCH_TIMEOUT_MS = 8000;
 const MAX_PARALLEL = 4;
 
 let dir = null;
-let index = {};                      // key → { file, type, at } | { miss: at }
-const memory = new Map();            // key → { body, type }
-const inflight = new Map();          // key → Promise
+let index = {};                      // key -> { file, type, at } | { miss: at }
+const memory = new Map();            // key -> { body, type }
+const inflight = new Map();          // key -> Promise
 let saveTimer = null;
 let active = 0;
 const waiting = [];

@@ -68,7 +68,7 @@ const log = {
   debug: msg => { if (debugEnabled) write('DEBUG', msg); },
   info:  msg => write('INFO ', msg),
   warn:  msg => write('WARN ', msg),
-  error: (msg, err) => write('ERROR', err ? `${msg} → ${err.name}: ${err.message}` : msg),
+  error: (msg, err) => write('ERROR', err ? `${msg} -> ${err.name}: ${err.message}` : msg),
   trimToRetention(retain) { trim('session_', retain); trim('debug_', retain); },
 
   // StateDebugger

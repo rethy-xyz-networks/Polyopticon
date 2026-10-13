@@ -21,18 +21,18 @@ const DGG = {
   url: 'https://www.destiny.gg/embed/chat',
 };
 
-const views = new Map();          // chat key → { wv, chat }
+const views = new Map();          // chat key -> { wv, chat }
 let open = false;
 let onOpenSettings = () => {};
 
-/** "twitch.tv/XQC", "@xqc", "#xqc" → "xqc"; null if it can't be a channel name. */
+/** "twitch.tv/XQC", "@xqc", "#xqc" -> "xqc"; null if it can't be a channel name. */
 function parseChannel(text) {
   const c = String(text).trim().toLowerCase()
     .replace(/^(https?:\/\/)?(www\.|m\.)?twitch\.tv\//, '').replace(/^(popout\/)?/, '').replace(/^[@#]/, '').replace(/[/?].*$/, '');
   return /^[a-z0-9_]{2,25}$/.test(c) ? c : null;
 }
 
-/** "kick.com/XQC", "chat.kick.cx/embed/xqc", "@xqc" → "xqc"; null if it can't be a Kick channel name. */
+/** "kick.com/XQC", "chat.kick.cx/embed/xqc", "@xqc" -> "xqc"; null if it can't be a Kick channel name. */
 function parseKickChannel(text) {
   const c = String(text).trim().toLowerCase()
     .replace(/^(https?:\/\/)?(www\.)?/, '').replace(/^chat\.kick\.cx\/embed\//, '').replace(/^(player\.)?kick\.com\//, '')
@@ -40,17 +40,17 @@ function parseKickChannel(text) {
   return /^[a-z0-9_-]{2,25}$/.test(c) ? c : null;
 }
 
-/** Kick channel names from the setting: "xqc, kick.com/destiny" → ['xqc', 'destiny']. */
+/** Kick channel names from the setting: "xqc, kick.com/destiny" -> ['xqc', 'destiny']. */
 function kickChannels() {
   return [...new Set(String(state.settings.ChatKickChannels || '').split(/[\s,;]+/).map(parseKickChannel).filter(Boolean))];
 }
 
-/** Channel names from the setting: "destiny, twitch.tv/xqc" → ['destiny', 'xqc']. */
+/** Channel names from the setting: "destiny, twitch.tv/xqc" -> ['destiny', 'xqc']. */
 function twitchChannels() {
   return [...new Set(String(state.settings.ChatTwitchChannels || '').split(/[\s,;]+/).map(parseChannel).filter(Boolean))];
 }
 
-/** IRC rooms from the setting: "ircs://irc.libera.chat:6697/#linux, …" → [{ spec, host, room }]. */
+/** IRC rooms from the setting: "ircs://irc.libera.chat:6697/#linux, …" -> [{ spec, host, room }]. */
 function ircRooms() {
   const seen = new Set();
   return String(state.settings.ChatIrc || '').split(/[\s,;]+/).map(parseIrcSpec)
@@ -232,7 +232,7 @@ let addType = null;                // which type's fields are showing: 'twitch' 
 // pinned? }] and the tab shown is ui.streamTab. The players only exist while the area is
 // visible, so a hidden column never keeps playing sound.
 
-const streamViews = new Map();     // stream key → { wv, ready, muted }
+const streamViews = new Map();     // stream key -> { wv, ready, muted }
 let addingStream = false;
 let streamSite = null;             // which site's field is showing under the plus
 let streamReorder = null;

@@ -254,7 +254,7 @@ The open tabs are remembered in `pinned.json`: articles, 4chan and Telegram page
 
 The bar above an open article, from left to right:
 
-- **Back / Reload / Forward** (Alt+←, Ctrl+R, Alt+→): page navigation.
+- **Back / Reload / Forward** (Alt+Left, Ctrl+R, Alt+Right): page navigation.
 - **Source and title** of the story.
 - **Live / Saved page / Reader:** switches between the real page, the saved full-page copy and the clean text. When the site can't be reached (or you're offline) the saved copy opens automatically.
 - **Translate / Stop:** see [Translation](#translation).

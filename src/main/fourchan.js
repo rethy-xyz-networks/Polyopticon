@@ -9,7 +9,7 @@ const { session } = require('electron');
 const blocker = require('./blocker');
 const { BROWSER_UA } = require('./adapters/util');
 
-const CHAN_PARTITION = 'chan';                      // no "persist:" → memory only
+const CHAN_PARTITION = 'chan';                      // no "persist:" -> memory only
 
 let chanSession = null;
 

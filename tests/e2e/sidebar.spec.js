@@ -67,7 +67,7 @@ test('a fresh install lists the Truth Social archive under its current name', as
 
 const allGroups = window => window.locator('#source-groups .group-head span').allTextContents();
 
-test('groups are in sections: countries A → Z, then areas, then other', async ({ window }) => {
+test('groups are in sections: countries A -> Z, then areas, then other', async ({ window }) => {
   await expect(window.locator('#source-groups .group').first()).toBeVisible();
   const sections = window.locator('#source-groups > .source-section');
   await expect(sections.locator('.section-title')).toHaveText(['Countries', 'Areas', 'Other']);
