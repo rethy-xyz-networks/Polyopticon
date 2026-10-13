@@ -467,9 +467,10 @@ body.tabs-scroll .tab .label, body.tabs-scroll .chat-tab .name { flex: 0 1 auto;
 #map-canvas { position: absolute; inset: 0; background: var(--map-ocean); }
 .map-toolbar { position: absolute; top: 10px; left: 56px; z-index: 500; display: flex; gap: 10px; align-items: center;
   padding: 4px 8px; border-radius: var(--radius); background: color-mix(in srgb, var(--panel-bg) 88%, transparent); border: 1px solid var(--border); }
-.map-legend { position: absolute; bottom: 22px; left: 10px; z-index: 500; display: flex; gap: 6px; align-items: center;
-  padding: 4px 8px; border-radius: var(--radius); font-size: var(--fs-xs); color: var(--text-2);
-  background: color-mix(in srgb, var(--panel-bg) 88%, transparent); border: 1px solid var(--border); }
+.map-legend { position: absolute; bottom: 0; left: 0; z-index: 500; display: flex; flex-direction: column; gap: 2px;
+  padding: 4px 8px; font-size: var(--fs-xs); color: var(--text-2);
+  background: color-mix(in srgb, var(--panel-bg) 80%, transparent); }   /* in the corner, like the attribution */
+.map-legend > div { display: flex; gap: 6px; align-items: center; }
 .map-legend svg { display: block; }
 .map-legend path, .map-cluster path { stroke: var(--map-pin-edge); stroke-width: 1; }
 .map-legend circle, .map-cluster circle { fill: #fff; }
