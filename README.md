@@ -99,7 +99,7 @@ Drag the bars between the views to resize them. Width and height per view is rec
 
 ## Toolbar
 
-The centre of the toolbar shows the app's status: **Live** with a countdown to the next refresh (or **Refreshing…**), the oldest age a story can have to be listed (Settings → General → Max article age), and an **Offline** badge when there is no connection. While a translation model downloads or loads, its progress shows here too (which can be clicked to stop it during translation).
+The centre of the toolbar shows the app's status: **Live** with a countdown to the next refresh (or **Refreshing…**), the oldest age a story can have to be listed (Settings -> General -> Max article age), and an **Offline** badge when there is no connection. While a translation model downloads or loads, its progress shows here too (which can be clicked to stop it during translation).
 
 The buttons, from left to right:
 
@@ -109,7 +109,7 @@ The buttons, from left to right:
 - **Telegram**: Opens a [Telegram channel tab](#telegram-channel) within the **Article View**.
 - **Settings** (Ctrl+,): Toggles the [Settings](#settings) panel.
 - **Scratchpad**: Opens the [Scratchpad](#scratchpad) tab within the **Article View**.
-- **4chan**: Opens a [4chan /pol/ tab](#4chan) within the **Article View** (optional, hide it in *Settings → General*).
+- **4chan**: Opens a [4chan /pol/ tab](#4chan) within the **Article View** (optional, hide it in *Settings -> General*).
 - **Theme**: Switches between the dark and light theme.
 - **Full screen** (F11): Toggleable, click again to leave.
 - **Keyboard shortcuts** (Ctrl+?): Opens the [shortcut list](#keyboard-shortcuts) tab within the **Article View**.
@@ -118,7 +118,7 @@ The buttons, from left to right:
 
 <img src="docs/screenshots/02.png">
 
-The sidebar on the left. The **edit** button in its header opens Settings → Sources, where sources are added and edited.
+The sidebar on the left. The **edit** button in its header opens Settings -> Sources, where sources are added and edited.
 
 ### Finding a Source
 
@@ -153,11 +153,11 @@ A source's group is the "Group" field in its editor. A new group name counts as 
 | New York Times | free key | developer.nytimes.com (Times Newswire / Top Stories) |
 | NewsAPI.org | free key | 100 requests/day, articles delayed 24h on the free plan |
 
-Add and edit sources in **Settings → Sources**. Keys and logins go in **Settings → Accounts** (encrypted with Windows DPAPI). To read a Telegram channel without adding it as a source, use a [Telegram channel tab](#telegram-channel).
+Add and edit sources in **Settings -> Sources**. Keys and logins go in **Settings -> Accounts** (encrypted with Windows DPAPI). To read a Telegram channel without adding it as a source, use a [Telegram channel tab](#telegram-channel).
 
 #### How Feeds Are Polled
 
-The **Refresh interval** (Settings → General) is the fastest a feed is ever asked. RSS and Atom feeds use conditional requests (ETag / Last-Modified), so an unchanged feed costs a 304 and no download. For feeds that send no validators (or ignore them), a body identical to the last one is dropped before it is parsed.
+The **Refresh interval** (Settings -> General) is the fastest a feed is ever asked. RSS and Atom feeds use conditional requests (ETag / Last-Modified), so an unchanged feed costs a 304 and no download. For feeds that send no validators (or ignore them), a body identical to the last one is dropped before it is parsed.
 
 **Adaptive polling, per feed**: Standard polling asks every feed every 5 seconds, all day, however often it publishes. Most feeds publish a few stories an hour, so almost all of those requests find nothing, stressing the client and server. Polyopticon instead gives each feed its own independent schedule, based on what that feed has actually been doing:
 
@@ -228,11 +228,11 @@ Reports of the same story from different sources are grouped (the **Group** butt
 
 <img src="docs/screenshots/badge.png">
 
-Each story shows its source badge, its publisher's icon, its title and when it was published, with the feed's own description below (cut to the length set in Settings → General → Story descriptions).
+Each story shows its source badge, its publisher's icon, its title and when it was published, with the feed's own description below (cut to the length set in Settings -> General -> Story descriptions).
 
 Site icons are fetched once from the site (falling back to Google's favicon service when a site blocks it), shrunk to 32 px and cached in `%LocalAppData%\Polyopticon\icons` (`src/main/favicons.js`, served as `polyopticon-icon://`).
 
-With headline translation on (see [Translation](#translation)), non-English headlines appear immediately and update when their translation is ready. Hover the "AR → EN" tag for the original.
+With headline translation on (see [Translation](#translation)), non-English headlines appear immediately and update when their translation is ready. Hover the "AR -> EN" tag for the original.
 
 ## Article View
 
@@ -245,7 +245,7 @@ The centre area. Opened stories, the map and the special tabs below all open her
 - **Drag a tab** to reorder it.
 - **Right-click a tab** for pin / close others / close to the right.
 - **Middle-click** or Ctrl+W closes a tab.
-- **Pinned tabs** (the pin button in the article bar, right-click → Pin, or Ctrl+P) stay at the left, ignore middle-click and Ctrl+W, and reopen in the same view (Live / Saved page / Reader) the next time the app starts.
+- **Pinned tabs** (the pin button in the article bar, right-click -> Pin, or Ctrl+P) stay at the left, ignore middle-click and Ctrl+W, and reopen in the same view (Live / Saved page / Reader) the next time the app starts.
 - **Tab keys:** Ctrl+PgDown / Ctrl+PgUp move between tabs, Alt+1 to 9 jumps to a tab, and Ctrl+Shift+A searches the open tabs.
 
 The open tabs are remembered in `pinned.json`: articles, 4chan and Telegram pages, the Scratchpad and the shortcut list come back in order, pinned or not, with the selected tab selected again.
@@ -259,13 +259,13 @@ The bar above an open article, from left to right:
 - **Live / Saved page / Reader:** switches between the real page, the saved full-page copy and the clean text. When the site can't be reached (or you're offline) the saved copy opens automatically.
 - **Translate / Stop:** see [Translation](#translation).
 - **Save state:** "Saving…", "Saved 2m ago" (with "· partial" when the site only sent part of the article), or "Not saved". In Live view, click it to save the page again, for example after logging in.
-- **Screenshot** (Ctrl+Shift+S): captures the whole page, copies it to the clipboard and saves it as a picture (folder set in Settings → General → Article viewer).
+- **Screenshot** (Ctrl+Shift+S): captures the whole page, copies it to the clipboard and saves it as a picture (folder set in Settings -> General -> Article viewer).
 - **Pin:** pins or unpins the tab.
 - **Copy link:** copies the article's address.
 - **Add to Scratchpad:** adds a link to the article to the end of the [Scratchpad](#scratchpad).
 - **Open in browser:** opens the article in your system browser.
 
-Ctrl+= / Ctrl+- / Ctrl+0 zoom the page in, out and back. The default zoom is in Settings → General → Article viewer.
+Ctrl+= / Ctrl+- / Ctrl+0 zoom the page in, out and back. The default zoom is in Settings -> General -> Article viewer.
 
 ### Offline Reading
 
@@ -277,7 +277,7 @@ Ctrl+= / Ctrl+- / Ctrl+0 zoom the page in, out and back. The default zoom is in 
   Telegram/Bluesky posts use the post text itself.
 - When a site only sent part of an article (e.g. NYT after the free-article limit), the save is marked
   "partial". Log in to the site once in a Live tab. The session persists, so later saves get the full text.
-- Saved pages are kept for 90 days by default (Settings → Storage). Their text is kept forever.
+- Saved pages are kept for 90 days by default (Settings -> Storage). Their text is kept forever.
 
 ### Translation
 
@@ -298,11 +298,11 @@ language is translated and are kept in `%LocalAppData%\Polyopticon\models`.
   articles that are already in English. The button shows how far along it is: model download (first use of a
   language only), model loading, then the percentage of the article translated. Long articles in the large
   model take a few minutes.
-- **Headlines:** off by default. Turn on Settings → General → Translation to translate non-English
+- **Headlines:** off by default. Turn on Settings -> General -> Translation to translate non-English
   headlines as they arrive. They appear immediately and update when their translation is ready. Hover the
-  "AR → EN" tag for the original.
+  "AR -> EN" tag for the original.
 
-The **Stop** button next to Translate (or Settings → General → Stop all translation) ends a translation at any time. Headline translation (off by default) repeats all this for every non-English headline, so with the NLLB languages it keeps the CPU busy. Leave it off if that's a concern.
+The **Stop** button next to Translate (or Settings -> General -> Stop all translation) ends a translation at any time. Headline translation (off by default) repeats all this for every non-English headline, so with the NLLB languages it keeps the CPU busy. Leave it off if that's a concern.
 
 #### Benchmark
 
@@ -329,7 +329,7 @@ The **Map** button (Ctrl+M) at the left of the tab strip shows where the stories
 
 Places come from an offline gazetteer: countries, ~4,200 cities, US states, Canadian,
 Australian and Indian states, Chinese provinces, conflict-zone towns, seas and regions. The
-title decides where a story is. The summary only narrows it down (Russia → Irkutsk). Words
+title decides where a story is. The summary only narrows it down (Russia -> Irkutsk). Words
 like "Israeli", "Houthis" or "Kremlin" point at a country but place a story there only when
 nothing more specific does. Names that are also first names or surnames (Vladimir, Austin)
 need a place context, and a source's sidebar group (its country) breaks ties such as
@@ -362,7 +362,7 @@ Windows account (`scratchpad.bin`). If Windows encryption is unavailable it is n
 
 #### 4chan
 
-The toolbar's optional **4chan** button opens 4chan /pol/ as a live-only tab (hide the button in Settings → General). Middle-click any link there to open it in a background tab. Nothing from these tabs is saved, and they run on their own in-memory browser session, so no cookies or cache reach the disk.
+The toolbar's optional **4chan** button opens 4chan /pol/ as a live-only tab (hide the button in Settings -> General). Middle-click any link there to open it in a background tab. Nothing from these tabs is saved, and they run on their own in-memory browser session, so no cookies or cache reach the disk.
 
 #### Keyboard Shortcuts
 
@@ -390,7 +390,7 @@ The **+** button in the column's header shows a row of chat types:
   reconnect by themselves if the link drops. The log shows the connection steps (connecting, connected,
   joined) and people joining, leaving, quitting, changing nick, being kicked and topic changes.
 
-Twitch and destiny.gg chats run on their own browser session and open links in your browser. The list is also in Settings → General → Live chat.
+Twitch and destiny.gg chats run on their own browser session and open links in your browser. The list is also in Settings -> General -> Live chat.
 
 ### Chat Tabs
 
@@ -489,7 +489,7 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
     │   ├── favicons.js     site icons, fetched once and cached
     │   ├── chat.js         chat-panel session and webview lock-down
     │   ├── irc.js          anonymous, read-only IRC connections for the chat column
-    │   ├── fourchan.js     4chan tabs: in-memory session, middle-click → new tab
+    │   ├── fourchan.js     4chan tabs: in-memory session, middle-click -> new tab
     │   ├── perfwatch.js    CPU / hang watchdog for the session log
     │   ├── secrets.js      encrypted API keys and sessions (Windows DPAPI)
     │   ├── blocker.js      ad/tracker blocking (host list + EasyList) for article and 4chan tabs
