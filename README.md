@@ -6,7 +6,7 @@
 
 <p align="center"><b>One screen for every source of a developing story</b></p>
 
-Polyopticon is a desktop news-monitoring dashboard. It pulls news outlets, forums, imageboard posts, Twitch streams and chat, and other public sources into one configurable workspace, so you can follow a protest, a major media event, or any fast-moving story as it develops, in real-time.
+Polyopticon is a desktop news-monitoring dashboard. It pulls news outlets, forums, imageboard posts, Twitch streams and chat, and other public sources into one configurable workspace, so you can follow a protest, a major media event, or any fast-moving story as it develops, in real time.
 
 Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, free API keys) are stored encrypted on your computer.
 
@@ -48,7 +48,7 @@ Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, 
   - [Group](#group)
   - [Story Rows](#story-rows)
 - [Article View](#article-view)
-  - [Tabs](#tabs)
+  - [Article Tabs](#article-tabs)
   - [Article Bar](#article-bar)
   - [Offline Reading](#offline-reading)
   - [Translation](#translation)
@@ -67,6 +67,11 @@ Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, 
   - [Stream Tabs](#stream-tabs)
   - [Volume and Mute](#volume-and-mute)
   - [Resizing](#resizing)
+- [Tabs](#tabs)
+  - [Using Tabs](#using-tabs)
+  - [Pinned Tabs](#pinned-tabs)
+  - [Keyboard](#keyboard)
+  - [Tab Search](#tab-search)
 - [Settings](#settings)
   - [Data Folder](#data-folder)
   - [Ad Blocking](#ad-blocking)
@@ -77,7 +82,7 @@ Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, 
 
 ### Binary
 
-Check the GitHub <a href="https://github.com/rethy-xyz-networks/Polyopticon/releases">releases</a> page for up-to-date portable binaries, and release information.
+Check the GitHub <a href="https://github.com/rethy-xyz-networks/Polyopticon/releases">releases</a> page for up-to-date portable binaries and release information.
 
 New binaries are built for each release.
 
@@ -97,13 +102,13 @@ npm run dist       # build a portable Windows .exe into dist/
 
 Polyopticon has five main areas, known as views, with the [toolbar](#toolbar) across the top:
 
-- **[Sources & Filters View](#sources--filters-view)** (fig. 1): The sidebar on the left. It picks which outlets and wires (grouped by country) populate the **Article List View** and holds the include / exclude keywords (bottom of the list).
+- **[Sources & Filters View](#sources--filters-view)** (fig. 1): The sidebar on the left. It picks which outlets and wires (grouped by country) populate the **Article List View** feed, and holds the include / exclude keywords (bottom of the list).
 - **[Article List View](#article-list-view)** (fig. 2): The article list to the right of the **Sources & Filters View**. It displays incoming articles by newest first (Live), or the articles you opened previously (History).
 - **[Article View](#article-view)** (fig. 3): The centre area, where articles and sites open as separate tabs. An article opens by default as a live page, and supports a saved copy or a clean reader view. The map, Scratchpad, 4chan, Telegram pages and the shortcut list also open within this view as separate tabs.
 - **[Live Chat View](#live-chat-view)** (fig. 4): Twitch, Kick, destiny.gg and IRC chats, in a column on the right (Ctrl+J).
 - **[Video Player View](#video-player-view)** (fig. 5): Twitch, Kick, YouTube or direct-link streams below the chat, several at once, each with its own volume and mute (Ctrl+V).
 
-Drag the bars between the views to resize them. Width and height per view is recorded and remembered.
+Drag the bars between the views to resize them. Width and height per view are recorded and remembered.
 
 ## Toolbar
 
@@ -130,7 +135,7 @@ The sidebar on the left. The **edit** button in its header opens Settings -> Sou
 
 ### Finding a Source
 
-The search box at the top of the **Sources & Filters View** sidebar finds a source by its name, its group (country) or its category. Every word typed must match, and accents and case don't matter (`ruv` finds RÚV), so typing a country shows all of its sources. Folded groups open while a search is active. Esc clears it.
+The search box at the top of the **Sources & Filters View** sidebar finds a source by its name, its group (country) or its category. Every word typed must match, and accents and case don't matter (`ruv` finds RÚV), so typing a country shows all of its sources. Folded groups open while a search is active. Esc clears the search.
 
 ### Source Groups
 
@@ -179,7 +184,7 @@ The **Refresh interval** (Settings -> General) is the fastest a feed is ever ask
 | Requests | 100% | about 26% (74% fewer) |
 | Story shown | within 5 s of appearing | on average 9 s later than fixed polling (never more than 20 s) |
 
-A feed is only watched closely while it is active, and a quiet one is checked less often but never less than every 20 seconds, so a story is never held back for long. Each wait also gets ±10% random jitter, so feeds that started together don't all hit their servers at the same instant, and the wait is never shorter than the Refresh interval.
+A feed is only watched closely while it is active, and a quiet one is checked less often but at least every 20 seconds, so a story is never held back for long. Each wait also gets ±10% random jitter, so feeds that started together don't all hit their servers at the same instant, and the wait is never shorter than the Refresh interval.
 
 The 20 s ceiling is the trade-off: raising it saves more requests but shows stories later (a 30 s ceiling measured 14 s late on average for 82% fewer requests. 60 s measured 31 s late for 91% fewer). The server's `Cache-Control` hint is deliberately not obeyed: it is only a hint (a CDN can replace the copy as soon as a story is published), and measured against a 12-hour recording of the real feeds it made stories later for almost no saving. The numbers are at the top of `src/main/adapters/pacing.js`. `scripts/bench-polling/` records the real feeds at fixed 5 s polling and replays the scheme against that recording to measure how late it would have shown stories and how many requests it would have saved. The figures above come from a 12-hour recording of 71 feeds (1,187 new stories).
 
@@ -195,7 +200,7 @@ At the bottom of the **Sources & Filters View**. Type a keyword and press Enter 
 Matching ignores case. Each keyword has:
 
 - **Tick box:** Turns the keyword on or off without removing it.
-- **Scope button:** Where the keyword is looked for and matched. Click to cycle through **T+D** (title and description), **T** (title only), and **D** (description only).
+- **Scope button:** Where the keyword is matched. Click to cycle through **T+D** (title and description), **T** (title only), and **D** (description only).
 - **Close button:** Removes the keyword.
 
 Keywords are saved in `tags.json` and apply in both Live and History.
@@ -248,13 +253,9 @@ With headline translation on (see [Translation](#translation)), non-English head
 
 The centre area. Opened stories, the map and the special tabs below all open here.
 
-### Tabs
+### Article Tabs
 
-- **Drag a tab** to reorder it.
-- **Right-click a tab** for pin / close others / close to the right.
-- **Middle-click** or Ctrl+W closes a tab.
-- **Pinned tabs** (the pin button in the article bar, right-click -> Pin, or Ctrl+P) stay at the left, ignore middle-click and Ctrl+W, and reopen in the same view (Live / Saved page / Reader) the next time the app starts.
-- **Tab keys:** Ctrl+PgDown / Ctrl+PgUp move between tabs, Alt+1 to 9 jumps to a tab, and Ctrl+Shift+A searches the open tabs.
+Article tabs work like every other tab strip (see [Tabs](#tabs)). Pinned article tabs also reopen in the same view (Live / Saved page / Reader) the next time the app starts.
 
 The open tabs are remembered in `pinned.json`: articles, 4chan and Telegram pages, the Scratchpad and the shortcut list come back in order, pinned or not, with the selected tab selected again.
 
@@ -264,7 +265,7 @@ The bar above an open article, from left to right:
 
 - **Back / Reload / Forward** (Alt+Left, Ctrl+R, Alt+Right): page navigation.
 - **Source and title** of the story.
-- **Live / Saved page / Reader:** switches between the real page, the saved full-page copy and the clean text. When the site can't be reached (or you're offline) the saved copy opens automatically.
+- **Live / Saved page / Reader:** switches between the real page, the saved full-page copy and the clean text. When the site can't be reached (or you're offline), the saved copy opens automatically.
 - **Translate / Stop:** see [Translation](#translation).
 - **Save state:** "Saving…", "Saved 2m ago" (with "· partial" when the site only sent part of the article), or "Not saved". In Live view, click it to save the page again, for example after logging in.
 - **Screenshot** (Ctrl+Shift+S): captures the whole page, copies it to the clipboard and saves it as a picture (folder set in Settings -> General -> Article viewer).
@@ -314,7 +315,7 @@ The **Stop** button next to Translate (or Settings -> General -> Stop all transl
 
 #### Benchmark
 
-**Translation is taxing.** It runs on your CPU, uses most of its threads while it works, and how hard and how long depends on the language, and your CPU. Roughly, for one short paragraph (four sentences, 300-450 characters), it's the following:
+**Translation is taxing.** It runs on your CPU, uses most of its threads while it works, and how hard and how long depends on the language, and your CPU. Roughly, for one short paragraph (four sentences, 300-450 characters), it takes:
 
 | Languages | Model | Time | CPU while working |
 |---|---|---|---|
@@ -330,7 +331,7 @@ A 5,000-character article takes around half a minute with an Opus-MT language, 3
 
 <img src="docs/screenshots/map.png">
 
-The **Map** button (Ctrl+M) at the left of the tab strip shows where the stories in the live list are happening. Each story is a pin in its site's colour, faded as it gets older (< 1h, < 6h, < 24h, older). A place's pins gather in a cluster with the number of stories. Places that would overlap at the current zoom share one cluster, which splits again as you zoom in. A cluster never grows past 30 pins, however many stories it holds.
+The **Map** button (Ctrl+M) at the left of the tab strip shows where the stories in the live list are happening. Each story is a pin in its site's colour, faded as it gets older (< 1h, < 6h, < 24h, older). A place's pins gather in a cluster showing the number of stories. Places that would overlap at the current zoom share one cluster, which splits again as you zoom in. A cluster never grows past 30 pins, however many stories it holds.
 
 - **1h / 6h / 24h / All:** shows only stories published within that window.
 - **Click a cluster** for the list of its stories, with a search box (title, site or place. Enter opens the first match), or **Show … in the feed** to filter the list to its places (shown as a [place chip](#search-bar)).
@@ -365,7 +366,7 @@ Paste or type text (Markdown is highlighted) and paste or drop images into it: e
 right where it was pasted. Click it to enlarge (then scroll to zoom in and out, drag to move), drag its corner or Ctrl+scroll over it to resize,
 and use the delete button (or Delete) to remove it. The article bar's **Add to Scratchpad** button adds a link to the open article.
 
-It saves by itself: after a short pause in typing, when you leave or close the tab, and when the app closes. It is stored encrypted with your
+It saves automatically: after a short pause in typing, when you leave or close the tab, and when the app closes. It is stored encrypted with your
 Windows account (`scratchpad.bin`). If Windows encryption is unavailable it is not written to disk at all.
 
 #### 4chan
@@ -393,20 +394,16 @@ The **+** button in the column's header shows a row of chat types:
 - **Kick:** a field for the channel name or link. The chat is Kick's embed at `chat.kick.cx/embed/<channel>`.
 - **destiny.gg:** switches the chat on or off (no details needed). Read-only (guest).
 - **IRC:** fields for a server and a room. **Connect** joins the room anonymously: a random guest nick,
-  no password, no login. Servers are encrypted by default (`irc.libera.chat`, or with a port,
+  no password, no login. Connections use TLS by default (`irc.libera.chat`, or with a port,
   `irc.example.org:6697`). Use `irc://host:6667` for a plain-text server. IRC rooms are read-only and
   reconnect by themselves if the link drops. The log shows the connection steps (connecting, connected,
   joined) and people joining, leaving, quitting, changing nick, being kicked and topic changes.
 
-Twitch and destiny.gg chats run on their own browser session and open links in your browser. The list is also in Settings -> General -> Live chat.
+Twitch and destiny.gg chats run on their own browser session and open links in your browser. Chats can also be managed in Settings -> General -> Live chat.
 
 ### Chat Tabs
 
-- **Reload** (the button beside **+**, or Ctrl+R): reloads the chat that's showing.
-- **Close button** on a tab (or middle-click) removes it.
-- Chat tabs work like the article tabs: drag to reorder, and right-click for pin / close others / close to the right. Pinned tabs stay at the left and have no close button.
-
-The order and pins are remembered.
+Each chat is a tab, and they work like every other tab strip (see [Tabs](#tabs)). **Reload** (the button beside **+**, or Ctrl+R) reloads the chat that's showing. The order and pins are remembered.
 
 ## Video Player View
 
@@ -425,7 +422,7 @@ Press the **+** button in the stream bar (it works like the chat's), pick a site
 
 ### Stream Tabs
 
-Each stream is a tab, like the chats: add as many as you like, drag to reorder, right-click to pin or close others, and use the close button or middle-click to close. **Reload** (beside **+**) reloads the stream that's showing.
+Each stream is a tab, and they work like every other tab strip (see [Tabs](#tabs)). Add as many as you like. **Reload** (the button beside **+**, or Ctrl+R) reloads the stream that's showing.
 
 ### Volume and Mute
 
@@ -438,6 +435,52 @@ Each stream has its own volume:
 ### Resizing
 
 Drag the bar between chat and streams to resize. The streams stop when the split or the chat column is closed. The tabs, pins, split and height are remembered.
+
+## Tabs
+
+The [Article View](#article-view), [Live Chat View](#live-chat-view) and [Video Player View](#video-player-view) each have their own tab strip, and all three work the same way. Keyboard shortcuts act on the strip of whichever view you last clicked.
+
+### Using Tabs
+
+- **Click** a tab to switch to it, and **drag** it to reorder.
+- **Close button** or **middle-click** closes a tab.
+- **Right-click a tab** to pin or unpin it, close it, close the other tabs, or close the tabs to its right. Article tabs also have **Open in browser** and **Copy link**.
+- **Mouse wheel** over a strip scrolls it sideways. Chat and stream strips always scroll this way, and the article strip does when *Settings -> General -> Scrollable tabs* is on.
+
+### Pinned Tabs
+
+Pin a tab with right-click -> **Pin tab** or Ctrl+P. Article tabs also have a pin button in the [article bar](#article-bar). Pinned tabs:
+
+- Stay at the left of the strip, marked with a pin.
+- Have no close button, and ignore middle-click and Ctrl+W. Right-click -> **Close tab** still closes one.
+- Are left open by **Close other tabs** and **Close tabs to the right**.
+- Aren't counted by Alt+1 to 9.
+
+### Keyboard
+
+| Keys | Action |
+|---|---|
+| Ctrl+PgDown / Ctrl+PgUp | Next / previous tab (wraps around) |
+| Alt+1 to 9 | Go to tab 1–9, counting after the pinned tabs |
+| Ctrl+W | Close the current tab (pinned tabs stay open) |
+| Ctrl+P | Pin or unpin the current tab |
+| Ctrl+R | Reload the current tab |
+| Ctrl+Shift+A | [Search the open tabs](#tab-search) |
+
+The shortcuts also work while an article or chat page has focus.
+
+### Tab Search
+
+<img src="docs/screenshots/tab-search.png">
+
+**Ctrl+Shift+A** searches the open tabs of whichever view you last clicked. A box opens below that view's tab strip, listing its tabs with the current one first. Article tabs follow it in the order you last used them, and chat and stream tabs in their strip order.
+
+- **Type** to filter by title or site. Every word must match, and the matches are highlighted.
+- **Up / Down** move the highlight, and **Enter** or a click switches to that tab.
+- **Close button** on a row closes that tab without leaving the box. Pinned tabs show a pin instead and can't be closed from here.
+- **Esc**, a click anywhere else, or Ctrl+Shift+A again closes the box.
+
+With nothing typed, the highlight starts on the second tab, so **Ctrl+Shift+A, Enter** jumps back to the tab you were on before.
 
 ## Settings
 
