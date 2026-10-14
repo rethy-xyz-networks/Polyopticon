@@ -12,6 +12,7 @@ import { state } from './state.js';
 import { markSaved, unmarkAllSaved, siteIcon } from './feed.js';
 import { renderShortcutList } from './shortcuts.js';
 import { makeReorderable } from './reorder.js';
+import { tabEl } from './tabstrip.js';
 import { telegramChannelOf, telegramUrl, parseTelegramChannel } from './telegram.js';
 import { initScratch, focusScratch, flushScratch, appendToScratch } from './scratchpad.js';
 
@@ -309,7 +310,7 @@ export function activateTab(tab) {
   renderTabs();
   renderStory();
   evictIdleViews();
-  document.querySelector('.tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  document.querySelector('#tabs .tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 /** Ctrl+PgDown / Ctrl+PgUp: the next or previous tab, pinned ones included, wrapping around. */
@@ -420,26 +421,24 @@ export function onSnapshotsCleared() {
 
 export function renderTabs() {
   if (reorder?.dragging) return;                           // don't yank the strip out from under a drag
-  $('tabs').replaceChildren(...state.tabs.map(tab =>
-    h('div', {
-      class: `tab${tab.id === state.activeTabId ? ' active' : ''}${tab.pinned ? ' pinned' : ''}`,
-      title: tab.pinned ? `${tab.item.title}\n(pinned)` : tab.item.title,
-      dataset: { id: tab.id },
-      onclick: () => activateTab(tab),
-      onmousedown: e => { if (e.button === 1) { e.preventDefault(); if (!tab.pinned) closeTab(tab); } },
-      oncontextmenu: e => { e.preventDefault(); tabMenu(tab, e.clientX, e.clientY); },
-    },
-      tab.pinned && pinIcon(),
+  $('tabs').replaceChildren(...state.tabs.map(tab => tabEl({
+    id: tab.id,
+    label: tab.item.title,
+    title: tab.item.title,
+    active: tab.id === state.activeTabId,
+    pinned: tab.pinned,
+    lead: [
       tab.mode !== 'live' && h('span', { class: 'tab-mode', title: MODE_LABEL[tab.mode] }, icon(tab.mode === 'page' ? 'saved-page' : 'reader')),
       tab.kind === 'chan' && h('span', { class: 'tab-mode', title: SITE_LABEL[tab.site] }, icon(SITE_ICON[tab.site])),
       tab.kind === 'scratch' && h('span', { class: 'tab-mode', title: 'Scratchpad' }, icon('scratchpad')),
       !tab.kind && siteIcon(tab.item),                          // the source's icon, as in the feed
-      h('span', { class: 'label' }, tab.item.title),
-      !tab.pinned && h('button', { class: 'icon-btn close', title: 'Close tab (Ctrl+W)',
-        onclick: e => { e.stopPropagation(); closeTab(tab); } }, icon('close')))));
+    ],
+    closeTitle: 'Close tab (Ctrl+W)',
+    onSelect: () => activateTab(tab),
+    onClose: () => closeTab(tab),
+    onMenu: (x, y) => tabMenu(tab, x, y),
+  })));
 }
-
-const pinIcon = () => h('span', { class: 'pin' }, icon('pin'));
 
 function tabMenu(tab, x, y) {
   const idx = state.tabs.indexOf(tab);
