@@ -95,3 +95,5 @@ CLAUDE.local.md
 *.bak
 *.orig
 *.rej
+
+docs/tab-sizes-check/
