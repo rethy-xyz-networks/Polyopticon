@@ -321,6 +321,17 @@ export function cycleTab(step) {
   activateTab(state.tabs[i < 0 ? (step > 0 ? 0 : n - 1) : (i + step + n) % n]);
 }
 
+/** Ctrl+Shift+PgDown / PgUp: move the current tab one place right or left, within its pinned or unpinned group. */
+export function moveTab(step) {
+  const i = state.tabs.findIndex(t => t.id === state.activeTabId);
+  const j = i + step;
+  if (i < 0 || j < 0 || j >= state.tabs.length || !state.tabs[j].pinned !== !state.tabs[i].pinned) return;
+  [state.tabs[i], state.tabs[j]] = [state.tabs[j], state.tabs[i]];
+  saveTabs();
+  renderTabs();
+  document.querySelector('#tabs .tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
 /** The tabs for tab search (Ctrl+Shift+A): the current one, then the most recently used. */
 export function storyTabList() {
   const host = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };

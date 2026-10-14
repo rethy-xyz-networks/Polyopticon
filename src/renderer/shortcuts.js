@@ -35,7 +35,9 @@ export const SHORTCUTS = [
   { group: 'Tabs', items: [
     { id: 'nextTab',  combos: ['ctrl+pagedown'], keys: [['Ctrl', 'PgDown']], does: 'Next tab (wraps around): in the articles, chat or streams, whichever you last clicked' },
     { id: 'prevTab',  combos: ['ctrl+pageup'], keys: [['Ctrl', 'PgUp']], does: 'Previous tab (wraps around); same' },
-    { id: 'tabN',     combos: DIGITS.map(n => `alt+${n}`), keys: [['Alt', '1 … 9']], does: 'Go to tab 1–9, counting after the pinned tabs; same' },
+    { id: 'moveTabRight', combos: ['ctrl+shift+pagedown'], keys: [['Ctrl', 'Shift', 'PgDown']], does: 'Move the current tab one place right (within its pinned or unpinned tabs); same' },
+    { id: 'moveTabLeft',  combos: ['ctrl+shift+pageup'], keys: [['Ctrl', 'Shift', 'PgUp']], does: 'Move the current tab one place left; same' },
+    { id: 'tabN',    combos: DIGITS.map(n => `alt+${n}`), keys: [['Alt', '1 … 9']], does: 'Go to tab 1–9, counting after the pinned tabs; same' },
     { id: 'closeTab', combos: ['ctrl+w'], keys: [['Ctrl', 'W']], does: 'Close the current tab (pinned tabs stay open); same' },
     { id: 'pinTab',   combos: ['ctrl+p'], keys: [['Ctrl', 'P']], does: 'Pin or unpin the current tab; same' },
     { id: 'searchTabs', combos: ['ctrl+shift+a'], keys: [['Ctrl', 'Shift', 'A']], does: 'Search the open tabs and switch to one (Up / Down, Enter); same' },

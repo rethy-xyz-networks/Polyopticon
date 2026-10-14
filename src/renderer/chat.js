@@ -549,12 +549,14 @@ function strip(area) {
     return { list, keys: list.map(streamKey), current: currentStream,
              select: key => { saveUi({ streamTab: key }); paintVideo(); },
              close: s => removeStreams([s]), pin: setStreamPinned,
+             reorder: order => { const by = new Map(list.map(s => [streamKey(s), s])); saveStreams(order.map(k => by.get(k))); paintVideo(); },
              reload: () => streamViews.get(currentStream)?.wv.reload() };
   }
   const list = chats();
   return { list, keys: list.map(c => c.key), current,
            select: key => { saveUi({ chatTab: key }); renderChat(); },
-           close: removeChat, pin: setPinned, reload: reloadChat };
+           close: removeChat, pin: setPinned, reload: reloadChat,
+           reorder: order => { saveUi({ chatOrder: order }); renderChat(); } };
 }
 
 /** Ctrl+PgDown / Ctrl+PgUp: the next or previous tab, pinned ones included, wrapping around. */
@@ -564,6 +566,18 @@ export function cycleChatTab(area, step) {
   if (!n) return;
   const i = keys.indexOf(cur);
   select(keys[i < 0 ? 0 : (i + step + n) % n]);
+}
+
+/** Ctrl+Shift+PgDown / PgUp: move the shown tab one place right or left, within its pinned or unpinned group. */
+export function moveChatTab(area, step) {
+  const { list, keys, current: cur, reorder } = strip(area);
+  const i = keys.indexOf(cur);
+  const j = i + step;
+  if (i < 0 || j < 0 || j >= list.length || !list[j].pinned !== !list[i].pinned) return;
+  const order = [...keys];
+  [order[i], order[j]] = [order[j], order[i]];
+  reorder(order);
+  document.querySelector(`${area === 'stream' ? '#video-tabs' : '#chat-tabs'} .tab.active`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 /** Alt+1…9: the Nth tab after the pinned ones. */

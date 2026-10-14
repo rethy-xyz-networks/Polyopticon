@@ -5,10 +5,10 @@ import { state, setSources } from './state.js';
 import { ingest, refreshRows, scheduleRender, bindFeedScroll, trimToMax, rebuildTagCache, bindList, pruneSources, setCountsListener, updateItems, setVisibleListener } from './feed.js';
 import { initMap, openMap, closeMap, onVisibleItems, applyMapAppearance, refreshMapFilter } from './map.js';
 import { renderSources, renderTags, bindTagForms, bindSourceFilter, setStatus, repaintCounts } from './sidebar.js';
-import { renderStory, renderTabs, activeTab, closeTab, setPinned, cycleTab, selectUnpinnedTab, openHelpTab, openScratchTab, openChanHome, openChanTab, openTelegramDraft, navigate, reload as reloadTab, showMode, onSnapshotSaved, applyZoom, bindStoryButtons, bindTabDrag, restoreTabs, storyTabList, selectTabById, closeTabById, onArticleTranslateProgress, takeScreenshot } from './tabs.js';
+import { renderStory, renderTabs, activeTab, closeTab, setPinned, cycleTab, moveTab, selectUnpinnedTab, openHelpTab, openScratchTab, openChanHome, openChanTab, openTelegramDraft, navigate, reload as reloadTab, showMode, onSnapshotSaved, applyZoom, bindStoryButtons, bindTabDrag, restoreTabs, storyTabList, selectTabById, closeTabById, onArticleTranslateProgress, takeScreenshot } from './tabs.js';
 import { initHistory, reload as reloadHistory, setHistoryQuery } from './history.js';
 import { ui, loadUi, saveUi } from './ui.js';
-import { initChat, renderChat, toggleChat, toggleVideo, applyChatTheme, chatOpen, cycleChatTab, selectChatTab, closeChatTab, reloadChatTab, pinChatTab, chatTabList } from './chat.js';
+import { initChat, renderChat, toggleChat, toggleVideo, applyChatTheme, chatOpen, cycleChatTab, moveChatTab, selectChatTab, closeChatTab, reloadChatTab, pinChatTab, chatTabList } from './chat.js';
 import { openTabSearch } from './tabsearch.js';
 import { initSourceSearch, renderSourceChips, clearSearchSources, pruneSearchSources } from './sourcesearch.js';
 import { initSettings, openSettings, toggleSettings, closeSettings, setSetting, syncSettingControl, refreshSettingsPage, renderScreenshotFolder } from './settings.js';
@@ -192,6 +192,8 @@ function bindShortcuts() {
     fullscreen: () => api.toggleFullScreen(),
     nextTab:  inChat(a => cycleChatTab(a, 1), () => cycleTab(1)),
     prevTab:  inChat(a => cycleChatTab(a, -1), () => cycleTab(-1)),
+    moveTabRight: inChat(a => moveChatTab(a, 1), () => moveTab(1)),
+    moveTabLeft:  inChat(a => moveChatTab(a, -1), () => moveTab(-1)),
     tabN:     inChat((a, combo) => selectChatTab(a, +combo.slice(-1)), combo => selectUnpinnedTab(+combo.slice(-1))),
     closeTab: inChat(closeChatTab, () => { const t = activeTab(); if (t && !t.pinned) closeTab(t); }),
     back:     () => navigate(-1),
