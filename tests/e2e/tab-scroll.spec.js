@@ -9,8 +9,8 @@ const { test, expect } = require('./fixtures');
 
 const STRIPS = [
   { name: 'story', strip: '#tabs',       tab: 'div',    cls: 'tab',      label: 'label' },
-  { name: 'chat',  strip: '#chat-tabs',  tab: 'button', cls: 'chat-tab', label: 'name' },
-  { name: 'video', strip: '#video-tabs', tab: 'button', cls: 'chat-tab', label: 'name' },
+  { name: 'chat',  strip: '#chat-tabs',  tab: 'div', cls: 'tab', label: 'label' },
+  { name: 'video', strip: '#video-tabs', tab: 'div', cls: 'tab', label: 'label' },
 ];
 
 async function fill(window, s, count) {

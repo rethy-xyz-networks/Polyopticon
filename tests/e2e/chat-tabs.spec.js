@@ -10,7 +10,7 @@ const { test, expect } = require('./fixtures');
 // Shrink-to-fit layout: this test is about dragging, and all three tabs must be in view (scrolling is tab-scroll.spec.js).
 test.use({ settings: { ChatTwitchChannels: 'alpha, bravo, charlie', ScrollableTabs: false } });
 
-const names = window => window.locator('.chat-tab .name').allTextContents();
+const names = window => window.locator('#chat-tabs .tab .label').allTextContents();
 
 // The test window is off-screen and unfocused, so a pointer gesture is now and then swallowed
 // (a window blur closes the menu mid-click). Gestures are retried until their effect shows.
@@ -24,10 +24,10 @@ async function until(check, attempt) {
 
 test('chat tabs can be reordered by dragging, pinned, and closed from the menu; order and pins are remembered', async ({ window, dataDir }) => {
   await window.locator('#btn-chat').click();
-  await expect(window.locator('.chat-tab')).toHaveCount(3);
+  await expect(window.locator('#chat-tabs .tab')).toHaveCount(3);
   expect(await names(window)).toEqual(['alpha', 'bravo', 'charlie']);
 
-  const tab = n => window.locator('.chat-tab', { hasText: n });
+  const tab = n => window.locator('#chat-tabs .tab', { hasText: n });
   const same = async expected => JSON.stringify(await names(window)) === JSON.stringify(expected);
   const drag = async (who, onto) => {
     const a = await tab(who).boundingBox(), b = await tab(onto).boundingBox();
@@ -48,9 +48,9 @@ test('chat tabs can be reordered by dragging, pinned, and closed from the menu; 
   await until(() => same(['bravo', 'charlie', 'alpha']), () => menu('bravo', /^Pin tab$/));
   await expect(tab('bravo')).toHaveClass(/pinned/);
   await expect(tab('bravo').locator('.pin')).toBeVisible();
-  await expect(tab('bravo').locator('.x')).toHaveCount(0);
+  await expect(tab('bravo').locator('.close')).toHaveCount(0);
   await tab('bravo').click({ button: 'middle' });
-  await expect(window.locator('.chat-tab')).toHaveCount(3);
+  await expect(window.locator('#chat-tabs .tab')).toHaveCount(3);
 
   // Dragging an unpinned tab onto the pinned one only moves it within its own group.
   await until(() => same(['bravo', 'alpha', 'charlie']), () => drag('alpha', 'bravo'));
@@ -66,13 +66,13 @@ test('chat tabs can be reordered by dragging, pinned, and closed from the menu; 
 
   // Close tabs to the right, then close the last one from its menu.
   await until(() => same(['bravo']), () => menu('bravo', /^Close tabs to the right$/).catch(() => {}));
-  await until(async () => (await window.locator('.chat-tab').count()) === 0, () => menu('bravo', /^Close tab$/).catch(() => {}));
+  await until(async () => (await window.locator('#chat-tabs .tab').count()) === 0, () => menu('bravo', /^Close tab$/).catch(() => {}));
 });
 
 test('Ctrl+Shift+A in the chat searches the chat tabs', async ({ window }) => {
   await window.locator('#btn-chat').click();
-  await expect(window.locator('.chat-tab')).toHaveCount(3);
-  await window.locator('.chat-tab', { hasText: 'alpha' }).click();      // the chat is now the area the tab shortcuts act on
+  await expect(window.locator('#chat-tabs .tab')).toHaveCount(3);
+  await window.locator('#chat-tabs .tab', { hasText: 'alpha' }).click();      // the chat is now the area the tab shortcuts act on
   await window.keyboard.press('Control+Shift+a');
   const box = window.locator('.tab-search');
   await expect(box.locator('.tab-search-head')).toContainText('Chat tabs');
@@ -81,6 +81,6 @@ test('Ctrl+Shift+A in the chat searches the chat tabs', async ({ window }) => {
   await window.keyboard.type('charl');
   await window.keyboard.press('Enter');
   await expect(box).toHaveCount(0);
-  await expect(window.locator('.chat-tab.active')).toContainText('charlie');
+  await expect(window.locator('#chat-tabs .tab.active')).toContainText('charlie');
   expect(window.pageErrors).toEqual([]);
 });

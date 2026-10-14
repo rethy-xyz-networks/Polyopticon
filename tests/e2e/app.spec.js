@@ -224,7 +224,7 @@ test('the stream split works like the chat: plus -> Twitch / Kick / YouTube butt
   await window.locator('#chat-video-btn').click();
   const add = window.locator('#video-add'), input = window.locator('#video-channel'), plus = window.locator('#video-add-btn');
   await expect(add).toBeVisible();                                   // nothing chosen yet: the buttons are already open
-  await expect(add.locator('[data-site]')).toHaveText(['Twitch', 'Kick', 'YouTube']);
+  await expect(add.locator('[data-site]')).toHaveText(['Twitch', 'Kick', 'YouTube', 'Direct']);
   await expect(window.locator('#video-form')).toBeHidden();          // the field comes with a site
 
   // Same header as the chat: same height, same plus and refresh buttons.
@@ -241,42 +241,42 @@ test('the stream split works like the chat: plus -> Twitch / Kick / YouTube butt
   await input.fill('xqc');
   await input.press('Enter');
   await expect(add).toBeHidden();
-  await expect(window.locator('#video-tabs .chat-tab.active .name')).toHaveText('Kick: xqc');
+  await expect(window.locator('#video-tabs .tab.active .label')).toHaveText('Kick: xqc');
   await expect(window.locator('#video-view webview')).toHaveAttribute('src', 'https://player.kick.com/xqc');
 
   await plus.click();                                                // a pasted link picks its own site
   await add.locator('[data-site="twitch"]').click();
   await input.fill('https://www.youtube.com/@NASA/live');
   await input.press('Enter');
-  await expect(window.locator('#video-tabs .chat-tab.active .name')).toHaveText('YouTube: @NASA');
+  await expect(window.locator('#video-tabs .tab.active .label')).toHaveText('YouTube: @NASA');
   await expect(window.locator('#video-view webview:not(.inactive)')).toHaveAttribute('src', 'https://www.youtube.com/@NASA/live');
 
   await plus.click();
   await add.locator('[data-site="twitch"]').click();
   await input.fill('twitch.tv/Destiny');
   await input.press('Enter');
-  await expect(window.locator('#video-tabs .chat-tab.active .name')).toHaveText('Twitch: destiny');
+  await expect(window.locator('#video-tabs .tab.active .label')).toHaveText('Twitch: destiny');
   await expect(window.locator('#video-view webview:not(.inactive)')).toHaveAttribute('src', /^https:\/\/player\.twitch\.tv\/\?channel=destiny&/);
 
   // All three are tabs, and their players keep running side by side.
-  await expect(window.locator('#video-tabs .chat-tab .name')).toHaveText(['Kick: xqc', 'YouTube: @NASA', 'Twitch: destiny']);
+  await expect(window.locator('#video-tabs .tab .label')).toHaveText(['Kick: xqc', 'YouTube: @NASA', 'Twitch: destiny']);
   await expect(window.locator('#video-view webview')).toHaveCount(3);
 
   // Switching tabs shows another player without stopping the others.
-  await window.locator('#video-tabs .chat-tab', { hasText: 'Kick' }).click();
+  await window.locator('#video-tabs .tab', { hasText: 'Kick' }).click();
   await expect(window.locator('#video-view webview:not(.inactive)')).toHaveAttribute('src', 'https://player.kick.com/xqc');
   await expect(window.locator('#video-view webview')).toHaveCount(3);
 
   // Closing a tab removes only its player.
-  await window.locator('#video-tabs .chat-tab', { hasText: 'YouTube' }).click({ button: 'middle' });
-  await expect(window.locator('#video-tabs .chat-tab .name')).toHaveText(['Kick: xqc', 'Twitch: destiny']);
+  await window.locator('#video-tabs .tab', { hasText: 'YouTube' }).click({ button: 'middle' });
+  await expect(window.locator('#video-tabs .tab .label')).toHaveText(['Kick: xqc', 'Twitch: destiny']);
   await expect(window.locator('#video-view webview')).toHaveCount(2);
 
   // Pinned tabs move to the front.
-  await window.locator('#video-tabs .chat-tab', { hasText: 'Twitch' }).click({ button: 'right' });
+  await window.locator('#video-tabs .tab', { hasText: 'Twitch' }).click({ button: 'right' });
   await window.locator('.ctx-menu button', { hasText: 'Pin tab' }).click();
-  await expect(window.locator('#video-tabs .chat-tab .name')).toHaveText(['Twitch: destiny', 'Kick: xqc']);
-  await expect(window.locator('#video-tabs .chat-tab').first()).toHaveClass(/pinned/);
+  await expect(window.locator('#video-tabs .tab .label')).toHaveText(['Twitch: destiny', 'Kick: xqc']);
+  await expect(window.locator('#video-tabs .tab').first()).toHaveClass(/pinned/);
   expect(window.pageErrors).toEqual([]);
 });
 
@@ -290,7 +290,7 @@ test('every stream plays at once, each with its own volume bar and mute', async 
     await window.locator(`#video-add [data-site="${site}"]`).click();
     await window.locator('#video-channel').fill(name);
     await window.locator('#video-channel').press('Enter');
-    await expect(window.locator('#video-tabs .chat-tab.active .name')).toContainText(name);
+    await expect(window.locator('#video-tabs .tab.active .label')).toContainText(name);
   };
   await add('kick', 'alpha');
   await window.locator('#video-add-btn').click();
@@ -301,17 +301,17 @@ test('every stream plays at once, each with its own volume bar and mute', async 
   // The bar belongs to the tab shown (bravo); alpha keeps its own level.
   await slider.fill('20');
   await expect(mute.locator('svg')).toHaveAttribute('data-icon', 'volume-0');
-  await window.locator('#video-tabs .chat-tab .name', { hasText: 'alpha' }).click();
+  await window.locator('#video-tabs .tab .label', { hasText: 'alpha' }).click();
   await expect(slider).toHaveValue('100');
   await expect(mute.locator('svg')).toHaveAttribute('data-icon', 'volume-2');
-  await window.locator('#video-tabs .chat-tab .name', { hasText: 'bravo' }).click();
+  await window.locator('#video-tabs .tab .label', { hasText: 'bravo' }).click();
   await expect(slider).toHaveValue('20');
 
   // A tab's own speaker mutes just that stream, without switching to it.
-  await window.locator('#video-tabs .chat-tab', { hasText: 'alpha' }).locator('.snd').click();
-  await expect(window.locator('#video-tabs .chat-tab', { hasText: 'alpha' }).locator('.snd').locator('svg')).toHaveAttribute('data-icon', 'muted');
-  await expect(window.locator('#video-tabs .chat-tab', { hasText: 'bravo' }).locator('.snd').locator('svg')).toHaveAttribute('data-icon', 'volume-2');
-  await expect(window.locator('#video-tabs .chat-tab.active .name')).toContainText('bravo');
+  await window.locator('#video-tabs .tab', { hasText: 'alpha' }).locator('.snd').click();
+  await expect(window.locator('#video-tabs .tab', { hasText: 'alpha' }).locator('.snd').locator('svg')).toHaveAttribute('data-icon', 'muted');
+  await expect(window.locator('#video-tabs .tab', { hasText: 'bravo' }).locator('.snd').locator('svg')).toHaveAttribute('data-icon', 'volume-2');
+  await expect(window.locator('#video-tabs .tab.active .label')).toContainText('bravo');
 
   // Both players exist and stay visible (a hidden player would be paused by its site); the one shown is on top.
   const states = await window.locator('#video-view webview').evaluateAll(list => list.map(w => ({

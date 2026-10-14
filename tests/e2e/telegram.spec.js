@@ -16,7 +16,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 appTest('✈️ opens a tab with a channel field where the title goes; connecting replaces it with the page', async ({ window, dataDir }) => {
   await appExpect(window.locator('#btn-telegram').locator('svg')).toHaveAttribute('data-icon', 'telegram');
   await window.locator('#btn-telegram').click();
-  const tab = window.locator('.tab.active');
+  const tab = window.locator('#tabs .tab.active');
   await appExpect(tab).toHaveCount(1);
   await appExpect(tab.locator('.tab-mode').locator('svg')).toHaveAttribute('data-icon', 'telegram');
 
@@ -28,11 +28,11 @@ appTest('✈️ opens a tab with a channel field where the title goes; connectin
   for (const id of ['#btn-copy', '#btn-open']) await appExpect(window.locator(id)).toBeHidden();   // no link yet
   await appExpect(window.locator('#btn-pin')).toBeVisible();                                       // but any tab can be pinned
   await appExpect(window.locator('webview')).toHaveCount(0);
-  await appExpect(window.locator('.chat-tab')).toHaveCount(0);                // not a chat
+  await appExpect(window.locator('#chat-tabs .tab')).toHaveCount(0);                // not a chat
 
   // A second press reuses the same new tab.
   await window.locator('#btn-telegram').click();
-  await appExpect(window.locator('.tab')).toHaveCount(1);
+  await appExpect(window.locator('#tabs .tab')).toHaveCount(1);
 
   await field.fill('not a channel!');
   await field.press('Enter');
@@ -60,11 +60,11 @@ appTest('✈️ opens a tab with a channel field where the title goes; connectin
 
   // Connecting a second new tab to the same channel switches to the open one instead of duplicating it.
   await window.locator('#btn-telegram').click();
-  await appExpect(window.locator('.tab')).toHaveCount(2);
+  await appExpect(window.locator('#tabs .tab')).toHaveCount(2);
   await window.locator('#tg-channel').fill('@durov');
   await window.locator('#tg-channel').press('Enter');
-  await appExpect(window.locator('.tab')).toHaveCount(1);
-  await appExpect(window.locator('.tab.active')).toContainText(/durov/i);
+  await appExpect(window.locator('#tabs .tab')).toHaveCount(1);
+  await appExpect(window.locator('#tabs .tab.active')).toContainText(/durov/i);
 });
 
 test('a pinned Telegram channel comes back at the next start', async () => {
@@ -77,9 +77,9 @@ test('a pinned Telegram channel comes back at the next start', async () => {
   const app = await electron.launch({ args: [ROOT], cwd: ROOT, env: { ...process.env, POLYOPTICON_DATA_DIR: dir, POLYOPTICON_OFFSCREEN: '1' } });
   try {
     const window = await app.firstWindow();
-    await expect(window.locator('.tab.pinned')).toHaveCount(1, { timeout: 30_000 });
-    await expect(window.locator('.tab.pinned')).toContainText('telegram');
-    await expect(window.locator('.tab.pinned .tab-mode').locator('svg')).toHaveAttribute('data-icon', 'telegram');
+    await expect(window.locator('#tabs .tab.pinned')).toHaveCount(1, { timeout: 30_000 });
+    await expect(window.locator('#tabs .tab.pinned')).toContainText('telegram');
+    await expect(window.locator('#tabs .tab.pinned .tab-mode').locator('svg')).toHaveAttribute('data-icon', 'telegram');
   } finally {
     await app.close();
     fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });

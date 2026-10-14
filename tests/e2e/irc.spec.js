@@ -66,7 +66,7 @@ test('➕ shows the chat types; IRC asks for a server and a room, connects anony
   await window.locator('#chat-irc-server').fill(`irc://127.0.0.1:${port}`);
   await window.getByRole('button', { name: 'Connect' }).click();
 
-  const tab = window.locator('.chat-tab.irc');
+  const tab = window.locator('#chat-tabs .tab.irc');
   await expect(tab).toHaveCount(1);
   await expect(tab).toContainText('#test');
   const log = window.locator('.irc-view .irc-log');
@@ -92,8 +92,8 @@ test('➕ shows the chat types; IRC asks for a server and a room, connects anony
 
   // The room is remembered, and ✕ on its tab leaves it (the connection closes).
   await tab.hover();
-  await tab.locator('.x').click();
-  await expect(window.locator('.chat-tab.irc')).toHaveCount(0);
+  await tab.locator('.close').click();
+  await expect(window.locator('#chat-tabs .tab.irc')).toHaveCount(0);
   await expect.poll(() => received.some(l => l.startsWith('QUIT'))).toBe(true);
 });
 
@@ -111,7 +111,7 @@ test('Kick chats: ➕ -> Kick -> a channel name or link opens chat.kick.cx/embed
 
   await input.fill('https://kick.com/XQC');
   await input.press('Enter');
-  await expect(window.locator('#chat-tabs .chat-tab.kick.active .name')).toHaveText('xqc');
+  await expect(window.locator('#chat-tabs .tab.kick.active .label')).toHaveText('xqc');
   await expect(window.locator('#chat-views webview:not(.inactive)')).toHaveAttribute('src', 'https://chat.kick.cx/embed/xqc');
 
   // Pasting the embed link itself works too, and the channel is kept in Settings.
@@ -119,13 +119,13 @@ test('Kick chats: ➕ -> Kick -> a channel name or link opens chat.kick.cx/embed
   await window.locator('#chat-type-kick').click();
   await input.fill('chat.kick.cx/embed/trainwreckstv');
   await input.press('Enter');
-  await expect(window.locator('#chat-tabs .chat-tab.kick .name')).toHaveText(['xqc', 'trainwreckstv']);
+  await expect(window.locator('#chat-tabs .tab.kick .label')).toHaveText(['xqc', 'trainwreckstv']);
   const saved = await window.evaluate(() => import('./state.js').then(m => m.state.settings.ChatKickChannels));
   expect(saved).toBe('xqc, trainwreckstv');
 
   // ✕ removes just that channel.
-  const xqc = window.locator('#chat-tabs .chat-tab.kick', { hasText: 'xqc' });
+  const xqc = window.locator('#chat-tabs .tab.kick', { hasText: 'xqc' });
   await xqc.hover();                                                   // the ✕ shows on hover
-  await xqc.locator('.x').click();
-  await expect(window.locator('#chat-tabs .chat-tab.kick .name')).toHaveText(['trainwreckstv']);
+  await xqc.locator('.close').click();
+  await expect(window.locator('#chat-tabs .tab.kick .label')).toHaveText(['trainwreckstv']);
 });
