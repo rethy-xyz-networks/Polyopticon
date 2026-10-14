@@ -36,7 +36,7 @@ function toItem(post) {
   const rkey = post.uri.split('/').pop();
   const handle = post.author?.handle || post.author?.did;
   const ext = post.embed?.external ?? rec.embed?.external;
-  const body = [rec.text, ext?.title && `🔗 ${ext.title}`].filter(Boolean).join('\n');
+  const body = [rec.text, ext?.title && ext.title].filter(Boolean).join('\n');
   return {
     extId: post.uri,
     kind: 'post',
