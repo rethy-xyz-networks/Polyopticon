@@ -1,5 +1,7 @@
 # Map audit: wrong place mappings and the matching engine
 
+Note: Keeping doc for historical purposes, but it's no longer relevant to current state.
+
 October 2026. Checked against the live database (14,651 stored items, 12,837 distinct articles).
 
 ## Summary
