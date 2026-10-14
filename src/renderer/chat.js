@@ -10,6 +10,7 @@ import { state } from './state.js';
 import { ui, saveUi } from './ui.js';
 import { setSetting } from './settings.js';
 import { makeReorderable } from './reorder.js';
+import { tabEl } from './tabstrip.js';
 import { bindTabScroll } from './tabscroll.js';
 import { SITES, parseStream, siteOfLink, streamUrl, streamLabel, YOUTUBE_CSS, DIRECT_PARTITION } from './streams.js';
 import { createIrcView, bindIrcEvents, parseIrcInput, parseIrcSpec } from './irc.js';
@@ -130,11 +131,11 @@ export function initChat({ openSettings }) {
   onOpenSettings = openSettings;
   $('btn-chat').addEventListener('click', toggleChat);
   // Many tabs: the wheel scrolls the strip sideways.
-  bindTabScroll($('chat-tabs'));
+  bindTabScroll($('chat-tabs'), { always: true });
   $('chat-reload').addEventListener('click', reloadChat);
   bindIrcEvents();
   reorder = makeReorderable($('chat-tabs'), {
-    selector: '.chat-tab', ignore: '.x',
+    selector: '.tab', ignore: '.close',
     onRebuilt: () => renderChat(),
     onDrop: keys => { saveUi({ chatOrder: keys }); renderChat(); },
   });
@@ -299,9 +300,9 @@ function initVideo() {
   // Players rebuild their <video> now and then (ads, reconnects); keep the chosen volume on them.
   setInterval(applyVolumes, 3000);
   $('video-reload').addEventListener('click', () => streamViews.get(currentStream)?.wv.reload());
-  bindTabScroll($('video-tabs'));
+  bindTabScroll($('video-tabs'), { always: true });
   streamReorder = makeReorderable($('video-tabs'), {
-    selector: '.chat-tab', ignore: '.x, .snd',
+    selector: '.tab', ignore: '.close, .snd',
     onRebuilt: () => paintVideo(),
     onDrop: keys => {
       const byKey = new Map(streams().map(s => [streamKey(s), s]));
@@ -415,24 +416,23 @@ function paintVideo() {
     const key = streamKey(s);
     const label = streamLabel(s.site, s.name);
     const where = s.site === 'direct' ? s.name : label;           // a direct link's tab shows the file name; the tooltip the whole link
-    return h('button', {
-      class: `chat-tab ${s.site}${key === currentStream ? ' active' : ''}${s.pinned ? ' pinned' : ''}`,
-      title: s.pinned ? `${where}\n(pinned)` : where,
-      dataset: { id: key },
-      onclick: () => { saveUi({ streamTab: key }); paintVideo(); },
-      onmousedown: e => { if (e.button === 1) e.preventDefault(); },          // no autoscroll cursor
-      onauxclick: e => { if (e.button === 1 && !s.pinned) removeStreams([s]); },
-      oncontextmenu: e => { e.preventDefault(); streamMenu(s, e.clientX, e.clientY); },
-    }, s.pinned && h('span', { class: 'pin' }, icon('pin')), h('span', { class: 'dot' }), h('span', { class: 'name' }, label),
-      h('span', { class: `snd${silent(s) ? ' off' : ''}`, title: silent(s) ? 'Silent: click for sound' : 'Click to mute this stream',
-        onclick: e => { e.stopPropagation(); toggleMute(s); } }, icon(silent(s) ? 'muted' : 'volume-2')),
-      !s.pinned && h('span', { class: 'x', title: `Close ${label}`, onclick: e => { e.stopPropagation(); removeStreams([s]); } }, icon('close')));
+    return tabEl({
+      id: key, kind: s.site, label, title: where,
+      active: key === currentStream, pinned: s.pinned,
+      lead: [h('span', { class: 'dot' })],
+      trail: [h('span', { class: `snd${silent(s) ? ' off' : ''}`, title: silent(s) ? 'Silent: click for sound' : 'Click to mute this stream',
+        onclick: e => { e.stopPropagation(); toggleMute(s); } }, icon(silent(s) ? 'muted' : 'volume-2'))],
+      closeTitle: `Close ${label}`,
+      onSelect: () => { saveUi({ streamTab: key }); paintVideo(); },
+      onClose: () => removeStreams([s]),
+      onMenu: (x, y) => streamMenu(s, x, y),
+    });
   }));
 
   // Hidden area, or a stream that was closed: its player goes away (which stops playback).
   for (const [key, v] of streamViews) if (!show || !keys.has(key)) { v.wv.remove(); streamViews.delete(key); }
   if (!show) return;
-  document.querySelector('#video-tabs .chat-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  document.querySelector('#video-tabs .tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 
   // Every stream gets a player and they all play at once, each at its own volume. The one shown is
   // on top; the others stay behind it (never hidden, which would let the sites pause them).
@@ -658,17 +658,15 @@ export function renderChat() {
   current = keys.has(ui.chatTab) ? ui.chatTab : list[0]?.key ?? null;
   if (!reorder?.dragging) $('chat-tabs').replaceChildren(...list.map(c => {
     const where = c.kind === 'twitch' ? `twitch.tv/${c.label}` : c.kind === 'kick' ? `kick.com/${c.label}` : c.kind === 'irc' ? `${c.room} on ${c.host}` : 'destiny.gg chat';
-    return h('button', {
-      class: `chat-tab ${c.kind}${c.key === current ? ' active' : ''}${c.pinned ? ' pinned' : ''}`,
-      title: c.pinned ? `${where}\n(pinned)` : where,
-      dataset: { id: c.key },
-      onclick: () => { saveUi({ chatTab: c.key }); renderChat(); },
-      onmousedown: e => { if (e.button === 1) e.preventDefault(); },          // no autoscroll cursor
-      onauxclick: e => { if (e.button === 1 && !c.pinned) removeChat(c); },
-      oncontextmenu: e => { e.preventDefault(); chatMenu(c, e.clientX, e.clientY); },
-    }, c.pinned && h('span', { class: 'pin' }, icon('pin')), h('span', { class: 'dot' }), h('span', { class: 'name' }, c.label),
-      !c.pinned && h('span', { class: 'x', title: c.kind === 'dgg' ? 'Hide destiny.gg chat' : c.kind === 'irc' ? `Leave ${c.label}` : `Remove ${c.label}`,
-        onclick: e => { e.stopPropagation(); removeChat(c); } }, icon('close')));
+    return tabEl({
+      id: c.key, kind: c.kind, label: c.label, title: where,
+      active: c.key === current, pinned: c.pinned,
+      lead: [h('span', { class: 'dot' })],
+      closeTitle: c.kind === 'dgg' ? 'Hide destiny.gg chat' : c.kind === 'irc' ? `Leave ${c.label}` : `Remove ${c.label}`,
+      onSelect: () => { saveUi({ chatTab: c.key }); renderChat(); },
+      onClose: () => removeChat(c),
+      onMenu: (x, y) => chatMenu(c, x, y),
+    });
   }));
 
   $('chat-empty').hidden = list.length > 0;
@@ -677,7 +675,7 @@ export function renderChat() {
   if (!open || !current) return;
 
   // Pages are created the first time their tab is shown while the column is open.
-  document.querySelector('.chat-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  document.querySelector('#chat-tabs .tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   const chat = list.find(c => c.key === current);
   if (!views.has(chat.key)) createView(chat);
   for (const [key, v] of views) v.wv.classList.toggle('inactive', key !== current);
