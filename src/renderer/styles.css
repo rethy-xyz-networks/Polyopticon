@@ -66,7 +66,8 @@
 
   /* Design system — change these, not individual rules. Square, flat, borderless controls. */
   --radius: 0;                                                   /* corners on every box, chip, control */
-  --ctl-h: 26px;                                                 /* buttons and inputs */
+  --tab-h: 35px;                                                 /* pane header and every tab strip (story, chat, video) */
+  --ctl-h: 26px;                                               /* buttons and inputs */
   --ctl-h-sm: 22px;                                              /* .small buttons */
   --ctl-hover: var(--badge-bg);                                  /* hover fill for flat buttons */
   /* --ctl-on / --ctl-on-text (pressed toggles) are per theme, above. */
@@ -181,7 +182,7 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus { border-colo
 }
 .pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-bg); }
 .pane-header {
-  flex: 0 0 auto; display: flex; align-items: center; gap: 8px; min-height: 35px;
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px; min-height: var(--tab-h);
   padding: 0 12px; background: var(--panel-header); border-bottom: 1px solid var(--border);
 }
 .pane-title { font-size: var(--fs-lg); font-weight: 600; }
@@ -255,22 +256,22 @@ body.no-badges .item .badge { display: none; }
 
 /* Story viewer */
 .tabstrip { padding: 0 0 0 12px; gap: 0; }
-/* Tab strips — story (.tabs/.tab), live chat and video (.chat-tabs/.chat-tab) share these rules. */
-.tabs, .chat-tabs { flex: 1; min-width: 0; display: flex; align-self: stretch; overflow-x: auto; overflow-y: hidden; position: relative; }
-.tab, .chat-tab {
-  flex: 0 1 auto; min-width: 52px; display: flex; align-items: center; border: 0; border-bottom: 3px solid transparent;
+/* Tab strips: story, live chat and video all use .tabs / .tab (built by tabstrip.js), so a tab is styled in one place. */
+.tabs { flex: 1; min-width: 0; display: flex; align-self: stretch; overflow-x: auto; overflow-y: hidden; position: relative; }
+.tab {
+  flex: 0 1 auto; min-width: 52px; display: flex; align-items: center; gap: 6px; padding: 0 4px 0 10px;
+  border: 0; border-left: 1px solid var(--border); border-bottom: 3px solid transparent;
   background: none; color: var(--text-2); font: inherit; font-size: var(--fs-sm); white-space: nowrap; cursor: pointer;
 }
-.tab:hover, .chat-tab:hover { background: var(--card-hover); }
-.tab.active, .chat-tab.active { background: var(--panel-bg); border-bottom-color: var(--accent); color: var(--text); }
-.tab .label, .chat-tab .name { min-width: 0; max-width: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-body.tabs-scroll .tab, body.tabs-scroll .chat-tab { flex-shrink: 0; }
-body.tabs-scroll .tab .label, body.tabs-scroll .chat-tab .name { flex: 0 1 auto; min-width: 8ch; }
-.tab { border-left: 1px solid var(--border); }
-.tab .label { flex: 1; padding: 8px 4px 8px 8px; }
-.tab .fav { width: 16px; height: 16px; padding: 1px; box-sizing: border-box; flex-shrink: 0; margin-left: 8px; object-fit: contain; background: #fff; }
-.tab .fav + .label { padding-left: 6px; }
-.tab .close { width: 20px; height: 20px; min-width: 0; padding: 0; margin-right: 2px; border: 0; font-size: 9px; color: var(--text-2); }
+.tab:hover { background: var(--card-hover); }
+.tab.active { background: var(--panel-bg); border-bottom-color: var(--accent); color: var(--text); }
+.tab .label { flex: 1; min-width: 0; max-width: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.tabs-scroll .tab { flex-shrink: 0; }
+body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
+.tab .fav { width: 16px; height: 16px; padding: 1px; box-sizing: border-box; flex-shrink: 0; object-fit: contain; background: #fff; }
+.tab .close { width: 20px; height: 20px; min-width: 0; padding: 0; border: 0; font-size: 9px; color: var(--text-2); flex-shrink: 0; }
+.tab .snd { font-size: 10px; cursor: pointer; flex-shrink: 0; }
+.tab .snd.off { opacity: .7; }
 
 .infobar .nav-btns { display: inline-flex; margin: 0 2px 0 -4px; }
 .infobar {
@@ -353,7 +354,7 @@ body.tabs-scroll .tab .label, body.tabs-scroll .chat-tab .name { flex: 0 1 auto;
   font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
 }
 
-.tab .tab-mode { padding-left: 8px; color: var(--text-2); font-size: var(--fs-xs); }
+.tab .tab-mode { color: var(--text-2); font-size: var(--fs-xs); }
 .save-state {
   background: none; border: 0; padding: 0 4px; font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; cursor: default;
 }
@@ -523,15 +524,11 @@ body.tabs-scroll .tab .label, body.tabs-scroll .chat-tab .name { flex: 0 1 auto;
 .tg-draft .toggle-btn.small { height: var(--ctl-h); }
 
 /* Tab pinning & reordering */
-.tab, .chat-tab { user-select: none; touch-action: none; }
-.tab.pinned .label { padding-left: 4px; }
+.tab { user-select: none; touch-action: none; }
 .tab.pinned + .tab:not(.pinned) { border-left: 2px solid var(--text-2); }
-.tab .pin { margin-left: 8px; flex-shrink: 0; font-size: 10px; }
+.tab .pin { flex-shrink: 0; font-size: 10px; }
 .tabs.reordering .tab { cursor: grabbing; }
-.chat-tab.pinned + .chat-tab:not(.pinned) { border-left: 2px solid var(--text-2); }
-.chat-tab .pin { flex-shrink: 0; font-size: 10px; margin-right: -2px; }
-.chat-tabs.reordering .chat-tab { cursor: grabbing; }
-.tab.dragging, .chat-tab.dragging {
+.tab.dragging {
   position: relative; z-index: 2; background: var(--panel-header); color: var(--text);
   box-shadow: 0 2px 10px rgba(0, 0, 0, .35); opacity: .96;
 }
@@ -594,12 +591,12 @@ body.tabs-scroll .tab .label, body.tabs-scroll .chat-tab .name { flex: 0 1 auto;
 .panes:not(.chat-open) .chat-splitter, .panes:not(.chat-open) .chat { display: none; }
 .field input[type="text"] { grid-column: 1 / -1; }
 .chat-head { padding: 0 6px 0 0; gap: 4px; }
-.chat-tab .dot { width: 6px; height: 6px; border-radius: 50%; background: #9146FF; flex-shrink: 0; }
-.chat-tab.dgg .dot { background: #2C8EE6; }
-.chat-tab.irc .dot { background: #3DAE6B; }
-.chat-tab.kick .dot { background: #53FC18; }
-.chat-tab.youtube .dot { background: #FF3B3B; }
-.chat-tab.direct .dot { background: var(--text-2); }
+.tab .dot { width: 6px; height: 6px; border-radius: 50%; background: #9146FF; flex-shrink: 0; }
+.tab.dgg .dot { background: #2C8EE6; }
+.tab.irc .dot { background: #3DAE6B; }
+.tab.kick .dot { background: #53FC18; }
+.tab.youtube .dot { background: #FF3B3B; }
+.tab.direct .dot { background: var(--text-2); }
 .chat-views { position: relative; flex: 1; min-height: 0; }
 .chat-views webview { position: absolute; inset: 0; width: 100%; height: 100%; }
 .chat-views webview.inactive, .chat-views .irc-view.inactive { visibility: hidden; pointer-events: none; }
@@ -624,11 +621,6 @@ body.tabs-scroll .tab .label, body.tabs-scroll .chat-tab .name { flex: 0 1 auto;
 .irc-line.sys { font-size: var(--fs-xs); font-style: italic; }
 .chat-empty { padding: 24px 16px; color: var(--text-2); font-size: var(--fs-sm); text-align: center; line-height: 1.6; }
 .chat-empty a { color: var(--accent-text); }
-.chat-tab .x { margin-left: 2px; width: 14px; height: 14px; line-height: 14px; font-size: 8px; border-radius: var(--radius); text-align: center; color: var(--text-2); visibility: hidden; }
-.chat-tab:hover .x, .chat-tab.active .x { visibility: visible; }
-.chat-tab .snd { font-size: 10px; cursor: pointer; flex-shrink: 0; }
-.chat-tab .snd.off { opacity: .7; }
-.chat-tab .x:hover { background: var(--badge-bg); color: var(--text); }
 .chat-add { display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel-header); }
 .chat-types, .chat-add-form { display: flex; gap: 6px; }
 .chat-add-form[hidden] { display: none; }
@@ -637,7 +629,6 @@ body.tabs-scroll .tab .label, body.tabs-scroll .chat-tab .name { flex: 0 1 auto;
 .chat-add input.invalid { border-color: var(--accent); }
 .chat-add .toggle-btn.small { height: var(--ctl-h); }
 #chat-add-btn, #video-add-btn { font-size: 14px; }
-.chat-tab { gap: 6px; padding: 0 6px 0 10px; }
 
 /* Source chips in the search bar (right-click a source to add) */
 .search-bar { flex-wrap: wrap; }
@@ -672,8 +663,13 @@ body.tabs-scroll .tab .label, body.tabs-scroll .chat-tab .name { flex: 0 1 auto;
 .video-splitter:hover, .video-splitter.dragging { background: var(--accent); }
 body.resizing-rows { cursor: row-resize; }
 body.resizing-rows webview { pointer-events: none; }
-.video-vol { display: flex; align-items: center; gap: 2px; }
-.video-vol input[type="range"] { width: 84px; height: 14px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+/* Volume: just the speaker until hovered (or the slider has focus, e.g. while dragging), then the slider slides out, like YouTube. */
+.video-vol { display: flex; align-items: center; }
+.video-vol input[type="range"] {
+  width: 0; height: 14px; margin: 0; opacity: 0; accent-color: var(--accent); cursor: pointer;
+  transition: width .15s ease, margin .15s ease, opacity .15s ease;
+}
+.video-vol:hover input[type="range"], .video-vol:focus-within input[type="range"] { width: 84px; margin: 0 4px 0 2px; opacity: 1; }
 .video-pane { flex: 0 0 var(--h-video); min-height: 120px; display: flex; flex-direction: column; background: #000; }
 .video-pane[hidden], .video-splitter[hidden] { display: none; }
 .video-view { position: relative; flex: 1; min-height: 0; }
