@@ -2,7 +2,7 @@
 // (main/irc.js makes the anonymous, read-only connection). One view per room;
 // the backlog stays while the column is hidden.
 
-import { api, h } from './dom.js';
+import { api, h, showMenu } from './dom.js';
 
 const MAX_LINES = 500;
 const views = new Map();           // chat key -> view
@@ -61,6 +61,16 @@ export function createIrcView(chat) {
   const status = h('div', { class: 'irc-status' });
   const log = h('div', { class: 'irc-log' });
   const el = h('div', { class: 'irc-view' }, status, log);
+  // Right-click: copy the selection, or select the whole log (it's read-only, so no paste).
+  log.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const sel = getSelection();
+    const text = sel.toString();                              // taken now: clicking the menu may clear the selection
+    showMenu(e.clientX, e.clientY, [
+      { label: 'Copy', disabled: !text, onClick: () => navigator.clipboard.writeText(text) },
+      { label: 'Select all', onClick: () => { const r = document.createRange(); r.selectNodeContents(log); sel.removeAllRanges(); sel.addRange(r); } },
+    ]);
+  });
   const v = { el, topic: '', users: null, state: 'connecting', text: '' };
 
   const paintStatus = () => {

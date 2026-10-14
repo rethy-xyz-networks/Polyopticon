@@ -603,6 +603,17 @@ app.on('web-contents-created', (_e, contents) => {
     e.preventDefault();
     send('app:shortcut', combo, contents.id);   // the renderer finds the page's area (article, chat, stream) by it
   });
+  // Right-click in an article or chat page: a Copy / Paste menu (the pages have none of their own).
+  contents.on('context-menu', (_e, params) => {
+    const f = params.editFlags;
+    const items = [];
+    if (params.linkURL) items.push({ label: 'Copy link address', click: () => clipboard.writeText(params.linkURL) });
+    if (params.isEditable) items.push({ role: 'cut', enabled: f.canCut }, { role: 'copy', enabled: f.canCopy }, { role: 'paste', enabled: f.canPaste });
+    else if (params.selectionText) items.push({ role: 'copy' });
+    if (params.isEditable || params.selectionText) items.push({ type: 'separator' }, { role: 'selectAll' });
+    else if (!params.linkURL) items.push({ role: 'selectAll' });
+    Menu.buildFromTemplate(items).popup();
+  });
   // Ctrl + mouse wheel over a page: the renderer steps the one shared zoom (the Zoom setting).
   // One wheel input can be reported twice, a fraction of a millisecond apart; repeats inside 20 ms are dropped.
   let lastZoomAt = 0;
