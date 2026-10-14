@@ -10,7 +10,7 @@ import { state } from './state.js';
 import { ui, saveUi } from './ui.js';
 import { setSetting } from './settings.js';
 import { makeReorderable } from './reorder.js';
-import { tabEl } from './tabstrip.js';
+import { tabEl, cycleIndex, moveIndex } from './tabstrip.js';
 import { bindTabScroll } from './tabscroll.js';
 import { SITES, parseStream, siteOfLink, streamUrl, streamLabel, YOUTUBE_CSS, DIRECT_PARTITION } from './streams.js';
 import { createIrcView, bindIrcEvents, parseIrcInput, parseIrcSpec } from './irc.js';
@@ -562,18 +562,16 @@ function strip(area) {
 /** Ctrl+PgDown / Ctrl+PgUp: the next or previous tab, pinned ones included, wrapping around. */
 export function cycleChatTab(area, step) {
   const { keys, current: cur, select } = strip(area);
-  const n = keys.length;
-  if (!n) return;
-  const i = keys.indexOf(cur);
-  select(keys[i < 0 ? 0 : (i + step + n) % n]);
+  const k = cycleIndex(keys.length, keys.indexOf(cur), step);
+  if (k >= 0) select(keys[k]);
 }
 
 /** Ctrl+Shift+PgDown / PgUp: move the shown tab one place right or left, within its pinned or unpinned group. */
 export function moveChatTab(area, step) {
   const { list, keys, current: cur, reorder } = strip(area);
   const i = keys.indexOf(cur);
-  const j = i + step;
-  if (i < 0 || j < 0 || j >= list.length || !list[j].pinned !== !list[i].pinned) return;
+  const j = moveIndex(list, i, step);
+  if (j < 0) return;
   const order = [...keys];
   [order[i], order[j]] = [order[j], order[i]];
   reorder(order);

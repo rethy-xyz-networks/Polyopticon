@@ -36,3 +36,20 @@ export function tabEl({ id, kind = '', label, title, active, pinned, lead = [], 
     trail,
     !pinned && h('button', { class: 'icon-btn close', title: closeTitle, onclick: e => { e.stopPropagation(); onClose(); } }, icon('close')));
 }
+
+// Keyboard navigation shared by every tab strip (articles, chat, streams), so the
+// shortcuts (Ctrl+PgUp/PgDown, Ctrl+Shift+PgUp/PgDown) can't drift apart between views.
+
+/** Ctrl+PgDown / PgUp: the index of the next (step 1) or previous (-1) tab, wrapping; -1 if no tabs. */
+export function cycleIndex(count, current, step) {
+  if (!count) return -1;
+  return current < 0 ? (step > 0 ? 0 : count - 1) : (current + step + count) % count;
+}
+
+/** Ctrl+Shift+PgDown / PgUp: the index to swap `current` with, or -1 when it can't move
+ *  (strip end, or the neighbour is on the other side of the pinned/unpinned divide). */
+export function moveIndex(tabs, current, step) {
+  const j = current + step;
+  if (current < 0 || j < 0 || j >= tabs.length || !tabs[j].pinned !== !tabs[current].pinned) return -1;
+  return j;
+}

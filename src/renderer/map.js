@@ -266,7 +266,10 @@ function popupFor(c) {
   });
   const text = new Map(stories.map(({ it, place }) => [it.id, `${it.title} ${it.sourceName} ${multi ? place : ''}`.toLowerCase()]));
   const row = ({ it, place }) =>
-    h('li', { onclick: () => { map.closePopup(); openTab(it); }, title: (it.kind === 'article' && it.summary ? it.summary.slice(0, 400) : it.title) },   // the description, like the feed's tooltip
+    h('li', {
+      onclick: () => { map.closePopup(); openTab(it); },
+      onmousedown: e => { if (e.button === 1) { e.preventDefault(); openTab(it); } },   // middle-click -> tab, like the feed (no autoscroll)
+      title: (it.kind === 'article' && it.summary ? it.summary.slice(0, 400) : it.title) },   // the description, like the feed's tooltip
       h('span', { class: 'badge', style: `background:${sourceColor(it.sourceId)}` }, it.sourceName),
       h('span', { class: 'map-pop-time', title: relTime(it.publishedAt) }, formatTime(it.publishedAt)),
       multi && h('span', { class: 'map-pop-place' }, place),

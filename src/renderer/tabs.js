@@ -12,7 +12,7 @@ import { state } from './state.js';
 import { markSaved, unmarkAllSaved, siteIcon } from './feed.js';
 import { renderShortcutList } from './shortcuts.js';
 import { makeReorderable } from './reorder.js';
-import { tabEl } from './tabstrip.js';
+import { tabEl, cycleIndex, moveIndex } from './tabstrip.js';
 import { telegramChannelOf, telegramUrl, parseTelegramChannel } from './telegram.js';
 import { initScratch, focusScratch, flushScratch, appendToScratch } from './scratchpad.js';
 
@@ -315,17 +315,15 @@ export function activateTab(tab) {
 
 /** Ctrl+PgDown / Ctrl+PgUp: the next or previous tab, pinned ones included, wrapping around. */
 export function cycleTab(step) {
-  const n = state.tabs.length;
-  if (!n) return;
-  const i = state.tabs.findIndex(t => t.id === state.activeTabId);
-  activateTab(state.tabs[i < 0 ? (step > 0 ? 0 : n - 1) : (i + step + n) % n]);
+  const k = cycleIndex(state.tabs.length, state.tabs.findIndex(t => t.id === state.activeTabId), step);
+  if (k >= 0) activateTab(state.tabs[k]);
 }
 
 /** Ctrl+Shift+PgDown / PgUp: move the current tab one place right or left, within its pinned or unpinned group. */
 export function moveTab(step) {
   const i = state.tabs.findIndex(t => t.id === state.activeTabId);
-  const j = i + step;
-  if (i < 0 || j < 0 || j >= state.tabs.length || !state.tabs[j].pinned !== !state.tabs[i].pinned) return;
+  const j = moveIndex(state.tabs, i, step);
+  if (j < 0) return;
   [state.tabs[i], state.tabs[j]] = [state.tabs[j], state.tabs[i]];
   saveTabs();
   renderTabs();
