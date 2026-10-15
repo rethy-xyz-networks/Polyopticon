@@ -25,6 +25,7 @@ export const SHORTCUTS = [
     { id: 'mode',    combos: ['ctrl+h'], keys: [['Ctrl', 'H']], does: 'Switch between Live and History' },
     { id: 'map',     combos: ['ctrl+m'], keys: [['Ctrl', 'M']], does: 'Show or hide the map' },
     { id: 'bias',    combos: ['ctrl+b'], keys: [['Ctrl', 'B']], does: 'Show or hide the bias chart (political lean of the news feeds)' },
+    { id: 'markets', combos: ['ctrl+g'], keys: [['Ctrl', 'G']], does: 'Show or hide Global Markets (live indices, energy, metals, currencies, crypto)' },
     { id: 'chat',    combos: ['ctrl+j'], keys: [['Ctrl', 'J']], does: 'Show or hide the live chat' },
     // Ctrl+V is paste: ignored in text boxes and pages, so pasting still works there.
     { id: 'video',   combos: ['ctrl+v'], keys: [['Ctrl', 'V']], does: 'Show or hide the video player (not while typing or in a page)', typing: false, inPages: false },

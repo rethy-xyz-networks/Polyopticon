@@ -41,6 +41,7 @@ const ICONS = {
   autoscroll:       'arrow_up',
   map:              'map',
   bias:             'data_scatter',
+  markets:          'globe',
   back:             'arrow_left',
   forward:          'arrow_right',
   reload:           'arrow_clockwise',

@@ -5,6 +5,7 @@ import { state, setSources, setBias } from './state.js';
 import { ingest, refreshRows, scheduleRender, bindFeedScroll, trimToMax, rebuildTagCache, bindList, pruneSources, setCountsListener, updateItems, setVisibleListener } from './feed.js';
 import { initMap, openMap, closeMap, onVisibleItems, applyMapAppearance, refreshMapFilter } from './map.js';
 import { initBias, toggleBias, refreshBias } from './bias.js';
+import { initMarkets, toggleMarkets } from './markets.js';
 import { renderSources, renderTags, bindTagForms, bindSourceFilter, setStatus, repaintCounts } from './sidebar.js';
 import { renderStory, renderTabs, activeTab, closeTab, reopenClosedTab, setPinned, cycleTab, moveTab, selectUnpinnedTab, openHelpTab, openScratchTab, openChanHome, openChanTab, openTelegramDraft, navigate, reload as reloadTab, showMode, onSnapshotSaved, applyZoom, bindStoryButtons, bindTabDrag, restoreTabs, storyTabList, selectTabById, closeTabById, onArticleTranslateProgress, takeScreenshot } from './tabs.js';
 import { initHistory, reload as reloadHistory, setHistoryQuery } from './history.js';
@@ -188,6 +189,7 @@ function bindShortcuts() {
     mode:     () => setMode(state.mode === 'live' ? 'history' : 'live'),
     map:      () => (document.querySelector('.story.map-open') ? closeMap() : openMap()),
     bias:     () => toggleBias(),
+    markets:  () => toggleMarkets(),
     chat:     () => toggleChat(),
     video:    () => toggleVideo(),
     settings: () => toggleSettings(),
@@ -400,6 +402,7 @@ window.addEventListener('unhandledrejection', e => api.log('error', `Renderer: u
   // Optional panels and individual settings must never stop the feed from starting.
   guard('map', () => initMap({ onFilter: setPlaceFilter }));
   guard('bias', initBias);
+  guard('markets', initMarkets);
   guard('chat', () => initChat({ openSettings: () => openSettings('general') }));
   setVisibleListener(onVisibleItems);
   for (const key of Object.keys(state.settings)) guard(`setting ${key}`, () => { applySetting(key); syncSettingControl(key); });

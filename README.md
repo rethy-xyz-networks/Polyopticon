@@ -338,6 +338,14 @@ Ratings come from the [MediaBias News API](https://mediabias.news), which republ
 - **Not plotted:** feeds the database doesn't know (NYT, The Guardian …), and outlets no rater has rated (RT, TASS …). They're listed under the chart.
 - The API allows about 120 requests a minute; lookups are paced under that and wait out a refusal.
 
+### Global Markets
+
+The **Global Markets** button (Ctrl+G), next to the bias button, shows a tile per instrument with its exact current price and today's change (▲ / ▼ and a percent, measured from the previous close). Like the map it is a special view that replaces the article area, not a tab. Groups: United States, Canada, Asia-Pacific, Europe, Energy, Metals & currencies and Crypto (BTC, ETH, XRP). Each group header counts how many of its markets are open, and tiles for closed markets are dimmed. Nothing historical is kept.
+
+- **Live, but only while you look.** Prices come from Yahoo Finance's unofficial quote endpoint: one batch request per second covers every tile. It polls only while the view is open and the window visible. Measured: one request per second for five minutes, and two per second for a minute, drew no rate limiting. There is no documented limit, so on a 429 or an error the poller backs off (5, 10, 30, then 60 s, or the server's Retry-After) and the header says so.
+- **Adding a tile.** Each group ends in **+ Add**: type a Yahoo symbol (`SOL-USD`, `^GSPC`, `AAPL`); it is checked against Yahoo and added to that group. Hover a tile and click **×** to remove it; **Restore removed** brings hidden defaults back. Both are kept in `ui.json` (`marketsAdded`, `marketsRemoved`).
+- Exchanges can delay quotes by up to 15 minutes.
+
 ### Map
 
 <img src="docs/screenshots/map.png">

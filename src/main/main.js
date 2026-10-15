@@ -17,6 +17,7 @@ const fourchan  = require('./fourchan');
 const perfwatch = require('./perfwatch');
 const database  = require('./db');
 const biasLookup = require('./bias');
+const markets   = require('./markets');
 const { SEED_GROUPS, SEED_REVISION, RETIRED, RENAMED } = require('./config');
 const { TYPES, validateSource } = require('./adapters/types');
 
@@ -143,6 +144,21 @@ function scheduleBiasCheck(delayMs) {
   clearTimeout(biasTimer);
   biasTimer = setTimeout(() => biasChecker.checkPending(), delayMs);
   biasTimer.unref?.();
+}
+
+// Global Markets (markets.js)
+// Polls only while the view is open and the window is visible; the renderer starts and stops it.
+
+let marketClient = null;
+let marketPoller = null;
+
+function setupMarkets() {
+  marketClient = markets.createClient();
+  marketPoller = markets.createPoller({
+    client: marketClient, log,
+    onQuotes: q => send('markets:quotes', q),
+    onStatus: s => send('markets:status', s),
+  });
 }
 
 function sourcesChanged() {
@@ -394,6 +410,20 @@ function registerIpc() {
     db.deleteSource(id);
     log.info(`Source deleted: [${s.type}] ${s.name}`);
     sourcesChanged();
+  });
+
+  // Global Markets. Tests don't go online (OFFSCREEN).
+  ipcMain.on('markets:start', (_e, symbols) => { if (!OFFSCREEN && Array.isArray(symbols)) marketPoller.start(symbols); });
+  ipcMain.on('markets:set',   (_e, symbols) => { if (Array.isArray(symbols)) marketPoller.setSymbols(symbols); });
+  ipcMain.on('markets:stop',  () => marketPoller.stop());
+  ipcMain.handle('markets:lookup', async (_e, text) => {
+    const symbol = markets.cleanSymbol(text);
+    if (!symbol) return { ok: false, error: 'That is not a symbol. Try BTC-USD, ^GSPC or SOL-USD.' };
+    if (OFFSCREEN) return { ok: false, error: 'Offline' };
+    try {
+      const q = (await marketClient.quotes([symbol])).get(symbol);
+      return q ? { ok: true, quote: q } : { ok: false, error: `Yahoo has no price for ${symbol}` };
+    } catch (e) { return { ok: false, error: `Could not look it up: ${e.message}` }; }
   });
 
   // Political lean
@@ -718,6 +748,7 @@ app.whenReady().then(() => {
   db = database.open(DB_PATH);
   seedSources();
   setupBias();
+  setupMarkets();
   secrets.load(DATA_DIR);
   scratchpad.load(DATA_DIR);
 

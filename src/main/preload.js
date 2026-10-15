@@ -28,6 +28,12 @@ contextBridge.exposeInMainWorld('polyopticon', {
   // Political lean
   recheckBias:   ()              => ipcRenderer.invoke('bias:recheck'),
 
+  // Global Markets
+  startMarkets:  symbols         => ipcRenderer.send('markets:start', symbols),
+  setMarkets:    symbols         => ipcRenderer.send('markets:set', symbols),
+  stopMarkets:   ()              => ipcRenderer.send('markets:stop'),
+  lookupMarket:  symbol          => ipcRenderer.invoke('markets:lookup', symbol),
+
   // History / snapshots
   history:       opts            => ipcRenderer.invoke('history:list', opts),
   items:         ids             => ipcRenderer.invoke('items:get', ids),
@@ -73,6 +79,8 @@ contextBridge.exposeInMainWorld('polyopticon', {
   onSourcesChanged: on('sources:changed'),
   onBiasChanged:    on('bias:changed'),
   onBiasProgress:   on('bias:progress'),
+  onMarketQuotes:   on('markets:quotes'),
+  onMarketStatus:   on('markets:status'),
   onAccounts:       on('accounts:changed'),
   onSnapshot:       on('snapshot:saved'),
   onTelegramAsk:    on('telegram:ask'),

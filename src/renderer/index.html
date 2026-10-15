@@ -34,6 +34,7 @@
       <!-- Special views: they replace the article area instead of opening as tabs -->
       <button id="btn-map" class="icon-btn" title="Map of where the stories in the live list are happening (Ctrl+M)" aria-label="Map" data-icon="map"></button>
       <button id="btn-bias" class="icon-btn" title="Political lean of the news feeds, plotted against reliability (Ctrl+B)" aria-label="Bias chart" data-icon="bias"></button>
+      <button id="btn-markets" class="icon-btn" title="Global markets: indices, energy, metals, currencies and crypto, live (Ctrl+G)" aria-label="Global Markets" data-icon="markets"></button>
       <span class="tool-sep" aria-hidden="true"></span>
       <button id="btn-refresh" class="icon-btn" title="Refresh all sources (Shift+R)" data-icon="refresh"></button>
       <button id="btn-chat" class="icon-btn" title="Live chat (Ctrl+J)" data-icon="chat"></button>
@@ -175,6 +176,20 @@
           <div class="bias-foot">Each outlet sits at the average of the raters' verdicts, across, and its factuality, up. Ratings by AllSides, Ad Fontes Media and Media Bias/Fact Check, via
             <a href="https://mediabias.news" target="_blank" rel="noopener">mediabias.news</a>. Raters often disagree: hover a dot to see each one.</div>
           <div id="bias-tip" class="bias-tip" role="tooltip" hidden></div>
+        </div>
+        <div id="markets-view" class="markets-view">
+          <div class="markets-head">
+            <b>Global Markets</b>
+            <span id="markets-status" class="muted" role="status" aria-live="off"></span>
+            <input id="markets-search" type="search" class="markets-search" placeholder="Search groups, countries, tickers…" aria-label="Search Global Markets" spellcheck="false" autocomplete="off">
+            <span class="markets-tools">
+              <button id="markets-restore" class="toggle-btn" hidden title="Bring back the tiles you removed">Restore removed</button>
+              <button id="markets-refresh" class="toggle-btn" title="Reconnect and fetch the prices now">Refresh</button>
+            </span>
+          </div>
+          <div id="markets-groups" class="markets-groups"></div>
+          <div id="markets-empty" class="markets-empty" hidden>Nothing matches. Try a country, a group, a name or a ticker symbol.</div>
+          <div class="markets-foot">Price and change since the previous close, from Yahoo Finance. Exchanges can delay quotes by up to 15 minutes. Updates every second while this view is open.</div>
         </div>
         <div id="story-empty" class="story-empty">
           <div class="glyph">◎</div>
