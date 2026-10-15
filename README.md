@@ -6,6 +6,8 @@
 
 <p align="center"><b>One screen for every source of a developing story</b></p>
 
+> **Pre-release software.** Polyopticon is still under active development, so expect bugs, issues, and features that change or break between versions. Please report problems you run into.
+
 Polyopticon is a desktop news-monitoring dashboard. It pulls news outlets, forums, imageboard posts, Twitch streams and chat, and other public sources into one configurable workspace, so you can follow a protest, a major media event, or any fast-moving story as it develops, in real time.
 
 Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, free API keys) are stored encrypted on your computer.
