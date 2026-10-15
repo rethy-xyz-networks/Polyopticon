@@ -517,6 +517,35 @@ function bindVideoSplitter() {
     sp.addEventListener('pointermove', move);
     sp.addEventListener('pointerup', up, { once: true });
   });
+
+  // The corner where the two bars cross resizes both at once: width and stream height.
+  const grip = sp.querySelector('.corner-grip');
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    grip.setPointerCapture(e.pointerId);
+    document.body.classList.add('resizing-corner');
+    const root = document.documentElement, pane = $('chat-pane');
+    const startX = e.clientX, startW = pane.getBoundingClientRect().width;
+    const maxW = startW + document.querySelector('.pane.story').getBoundingClientRect().width - 260;
+    const move = ev => {
+      const w = Math.round(Math.max(240, Math.min(maxW, startW + startX - ev.clientX)));
+      root.style.setProperty('--w-chat', `${w}px`);
+      const r = pane.getBoundingClientRect();
+      const h = Math.round(Math.max(120, Math.min(r.height - 160, r.bottom - ev.clientY)));
+      pane.style.setProperty('--h-video', `${h}px`);
+    };
+    const up = () => {
+      grip.removeEventListener('pointermove', move);
+      document.body.classList.remove('resizing-corner');
+      saveUi({
+        videoHeight: Math.round($('video-pane').getBoundingClientRect().height),
+        panes: { ...ui.panes, '--w-chat': parseInt(getComputedStyle(root).getPropertyValue('--w-chat'), 10) },
+      });
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up, { once: true });
+  });
 }
 
 /** Make a chat the active tab (and open the column). */
