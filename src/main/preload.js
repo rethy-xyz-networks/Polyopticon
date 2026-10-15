@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('polyopticon', {
   toggleSource:  (id, enabled)   => ipcRenderer.invoke('sources:toggle', id, enabled),
   deleteSource:  id              => ipcRenderer.invoke('sources:delete', id),
 
+  // Political lean
+  recheckBias:   ()              => ipcRenderer.invoke('bias:recheck'),
+
   // History / snapshots
   history:       opts            => ipcRenderer.invoke('history:list', opts),
   items:         ids             => ipcRenderer.invoke('items:get', ids),
@@ -68,6 +71,8 @@ contextBridge.exposeInMainWorld('polyopticon', {
   onTranslateProgress: on('translate:progress'),
   onStatus:         on('feed:status'),
   onSourcesChanged: on('sources:changed'),
+  onBiasChanged:    on('bias:changed'),
+  onBiasProgress:   on('bias:progress'),
   onAccounts:       on('accounts:changed'),
   onSnapshot:       on('snapshot:saved'),
   onTelegramAsk:    on('telegram:ask'),

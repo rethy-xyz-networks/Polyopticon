@@ -101,11 +101,29 @@ test('tab shortcuts also work while an article page has focus', async ({ app, wi
   await expect(activeLabel(window)).toHaveText('Charlie story');
 });
 
+test('Ctrl+B and Ctrl+M also work while an article page has focus', async ({ app, window }) => {
+  await openAll(window);
+  const press = async (keyCode, modifiers) => {
+    const id = await window.locator('#webviews webview:not(.inactive)').evaluate(v => v.getWebContentsId());
+    await app.evaluate(({ webContents }, [id, keyCode, modifiers]) => {
+      const wc = webContents.fromId(id);
+      wc.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
+      wc.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
+    }, [id, keyCode, modifiers]);
+  };
+  await press('B', ['control']);
+  await expect(window.locator('#bias-view')).toBeVisible();
+  await press('B', ['control']);
+  await expect(window.locator('#bias-view')).toBeHidden();
+  await press('M', ['control']);
+  await expect(window.locator('#map-view')).toBeVisible();
+});
+
 // Keyboard shortcut list
 
 test('Ctrl+? and the ? button open the shortcut list as one tab', async ({ window }) => {
-  // The ? button sits right after the theme button.
-  expect(await window.locator('#btn-theme + #btn-help').count()).toBe(1);
+  // The ? button sits right after the full screen button.
+  expect(await window.locator('#btn-fullscreen + #btn-help').count()).toBe(1);
 
   await window.keyboard.press('Control+Shift+Slash');               // Ctrl+? on a US layout
   await expect(activeLabel(window)).toHaveText('Keyboard shortcuts');
@@ -329,4 +347,37 @@ test('Ctrl+Shift+A searches the open tabs: type to filter, Up / Down and Enter o
   await window.keyboard.press('Control+Shift+a');
   await expect(box).toHaveCount(0);
   expect(window.pageErrors).toEqual([]);
+});
+
+test('Shift+X reopens closed tabs, newest first and in their old place', async ({ window }) => {
+  await openAll(window);                                             // Alpha, Bravo, Charlie, Delta; Delta selected
+  await window.locator('#feed-list').focus();
+  const labels = window.locator('#tabs .tab .label');
+
+  await window.locator('#tabs .tab', { hasText: 'Bravo story' }).click();
+  await window.locator('#feed-list').focus();
+  await window.keyboard.press('Control+w');                          // closes Bravo
+  await window.keyboard.press('Control+w');                          // closes Charlie (it took the selection)
+  await expect(labels).toHaveText(['Alpha story', 'Delta story']);
+
+  await window.keyboard.press('Shift+X');
+  await expect(labels).toHaveText(['Alpha story', 'Charlie story', 'Delta story']);
+  await expect(activeLabel(window)).toHaveText('Charlie story');
+  await window.keyboard.press('Shift+X');
+  await expect(labels).toHaveText(['Alpha story', 'Bravo story', 'Charlie story', 'Delta story']);
+  await expect(activeLabel(window)).toHaveText('Bravo story');
+
+  await window.keyboard.press('Shift+X');                            // nothing left to reopen
+  await expect(labels).toHaveCount(4);
+  await expect(activeLabel(window)).toHaveText('Bravo story');
+});
+
+test('Shift+X is ignored while typing in a text box', async ({ window }) => {
+  await openAll(window);
+  await window.keyboard.press('Control+w');                          // closes Delta
+  await expect(window.locator('#tabs .tab')).toHaveCount(3);
+  await window.locator('#search').click();
+  await window.keyboard.press('Shift+X');
+  await expect(window.locator('#search')).toHaveValue('X');
+  await expect(window.locator('#tabs .tab')).toHaveCount(3);
 });

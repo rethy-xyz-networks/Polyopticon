@@ -327,11 +327,22 @@ The **Stop** button next to Translate (or Settings -> General -> Stop all transl
 
 A 5,000-character article takes around half a minute with an Opus-MT language, 3 minutes with NLLB, and 5 minutes with Hebrew or Persian. The first use of each language also downloads its model (~75 MB, or ~1 GB for NLLB) and loads it (a second or two for Opus-MT. Up to a couple of minutes for NLLB the first time).
 
+### Bias chart
+
+The **Bias chart** button (Ctrl+B), next to the map button in the header, plots each news feed's outlet by political lean (left to right) and reliability (bottom to top). Like the map it is a special view that replaces the article area, not a tab. Hover a dot for each rater's verdict; click it for the full rating on mediabias.news. Feeds of one outlet (the five SCMP feeds) share a dot.
+
+Ratings come from the [MediaBias News API](https://mediabias.news), which republishes the verdicts of AllSides, Ad Fontes Media and Media Bias/Fact Check. A dot sits at the *average* of the raters' verdicts (finer than the API's own five-step rating, and raters that disagree pull it between steps).
+
+- **One lookup per feed.** Each RSS feed is looked up once, shortly after start-up (or when you add it), and the answer is remembered in the database, whether or not an outlet was found. **Settings -> General -> Media bias -> Recheck** forgets every answer and asks again.
+- **Matching** uses the website's domain, from the feed address and from the links of its stories, and accepts an outlet only if its domains include it, so look-alike names don't match.
+- **Not plotted:** feeds the database doesn't know (NYT, The Guardian …), and outlets no rater has rated (RT, TASS …). They're listed under the chart.
+- The API allows about 120 requests a minute; lookups are paced under that and wait out a refusal.
+
 ### Map
 
 <img src="docs/screenshots/map.png">
 
-The **Map** button (Ctrl+M) at the left of the tab strip shows where the stories in the live list are happening. Each story is a pin in its site's colour, faded as it gets older (< 1h, < 6h, < 24h, older). A place's pins gather in a cluster showing the number of stories. Places that would overlap at the current zoom share one cluster, which splits again as you zoom in. A cluster never grows past 30 pins, however many stories it holds.
+The **Map** button (Ctrl+M) at the top right of the header shows where the stories in the live list are happening. Each story is a pin in its site's colour, faded as it gets older (< 1h, < 6h, < 24h, older). A place's pins gather in a cluster showing the number of stories. Places that would overlap at the current zoom share one cluster, which splits again as you zoom in. A cluster never grows past 30 pins, however many stories it holds.
 
 - **1h / 6h / 24h / All:** shows only stories published within that window.
 - **Click a cluster** for the list of its stories, with a search box (title, site or place. Enter opens the first match), or **Show … in the feed** to filter the list to its places (shown as a [place chip](#search-bar)).

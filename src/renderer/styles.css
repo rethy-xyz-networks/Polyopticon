@@ -172,6 +172,7 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus { border-colo
 .countdown { color: var(--text); font-weight: 600; min-width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
 .tool-buttons { justify-self: end; display: flex; gap: 2px; }
 .tool-buttons .icon-btn { --ctl-h: 30px; }
+.tool-sep { align-self: center; width: 1px; height: 18px; margin: 0 5px; background: var(--border); }   /* special views | the rest */
 #btn-refresh.spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -457,15 +458,17 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .place-chip #place-chip-name::before { content: "📍 "; }
 .place-chip button { background: none; border: 0; color: #fff; font-size: 10px; cursor: pointer; padding: 0 6px; }
 
-.tabstrip .map-btn { margin-right: 8px; }
-
 /* isolation: Leaflet's own z-indexes (panes 400, controls up to 1000) stay inside the map
    instead of competing with overlays such as Settings. */
 .map-view { position: absolute; inset: 0; display: none; background: var(--map-ocean); isolation: isolate; z-index: 0; }
 .story.map-open .map-view { display: block; }
+/* The special views (map, bias chart) replace the article area; they aren't tabs. */
 .story.map-open .infobar, .story.map-open .story-notice, .story.map-open .webviews,
 .story.map-open .fallback, .story.map-open .story-empty, .story.map-open .load-bar,
-.story.map-open .help-view, .story.map-open .scratch-view { display: none !important; }
+.story.map-open .help-view, .story.map-open .scratch-view,
+.story.bias-open .infobar, .story.bias-open .story-notice, .story.bias-open .webviews,
+.story.bias-open .fallback, .story.bias-open .story-empty, .story.bias-open .load-bar,
+.story.bias-open .help-view, .story.bias-open .scratch-view { display: none !important; }
 #map-canvas { position: absolute; inset: 0; background: var(--map-ocean); }
 .map-toolbar { position: absolute; top: 10px; left: 56px; z-index: 500; display: flex; gap: 10px; align-items: center;
   padding: 4px 8px; border-radius: var(--radius); background: color-mix(in srgb, var(--panel-bg) 88%, transparent); border: 1px solid var(--border); }
@@ -476,6 +479,37 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .map-legend svg { display: block; }
 .map-legend path, .map-cluster path { stroke: var(--map-pin-edge); stroke-width: 1; }
 .map-legend circle, .map-cluster circle { fill: #fff; }
+
+/* Bias chart (bias.js) */
+.bias-view { position: absolute; inset: 0; display: none; flex-direction: column; background: var(--panel-bg); z-index: 0; }
+.story.bias-open .bias-view { display: flex; }
+.bias-head { flex: none; padding: 10px 16px 0; font-size: var(--fs-lg); }
+.bias-chart { flex: 1 1 auto; min-height: 0; position: relative; font-size: var(--fs-sm); }
+.bias-chart svg { display: block; }
+.bias-wash-left  { stop-color: #3b78c4; stop-opacity: .22; }
+.bias-wash-mid   { stop-color: #8a8f98; stop-opacity: .05; }
+.bias-wash-right { stop-color: #c4453b; stop-opacity: .22; }
+.bias-grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 4; }
+.bias-axis { stroke: var(--text-2); stroke-width: 1; opacity: .55; }
+.bias-tick { fill: var(--text-2); font-size: inherit; }
+.bias-side { fill: var(--text-2); font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
+.bias-name { fill: var(--text); font-size: inherit; pointer-events: none; paint-order: stroke; stroke: var(--panel-bg); stroke-width: 3px; stroke-linejoin: round; }
+.bias-dot { cursor: pointer; outline: none; }
+.bias-dot circle { stroke: var(--map-pin-edge); stroke-width: 1.2; }
+.bias-dot:hover circle, .bias-dot:focus-visible circle { stroke: var(--text); stroke-width: 2.5; }
+.bias-unrated { flex: none; padding: 0 16px; font-size: var(--fs-sm); color: var(--text-2); display: flex; flex-direction: column; gap: 3px; }
+.bias-unrated:not(:empty) { padding-bottom: 6px; }
+.bias-chip { display: inline-block; margin: 0 4px 2px 0; padding: 0 6px; background: var(--badge-bg); color: var(--text); cursor: help; }
+.bias-foot { flex: none; padding: 6px 16px 8px; font-size: var(--fs-xs); color: var(--text-2); border-top: 1px solid var(--border); }
+.bias-foot a { color: var(--accent-text); }
+.bias-tip { position: absolute; z-index: 5; width: 250px; padding: 8px 10px; pointer-events: none; font-size: var(--fs-sm);
+  background: var(--panel-header); border: 1px solid var(--border); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
+.bias-tip[hidden] { display: none; }
+.bias-tip-name { font-weight: 700; font-size: var(--fs-md); }
+.bias-tip-h { margin-top: 6px; font-weight: 600; }
+.bias-rater { display: flex; justify-content: space-between; gap: 10px; color: var(--text-2); }
+.bias-rater b { color: var(--text); font-weight: 500; }
+.bias-tip-link { margin-top: 6px; }
 
 /* Pin clusters (map.js) */
 .map-cluster { cursor: pointer; }

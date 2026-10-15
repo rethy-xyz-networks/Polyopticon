@@ -26,6 +26,9 @@ export const state = {
   placeFilter: null,            // { keys, name } from the map: a place, or the places of a map cluster
   visible: [],                  // live items passing the filters (for the map)
 
+  bias: new Map(),              // source id -> { checkedAt, outlet | null }: its political-lean lookup (bias.js)
+  biasProgress: null,           // { done, total } while sources are being looked up
+
   tabs: [],                     // see tabs.js
   activeTabId: null,
 
@@ -36,6 +39,10 @@ export const state = {
 export function setSources(list) {
   state.sources = list;
   state.sourcesById = new Map(list.map(s => [s.id, s]));
+}
+
+export function setBias(rows) {
+  state.bias = new Map(rows.map(r => [r.sourceId, r]));
 }
 
 export const sourceColor = id => state.sourcesById.get(id)?.color ?? '#4A4A4A';

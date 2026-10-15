@@ -337,6 +337,20 @@ function bindClearButton(id, action) {
   });
 }
 
+// Media bias
+// Each RSS source is looked up once (main/bias.js); this shows how far that has got and forces a new lookup.
+
+export function renderBiasStatus() {
+  const feeds = state.sources.filter(s => s.type === 'rss');
+  const checked = feeds.filter(s => state.bias.has(s.id));
+  const rated = checked.filter(s => state.bias.get(s.id).outlet?.x != null);
+  const p = state.biasProgress;
+  $('bias-status').textContent = p ? `Looking up feed ${p.done + 1} of ${p.total}…`
+    : !feeds.length ? ''
+    : `${checked.length} of ${feeds.length} feeds checked, ${rated.length} with a rating.${checked.length < feeds.length ? ' The rest are looked up shortly after start-up, or when added.' : ''}`;
+  $('btn-bias-recheck').disabled = !!p;
+}
+
 // Screenshot folder
 // Chosen with the system folder picker; empty means the Pictures folder.
 
@@ -365,6 +379,8 @@ export function initSettings(onChange) {
   for (const b of document.querySelectorAll('#settings-tabs button')) b.addEventListener('click', () => showTab(b.dataset.tab));
   $('settings-overlay').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeSettings(); });
   $('btn-open-data').addEventListener('click', () => api.openDataDir());
+  $('btn-bias-recheck').addEventListener('click', async () => { await api.recheckBias(); renderBiasStatus(); });
+  renderBiasStatus();
   bindClearButton('btn-clear-articles', async () => { await api.clearArticles(); onSnapshotsCleared(); });
   bindClearButton('btn-clear-models', () => api.clearModels());
 }

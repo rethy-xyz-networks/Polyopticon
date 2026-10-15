@@ -1,17 +1,18 @@
 // Entry point: boot, toolbar, mode switch, countdown, keyboard, splitters.
 
 import { api, $, maxAgeLabel } from './dom.js';
-import { state, setSources } from './state.js';
+import { state, setSources, setBias } from './state.js';
 import { ingest, refreshRows, scheduleRender, bindFeedScroll, trimToMax, rebuildTagCache, bindList, pruneSources, setCountsListener, updateItems, setVisibleListener } from './feed.js';
 import { initMap, openMap, closeMap, onVisibleItems, applyMapAppearance, refreshMapFilter } from './map.js';
+import { initBias, toggleBias, refreshBias } from './bias.js';
 import { renderSources, renderTags, bindTagForms, bindSourceFilter, setStatus, repaintCounts } from './sidebar.js';
-import { renderStory, renderTabs, activeTab, closeTab, setPinned, cycleTab, moveTab, selectUnpinnedTab, openHelpTab, openScratchTab, openChanHome, openChanTab, openTelegramDraft, navigate, reload as reloadTab, showMode, onSnapshotSaved, applyZoom, bindStoryButtons, bindTabDrag, restoreTabs, storyTabList, selectTabById, closeTabById, onArticleTranslateProgress, takeScreenshot } from './tabs.js';
+import { renderStory, renderTabs, activeTab, closeTab, reopenClosedTab, setPinned, cycleTab, moveTab, selectUnpinnedTab, openHelpTab, openScratchTab, openChanHome, openChanTab, openTelegramDraft, navigate, reload as reloadTab, showMode, onSnapshotSaved, applyZoom, bindStoryButtons, bindTabDrag, restoreTabs, storyTabList, selectTabById, closeTabById, onArticleTranslateProgress, takeScreenshot } from './tabs.js';
 import { initHistory, reload as reloadHistory, setHistoryQuery } from './history.js';
 import { ui, loadUi, saveUi } from './ui.js';
 import { initChat, renderChat, toggleChat, toggleVideo, applyChatTheme, chatOpen, cycleChatTab, moveChatTab, selectChatTab, closeChatTab, reloadChatTab, pinChatTab, chatTabList } from './chat.js';
 import { openTabSearch } from './tabsearch.js';
 import { initSourceSearch, renderSourceChips, clearSearchSources, pruneSearchSources } from './sourcesearch.js';
-import { initSettings, openSettings, toggleSettings, closeSettings, setSetting, syncSettingControl, refreshSettingsPage, renderScreenshotFolder } from './settings.js';
+import { initSettings, openSettings, toggleSettings, closeSettings, setSetting, syncSettingControl, refreshSettingsPage, renderScreenshotFolder, renderBiasStatus } from './settings.js';
 import { comboName, runShortcut, registerShortcuts, pageCombos } from './shortcuts.js';
 import { bindTabScroll } from './tabscroll.js';
 import { startPerfWatch } from './perfwatch.js';
@@ -186,6 +187,7 @@ function bindShortcuts() {
     search:   () => { const search = $('search'); search.focus(); search.select(); },
     mode:     () => setMode(state.mode === 'live' ? 'history' : 'live'),
     map:      () => (document.querySelector('.story.map-open') ? closeMap() : openMap()),
+    bias:     () => toggleBias(),
     chat:     () => toggleChat(),
     video:    () => toggleVideo(),
     settings: () => toggleSettings(),
@@ -196,6 +198,7 @@ function bindShortcuts() {
     moveTabLeft:  inChat(a => moveChatTab(a, -1), () => moveTab(-1)),
     tabN:     inChat((a, combo) => selectChatTab(a, +combo.slice(-1)), combo => selectUnpinnedTab(+combo.slice(-1))),
     closeTab: inChat(closeChatTab, () => { const t = activeTab(); if (t && !t.pinned) closeTab(t); }),
+    reopenTab: () => reopenClosedTab(),
     back:     () => navigate(-1),
     reload:   inChat(reloadChatTab, () => reloadTab()),
     pinTab:   inChat(pinChatTab, () => { const t = activeTab(); if (t) setPinned(t, !t.pinned); }),
@@ -390,11 +393,13 @@ window.addEventListener('unhandledrejection', e => api.log('error', `Renderer: u
   state.accounts = init.accounts;
   state.tags     = init.tags;
   setSources(init.sources);
+  setBias(init.bias ?? []);
   rebuildTagCache();
 
   initSettings(applySetting);
   // Optional panels and individual settings must never stop the feed from starting.
   guard('map', () => initMap({ onFilter: setPlaceFilter }));
+  guard('bias', initBias);
   guard('chat', () => initChat({ openSettings: () => openSettings('general') }));
   setVisibleListener(onVisibleItems);
   for (const key of Object.keys(state.settings)) guard(`setting ${key}`, () => { applySetting(key); syncSettingControl(key); });
@@ -440,7 +445,10 @@ window.addEventListener('unhandledrejection', e => api.log('error', `Renderer: u
     pruneSearchSources();
     scheduleRender();
     refreshSettingsPage();
+    refreshBias();
   });
+  api.onBiasChanged(rows => { setBias(rows); refreshBias(); renderBiasStatus(); });
+  api.onBiasProgress(p => { state.biasProgress = p; refreshBias(); renderBiasStatus(); });
   api.onAccounts(acc => { state.accounts = acc; refreshSettingsPage(); });
   api.ready();
 

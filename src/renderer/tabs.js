@@ -173,6 +173,10 @@ export function openInBrowser(it) {
   api.recordOpen(it.id, 'browser');
 }
 
+// Recently closed tabs, newest last, for Shift+X (like Ctrl+Shift+T in a browser). Kept for the session only.
+const MAX_CLOSED = 25;
+const closedTabs = [];
+
 export function closeTab(tab) {
   const idx = state.tabs.indexOf(tab);
   if (idx < 0) return;
@@ -180,6 +184,10 @@ export function closeTab(tab) {
   state.tabs.splice(idx, 1);
   clearTimeout(tab.captureTimer);
   tab.view?.remove();
+  if (!tab.draft) {
+    closedTabs.push({ tab, idx });
+    if (closedTabs.length > MAX_CLOSED) closedTabs.shift();
+  }
   saveTabs();
   api.setState('app.story_tabs', state.tabs.length);
   if (state.activeTabId === tab.id) {
@@ -189,6 +197,21 @@ export function closeTab(tab) {
   }
   renderTabs();
   renderStory();
+}
+
+/** Shift+X: bring back the most recently closed tab, in its old place, and select it. */
+export function reopenClosedTab() {
+  while (closedTabs.length) {
+    const { tab, idx } = closedTabs.pop();
+    const same = state.tabs.find(t => t.id === tab.id || (t.kind === tab.kind && t.item.url === tab.item.url));
+    if (same) continue;                                      // already open again: try the one before
+    Object.assign(tab, { view: null, ready: false, failed: null, captureTimer: null, capturing: null });
+    const firstUnpinned = state.tabs.filter(t => t.pinned).length;
+    state.tabs.splice(tab.pinned ? Math.min(idx, firstUnpinned) : Math.max(idx, firstUnpinned), 0, tab);
+    api.setState('app.story_tabs', state.tabs.length);
+    activateTab(tab);
+    return;
+  }
 }
 
 /** Close several tabs at once (context menu); pinned tabs are kept. */

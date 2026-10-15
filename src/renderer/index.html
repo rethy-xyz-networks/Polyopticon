@@ -31,6 +31,10 @@
     </div>
 
     <div class="tool-buttons">
+      <!-- Special views: they replace the article area instead of opening as tabs -->
+      <button id="btn-map" class="icon-btn" title="Map of where the stories in the live list are happening (Ctrl+M)" aria-label="Map" data-icon="map"></button>
+      <button id="btn-bias" class="icon-btn" title="Political lean of the news feeds, plotted against reliability (Ctrl+B)" aria-label="Bias chart" data-icon="bias"></button>
+      <span class="tool-sep" aria-hidden="true"></span>
       <button id="btn-refresh" class="icon-btn" title="Refresh all sources (Shift+R)" data-icon="refresh"></button>
       <button id="btn-chat" class="icon-btn" title="Live chat (Ctrl+J)" data-icon="chat"></button>
       <button id="chat-video-btn" class="icon-btn" title="Split the chat: show a Twitch, Kick or YouTube stream below it (opens the chat if it is hidden) (Ctrl+V)" data-icon="stream"></button>
@@ -118,7 +122,6 @@
     <!-- Pane 3: story viewer -->
     <section class="pane story">
       <div class="pane-header tabstrip">
-        <button id="btn-map" class="toggle-btn map-btn" title="Map of where the stories in the live list are happening (Ctrl+M)" aria-label="Map" data-icon="map"></button>
         <div id="tabs" class="tabs"></div>
       </div>
       <div id="infobar" class="infobar" hidden>
@@ -161,6 +164,17 @@
             <span id="map-summary" class="muted"></span>
           </div>
           <div class="map-legend"><div><svg width="12" height="17" viewBox="-6 -16 12 17"><path d="M0 0C-1.2-3.6-5-6.2-5-10a5 5 0 0 1 10 0c0 3.8-3.8 6.4-5 10z" fill="var(--accent)"/><circle cy="-10" r="1.8"/></svg>A story, represented by its site's colour</div><div>Faded = older</div><div>Number = how many stories</div><div>Click a cluster to list its articles</div></div>
+        </div>
+        <div id="bias-view" class="bias-view">
+          <div class="bias-head">
+            <b>Political lean of your feeds</b>
+            <span id="bias-summary" class="muted"></span>
+          </div>
+          <div id="bias-chart" class="bias-chart"></div>
+          <div id="bias-unrated" class="bias-unrated"></div>
+          <div class="bias-foot">Each outlet sits at the average of the raters' verdicts, across, and its factuality, up. Ratings by AllSides, Ad Fontes Media and Media Bias/Fact Check, via
+            <a href="https://mediabias.news" target="_blank" rel="noopener">mediabias.news</a>. Raters often disagree: hover a dot to see each one.</div>
+          <div id="bias-tip" class="bias-tip" role="tooltip" hidden></div>
         </div>
         <div id="story-empty" class="story-empty">
           <div class="glyph">◎</div>
@@ -355,6 +369,13 @@
           <small>Takes effect on next restart</small>
           <input type="range" data-setting="SourceStaggerMs" min="0" max="2000" step="100">
         </label>
+
+        <h3>Media bias</h3>
+        <div class="field">Recheck the bias of every feed
+          <small>Each feed's political lean is looked up once, from MediaBias News (ratings by AllSides, Ad Fontes Media and Media Bias/Fact Check), and remembered. New feeds are looked up when you add them. This forgets the answers and asks again.</small>
+          <button id="btn-bias-recheck" class="toggle-btn">Recheck</button>
+        </div>
+        <p id="bias-status" class="help"></p>
 
         <h3>Logs</h3>
         <label class="field range">Session log retention <output data-for="LogRetentionCount"></output>

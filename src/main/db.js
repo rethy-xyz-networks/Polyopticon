@@ -34,6 +34,12 @@ const MIGRATIONS = [
      WHERE grp IN ('Americas', 'Middle East', 'International');`,
   // v5: each source's newest items, for the live list's per-source minimum (recentItems)
   `CREATE INDEX IF NOT EXISTS items_source_published ON items(source_id, published_at DESC);`,
+  // v6: political-lean lookup per source (bias.js). A row means the source was checked; outlet is NULL when nothing matched.
+  `CREATE TABLE IF NOT EXISTS source_bias (
+     source_id  INTEGER PRIMARY KEY REFERENCES sources(id) ON DELETE CASCADE,
+     checked_at INTEGER NOT NULL,
+     outlet     TEXT
+   );`,
 ];
 const SCHEMA_VERSION = 1 + MIGRATIONS.length;
 
@@ -160,6 +166,14 @@ function wrap(db) {
     listSources: () => q(`SELECT * FROM sources ORDER BY sort, id`).all().map(parseSource),
     getSource:   id => parseSource(q(`SELECT * FROM sources WHERE id = ?`).get(id)),
     countSources: () => q(`SELECT count(*) AS n FROM sources`).get().n,
+
+    // Bias lookups (bias.js)
+    listBias: () => q(`SELECT source_id AS sourceId, checked_at AS checkedAt, outlet FROM source_bias`).all()
+      .map(r => ({ ...r, outlet: r.outlet ? JSON.parse(r.outlet) : null })),
+    setBias: (sourceId, outlet) => q(`INSERT INTO source_bias (source_id, checked_at, outlet) VALUES (?, ?, ?)
+      ON CONFLICT(source_id) DO UPDATE SET checked_at = excluded.checked_at, outlet = excluded.outlet`).run(sourceId, Date.now(), outlet ? JSON.stringify(outlet) : null),
+    clearBias: sourceId => (sourceId == null ? q(`DELETE FROM source_bias`).run() : q(`DELETE FROM source_bias WHERE source_id = ?`).run(sourceId)),
+    recentUrls: (sourceId, limit) => q(`SELECT url FROM items WHERE source_id = ? AND url IS NOT NULL ORDER BY published_at DESC LIMIT ?`).all(sourceId, limit).map(r => r.url),
 
     getMeta: key => q(`SELECT value FROM meta WHERE key = ?`).get(key)?.value ?? null,
     setMeta: (key, value) => q(`INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(key, String(value)),

@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, session, utilityProcess, protocol, nativeTheme, screen, webContents } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, session, utilityProcess, protocol, nativeTheme, screen, webContents, net } = require('electron');
 const fs        = require('fs');
 const path      = require('path');
 const log       = require('./logger');
@@ -16,6 +16,7 @@ const irc       = require('./irc');
 const fourchan  = require('./fourchan');
 const perfwatch = require('./perfwatch');
 const database  = require('./db');
+const biasLookup = require('./bias');
 const { SEED_GROUPS, SEED_REVISION, RETIRED, RENAMED } = require('./config');
 const { TYPES, validateSource } = require('./adapters/types');
 
@@ -113,6 +114,35 @@ function seedSources() {
     }
   }
   db.setMeta('seed_revision', SEED_REVISION);
+}
+
+// Political lean (bias.js)
+// Each RSS source is looked up once, a little after start-up (its first poll has filled in the links the
+// lookup also uses); Settings can force all of them again. Tests don't go online (OFFSCREEN).
+
+let biasChecker = null;
+let biasTimer = null;
+
+function setupBias() {
+  const get = async url => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15_000);
+    try { return await net.fetch(url, { signal: ctrl.signal, headers: { Accept: 'application/json' } }); }
+    finally { clearTimeout(timer); }
+  };
+  biasChecker = biasLookup.createChecker({
+    db, log, getJson: biasLookup.httpJson(get, { log }),
+    onChange: () => send('bias:changed', db.listBias()),
+    onProgress: p => send('bias:progress', p),
+  });
+  scheduleBiasCheck(20_000);
+}
+
+function scheduleBiasCheck(delayMs) {
+  if (OFFSCREEN || !biasChecker) return;
+  clearTimeout(biasTimer);
+  biasTimer = setTimeout(() => biasChecker.checkPending(), delayMs);
+  biasTimer.unref?.();
 }
 
 function sourcesChanged() {
@@ -313,6 +343,7 @@ function registerIpc() {
       pinned: store.loadPinned(),
       ui,
       recent: db.recentItems(since, settings.MaxFeedItems),
+      bias: db.listBias(),
       logPath: log.path,
       logos: logoFiles(),
       picturesDir: screenshot.folderFor(''),
@@ -344,7 +375,10 @@ function registerIpc() {
       const clean = validateSource(src);
       const dupe = db.listSources().find(s => s.name.toLowerCase() === clean.name.toLowerCase() && s.id !== src.id);
       if (dupe) throw new Error(`A source named "${clean.name}" already exists`);
+      const before = src.id ? db.getSource(src.id) : null;
       const saved = src.id ? db.updateSource(src.id, clean) : db.addSource(clean);
+      if (before && before.config?.url !== saved.config?.url) db.clearBias(saved.id);       // another feed: another outlet
+      scheduleBiasCheck(60_000);                                                           // after its first poll
       log.info(`Source ${src.id ? 'updated' : 'added'}: [${saved.type}] ${saved.name}`);
       sourcesChanged();
       return { ok: true, source: saved };
@@ -361,6 +395,9 @@ function registerIpc() {
     log.info(`Source deleted: [${s.type}] ${s.name}`);
     sourcesChanged();
   });
+
+  // Political lean
+  ipcMain.handle('bias:recheck', () => { biasChecker?.recheckAll(); return true; });   // runs in the background; progress arrives as events
 
   // History & snapshots
   ipcMain.handle('history:list', (_e, opts) => db.history(opts));
@@ -680,6 +717,7 @@ app.whenReady().then(() => {
 
   db = database.open(DB_PATH);
   seedSources();
+  setupBias();
   secrets.load(DATA_DIR);
   scratchpad.load(DATA_DIR);
 

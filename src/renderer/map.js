@@ -41,6 +41,7 @@ export function initMap({ onFilter }) {
   onPlaceFilter = onFilter;
   $('btn-map').addEventListener('click', () => (open ? closeMap() : openMap()));
   document.addEventListener('story:activate', () => closeMap());
+  document.addEventListener('special-view', e => { if (e.detail !== 'map') closeMap(); });   // the bias chart opened
   const setWindow = name => {
     const w = WINDOWS.find(x => x[0] === name);
     if (!w) return false;
@@ -58,6 +59,7 @@ export function initMap({ onFilter }) {
 
 export function openMap() {
   open = true;
+  document.dispatchEvent(new CustomEvent('special-view', { detail: 'map' }));
   document.querySelector('.story').classList.add('map-open');
   $('btn-map').classList.add('on');
   if (!map) createMap();

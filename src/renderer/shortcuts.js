@@ -24,6 +24,7 @@ export const SHORTCUTS = [
     { id: 'search',  combos: ['ctrl+f'], keys: [['Ctrl', 'F']], does: 'Search the stories' },
     { id: 'mode',    combos: ['ctrl+h'], keys: [['Ctrl', 'H']], does: 'Switch between Live and History' },
     { id: 'map',     combos: ['ctrl+m'], keys: [['Ctrl', 'M']], does: 'Show or hide the map' },
+    { id: 'bias',    combos: ['ctrl+b'], keys: [['Ctrl', 'B']], does: 'Show or hide the bias chart (political lean of the news feeds)' },
     { id: 'chat',    combos: ['ctrl+j'], keys: [['Ctrl', 'J']], does: 'Show or hide the live chat' },
     // Ctrl+V is paste: ignored in text boxes and pages, so pasting still works there.
     { id: 'video',   combos: ['ctrl+v'], keys: [['Ctrl', 'V']], does: 'Show or hide the video player (not while typing or in a page)', typing: false, inPages: false },
@@ -39,6 +40,8 @@ export const SHORTCUTS = [
     { id: 'moveTabLeft',  combos: ['ctrl+shift+pageup'], keys: [['Ctrl', 'Shift', 'PgUp']], does: 'Move the current tab one place left; same' },
     { id: 'tabN',    combos: DIGITS.map(n => `alt+${n}`), keys: [['Alt', '1 … 9']], does: 'Go to tab 1–9, counting after the pinned tabs; same' },
     { id: 'closeTab', combos: ['ctrl+w'], keys: [['Ctrl', 'W']], does: 'Close the current tab (pinned tabs stay open); same' },
+    // Not forwarded from pages: Shift+X is a capital X when typing there.
+    { id: 'reopenTab', combos: ['shift+x'], keys: [['Shift', 'X']], does: 'Reopen the last closed article tab (again for the one before; not while typing or in a page)', typing: false, inPages: false },
     { id: 'pinTab',   combos: ['ctrl+p'], keys: [['Ctrl', 'P']], does: 'Pin or unpin the current tab; same' },
     { id: 'searchTabs', combos: ['ctrl+shift+a'], keys: [['Ctrl', 'Shift', 'A']], does: 'Search the open tabs and switch to one (Up / Down, Enter); same' },
     { id: 'back',     combos: ['alt+arrowleft'], keys: [['Alt', 'Left']], does: 'Back, in the current article tab’s page' },
