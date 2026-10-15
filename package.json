@@ -12,7 +12,11 @@
     "test:e2e": "playwright test",
     "test:e2e:report": "playwright show-report",
     "dist": "electron-builder --win portable",
-    "test:perf": "playwright test --config playwright.perf.config.js"
+    "test:perf": "playwright test --config playwright.perf.config.js",
+    "bench": "node scripts/bench/main.js",
+    "bench:startup": "node scripts/bench/startup.js",
+    "bench:idle": "node scripts/bench/idle.js",
+    "bench:article": "electron scripts/bench/article.js"
   },
   "build": {
     "appId": "com.polyopticon.newsmonitor",

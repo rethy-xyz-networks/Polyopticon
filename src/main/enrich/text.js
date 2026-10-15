@@ -42,22 +42,39 @@ const STOP = {
 };
 const STOP_SETS = Object.fromEntries(Object.entries(STOP).map(([k, v]) => [k, new Set(v.split(' '))]));
 
+// Each UTF-16 code unit's scripts as a bit mask (the regexes above, evaluated once per unit), so the
+// detector counts a headline's letters in one pass instead of running twelve global regexes over it.
+const SCRIPT_BITS = new Uint16Array(0x10000);
+SCRIPTS.forEach(([, rx], i) => {
+  const one = new RegExp(rx.source);
+  for (let c = 0; c < 0x10000; c++) if (one.test(String.fromCharCode(c))) SCRIPT_BITS[c] |= 1 << i;
+});
+
+// Stop word -> the languages (in STOP order) that list it. Scoring then walks a text's words once.
+const LANGS = Object.keys(STOP_SETS);
+const STOP_OWNERS = new Map();
+LANGS.forEach((lang, i) => { for (const w of STOP_SETS[lang]) (STOP_OWNERS.get(w) ?? STOP_OWNERS.set(w, []).get(w)).push(i); });
+const EN = LANGS.indexOf('en');
+const IS = LANGS.indexOf('is');
+
 /** Returns an ISO 639-1 code ('en', 'ar', 'he', …) or null when unsure. */
 function detectLang(text) {
   if (!text) return null;
   const s = String(text).slice(0, 600);
-  const counts = {};
+  const counts = new Array(SCRIPTS.length).fill(0);
   let total = 0;
-  for (const [name, rx] of SCRIPTS) {
-    const n = (s.match(rx) || []).length;
-    counts[name] = n;
-    total += n;
+  for (let i = 0; i < s.length; i++) {
+    const bits = SCRIPT_BITS[s.charCodeAt(i)];
+    if (!bits) continue;
+    for (let k = 0; k < counts.length; k++) if (bits & (1 << k)) { counts[k]++; total++; }
   }
   if (!total) return null;
-  const [top] = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  if (top[1] / total < 0.5) return null;
+  let top = 0;                                   // the first script with the highest count
+  for (let k = 1; k < counts.length; k++) if (counts[k] > counts[top]) top = k;
+  if (counts[top] / total < 0.5) return null;
+  const count = name => counts[SCRIPTS.findIndex(([n]) => n === name)];
 
-  switch (top[0]) {
+  switch (SCRIPTS[top][0]) {
     case 'arabic':
       if (/[ٹڈڑںےھ]/.test(s)) return 'ur';
       // Persian uses ی/ک (U+06CC/06A9) and پچژگ; Arabic uses ي/ك (U+064A/0643).
@@ -66,7 +83,7 @@ function detectLang(text) {
     case 'cyrillic':   return /[іїєґ]/i.test(s) ? 'uk' : /[ўі]/.test(s) ? 'be' : 'ru';
     case 'greek':      return 'el';
     case 'kana':       return 'ja';
-    case 'han':        return counts.kana > 0 ? 'ja' : 'zh';
+    case 'han':        return count('kana') > 0 ? 'ja' : 'zh';
     case 'hangul':     return 'ko';
     case 'thai':       return 'th';
     case 'devanagari': return 'hi';
@@ -77,14 +94,17 @@ function detectLang(text) {
   // Latin script: score function words.
   const words = s.toLowerCase().match(/[a-zà-ɏ']+/g) || [];
   if (words.length < 3) return 'en';
-  const scores = Object.entries(STOP_SETS)
-    .map(([lang, set]) => [lang, words.filter(w => set.has(w)).length +
-      // þ/ð appear only in Icelandic words — but one place name (Ísafjörður) in an English story mustn't flip it.
-      (lang === 'is' ? words.filter(w => /[þð]/.test(w)).length : 0)])
-    .sort((a, b) => b[1] - a[1]);
+  const points = new Array(LANGS.length).fill(0);
+  for (const w of words) {
+    const owners = STOP_OWNERS.get(w);
+    if (owners) for (const i of owners) points[i]++;
+    // þ/ð appear only in Icelandic words — but one place name (Ísafjörður) in an English story mustn't flip it.
+    if (/[þð]/.test(w)) points[IS]++;
+  }
+  const scores = LANGS.map((lang, i) => [lang, points[i]]).sort((a, b) => b[1] - a[1]);
   const [best, second] = scores;
   // Prefer English unless another language is clearly ahead — mistranslating English is worse than missing a translation.
-  if (best[0] !== 'en' && best[1] >= 2 && best[1] > (scores.find(x => x[0] === 'en')[1] + 1) && best[1] > second[1]) return best[0];
+  if (best[0] !== 'en' && best[1] >= 2 && best[1] > (points[EN] + 1) && best[1] > second[1]) return best[0];
   return 'en';
 }
 
@@ -98,6 +118,8 @@ const EN_STOP = new Set((
   'photos photo more most first last than then just now today yesterday tomorrow week year years day days time ' +
   'what who why how when where which while amid also out up down off back still very much many some any all one two three ' +
   'here there get gets got make makes made take takes took man woman people says' ).split(/\s+/));
+
+const ASCII = /^[\x00-\x7f]*$/;
 
 /** Distinctive lower-case word stems from a headline. */
 function tokens(text) {

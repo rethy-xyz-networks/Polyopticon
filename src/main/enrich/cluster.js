@@ -35,14 +35,20 @@ class Clusterer {
       if (!posting || posting.size > cap) continue;
       for (const id of posting) if (id !== excludeId) cand.set(id, (cand.get(id) ?? 0) + 1);
     }
+    // A token's weight is asked for once per candidate that has it; compute each once. The new item's own
+    // weights add up to the same `base` for every candidate (same terms, same order, so the same float).
+    const memo = new Map();
+    const weigh = t => { let w = memo.get(t); if (w === undefined) memo.set(t, w = this.weight(t)); return w; };
+    let base = 0;
+    for (const t of toks) base += weigh(t);
     let best = null, bestSim = 0;
     for (const [id, shared] of cand) {
       if (shared < MIN_SHARED) continue;
       const d = this.docs.get(id);
       if (Math.abs(d.publishedAt - publishedAt) > WINDOW_MS) continue;
-      let inter = 0, union = 0;
-      for (const t of toks) { const w = this.weight(t); union += w; if (d.tokens.has(t)) inter += w; }
-      for (const t of d.tokens) if (!toks.has(t)) union += this.weight(t);
+      let inter = 0, union = base;
+      for (const t of toks) if (d.tokens.has(t)) inter += weigh(t);
+      for (const t of d.tokens) if (!toks.has(t)) union += weigh(t);
       const sim = union ? inter / union : 0;
       if (sim > bestSim) { bestSim = sim; best = d; }
     }

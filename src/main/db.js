@@ -40,6 +40,10 @@ const MIGRATIONS = [
      checked_at INTEGER NOT NULL,
      outlet     TEXT
    );`,
+  // v7: foreign-language items still waiting for a translation (untranslated()). Only those rows are in the index,
+  //     so finding them no longer reads every recent item. The query must repeat these conditions to use it.
+  `CREATE INDEX IF NOT EXISTS items_untranslated ON items(published_at)
+     WHERE lang IS NOT NULL AND lang != 'en' AND orig_title IS NULL;`,
 ];
 const SCHEMA_VERSION = 1 + MIGRATIONS.length;
 
@@ -121,7 +125,11 @@ CREATE VIRTUAL TABLE IF NOT EXISTS items_fts USING fts5(title, summary, article,
 function open(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
-  db.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;`);
+  // cache_size: the default 2 MB is smaller than the recent part of the table, so reading it in published order
+  // (every startup, every history page) re-read the same pages from disk over and over: 3.5x faster with 64 MB.
+  // Pages are only taken as they are used.
+  db.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;
+           PRAGMA cache_size = -65536; PRAGMA temp_store = MEMORY;`);
   db.exec(SCHEMA);
   migrate(db);
   return wrap(db);
@@ -144,7 +152,15 @@ function ftsQuery(text) {
 }
 
 function wrap(db) {
-  const q = sql => db.prepare(sql);
+  // Preparing a statement costs more than running it (a lookup by id takes ~100 µs prepared each time, ~5 µs
+  // reused), so statements are kept by their SQL text. Queries built from user input (history with source
+  // chips) are prepared fresh instead of filling the cache.
+  const prepared = new Map();
+  const q = sql => {
+    let st = prepared.get(sql);
+    if (!st) prepared.set(sql, st = db.prepare(sql));
+    return st;
+  };
 
   const stmts = {
     insertItem: q(`INSERT OR IGNORE INTO items (source_id, ext_id, kind, title, summary, url, author, published_at, seen_at, extra)
@@ -226,8 +242,10 @@ function wrap(db) {
          WHERE i.id IN (
            SELECT id FROM (SELECT id FROM items WHERE published_at >= $since ORDER BY published_at DESC LIMIT $limit)
            UNION
-           SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY source_id ORDER BY published_at DESC) AS rn
-                           FROM items WHERE published_at >= $since) WHERE rn <= $perSource)
+           -- each source's newest few, read from items_source_published (the old row_number() over the whole window
+           -- sorted every recent item by source: ~5x slower, and this runs on the main thread at start-up)
+           SELECT j.id FROM sources s2 JOIN items j ON j.id IN (
+             SELECT id FROM items WHERE source_id = s2.id AND published_at >= $since ORDER BY published_at DESC LIMIT $perSource))
          ORDER BY i.published_at DESC`).all({ $since: since, $limit: limit, $perSource: perSource }).map(itemRow),
 
     getItem: id =>
@@ -291,16 +309,17 @@ function wrap(db) {
       // Optional "only these sources" (search-bar chips); ids are checked integers, so inlined.
       const ids = (Array.isArray(sourceIds) ? sourceIds : []).filter(Number.isInteger);
       const where = ids.length ? `WHERE i.source_id IN (${ids.join(',')})` : '';
+      const run = ids.length ? sql => db.prepare(sql) : q;     // the inlined ids make every such query different
       const params   = { $limit: limit, $offset: offset, ...(match ? { $match: match } : {}) };
       const snapCols = `sn.captured_at AS savedAt, sn.mhtml_path IS NOT NULL AS hasPage, sn.text IS NOT NULL AS hasText`;
       if (scope === 'opened') {
-        return q(`SELECT ${ITEM_COLS}, o.lastOpened, o.opens, ${snapCols}
+        return run(`SELECT ${ITEM_COLS}, o.lastOpened, o.opens, ${snapCols}
                   FROM (SELECT item_id, max(opened_at) AS lastOpened, count(*) AS opens FROM opens GROUP BY item_id) o
                   JOIN items i ON i.id = o.item_id JOIN sources s ON s.id = i.source_id ${ftsJoin}
                   LEFT JOIN snapshots sn ON sn.item_id = i.id ${where}
                   ORDER BY o.lastOpened DESC LIMIT $limit OFFSET $offset`).all(params).map(itemRow);
       }
-      return q(`SELECT ${ITEM_COLS}, NULL AS lastOpened, 0 AS opens, ${snapCols}
+      return run(`SELECT ${ITEM_COLS}, NULL AS lastOpened, 0 AS opens, ${snapCols}
                 FROM items i JOIN sources s ON s.id = i.source_id ${ftsJoin}
                 LEFT JOIN snapshots sn ON sn.item_id = i.id ${where}
                 ORDER BY i.published_at DESC LIMIT $limit OFFSET $offset`).all(params).map(itemRow);

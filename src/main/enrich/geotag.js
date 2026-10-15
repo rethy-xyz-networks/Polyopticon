@@ -26,8 +26,9 @@ const MAX_WORDS = 4;
 const MAX_PLACES = 3;
 const SUMMARY_CHARS = 400;
 
-const norm = s => s.toLowerCase().replace(/’/g, "'");
-const key  = s => norm(s).replace(/-/g, ' ');      // the tokenizer splits on hyphens
+// Called for every word of every headline: the replacements only run when there is something to replace.
+const norm = s => { const l = s.toLowerCase(); return l.includes('’') ? l.replace(/’/g, "'") : l; };
+const key  = s => { const n = norm(s); return n.includes('-') ? n.replace(/-/g, ' ') : n; };      // the tokenizer splits on hyphens
 
 /** name -> candidates, with hyphenated names (Rostov-on-Don) under their spaced form. */
 function nameMap(obj) {
@@ -64,9 +65,15 @@ const LOCATIVE = new Set('in at near from to into outside across around toward t
 const SETTING = new Set('in at near outside inside across around throughout within'.split(' '));
 const ARTICLES = new Set('al el ad ash as an ar at az'.split(' '));
 
-const isCap = w => /^\p{Lu}/u.test(w);
+// ASCII letters decide without a regex (most words are ASCII).
+const isCap = w => { const c = w.charCodeAt(0); return c < 128 ? c >= 65 && c <= 90 : /^\p{Lu}/u.test(w); };
 const isUpper = w => w === w.toUpperCase() && /\p{L}/u.test(w);
 const lookup = phrase => index.get(key(phrase)) ?? null;
+
+// The first word of every name in the gazetteer. A capitalised word that starts none of them can't begin a
+// place, so its 1-4 word phrases are not looked up at all (most capitalised words in a headline).
+const firstWords = new Set();
+for (const map of [index, actors]) for (const k of map.keys()) firstWords.add(k.split(' ')[0]);
 
 // Tokens
 
@@ -75,7 +82,8 @@ const lookup = phrase => index.get(key(phrase)) ?? null;
 function tokenize(text) {
   const out = [];
   for (const m of text.matchAll(/[\p{L}\p{N}][\p{L}\p{N}.'’]*/gu)) {
-    let w = m[0].replace(/['’]s$/u, '').replace(/['’]+$/u, '');
+    let w = m[0];
+    if (w.includes("'") || w.includes('’')) w = w.replace(/['’]s$/u, '').replace(/['’]+$/u, '');
     if (w.endsWith('.') && !/^(\p{Lu}\.)+$/u.test(w)) w = w.replace(/\.+$/, '');
     if (!w) continue;
     out.push({ w, start: m.index, end: m.index + w.length });
@@ -83,15 +91,18 @@ function tokenize(text) {
   for (let i = 0; i < out.length; i++) {
     const gap = text.slice(i ? out[i - 1].end : 0, out[i].start);
     out[i].gap = gap;                                              // text before the word
+    if (gap === ' ') { out[i].joined = false; out[i].sentStart = i === 0; continue; }   // by far the commonest gap
     out[i].joined = /^-$/.test(gap);                               // hyphenated to the previous word
     out[i].sentStart = i === 0 || /[.!?:;|"“”()\[\]\n—–]|\s-\s/.test(gap) || /\p{Extended_Pictographic}/u.test(gap);
   }
   return out;
 }
 
+const LATIN_WORD = /^[A-Za-z]+$/;       // a quick yes for the common case; anything else gets the full Unicode check
+
 /** Headline Case or ALL CAPS: capitals don't tell names from words. */
 function caseless(tokens) {
-  const words = tokens.slice(1).filter(t => /^\p{L}{4,}$/u.test(t.w));
+  const words = tokens.slice(1).filter(t => t.w.length >= 4 && (LATIN_WORD.test(t.w) || /^\p{L}{4,}$/u.test(t.w)));
   if (words.length < 3) return false;
   return words.filter(t => isCap(t.w)).length / words.length >= 0.7 || words.every(t => isUpper(t.w));
 }
@@ -110,12 +121,12 @@ function mentions(text, seg) {
   for (let i = 0; i < tokens.length;) {
     let matched = 0;
     const t = tokens[i];
-    if (isCap(t.w) && !(ARTICLES.has(norm(t.w)) && tokens[i + 1]?.joined)) {
+    if (isCap(t.w) && firstWords.has(key(t.w)) && !(ARTICLES.has(norm(t.w)) && tokens[i + 1]?.joined)) {
       for (let n = Math.min(MAX_WORDS, tokens.length - i); n >= 1; n--) {
         const words = tokens.slice(i, i + n);
         if (words.slice(1).some(w => !w.joined && /[,.;:!?]/.test(w.gap))) continue;   // a phrase doesn't cross punctuation
         const phrase = key(words.map(w => w.w).join(' '));
-        const cands = lookup(phrase);
+        const cands = index.get(phrase) ?? null;
         const actor = actors.get(phrase)?.[0];
         if (!cands && actor == null) continue;
         if (phrase.length <= 2 && !isUpper(t.w)) continue;   // US, UK, LA must be in caps

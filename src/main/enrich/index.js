@@ -57,17 +57,22 @@ class Enricher {
     const started = Date.now();
     const rows = this.store.clusterWindow(Date.now() - WINDOW_MS * 1.5);
     const backfilled = [];
-    for (const r of rows) {
-      if (r.lang == null) {
-        r.lang = detectLang(r.origTitle || r.title) || 'en';
-        this.store.setLang(r.id, r.lang);
-      }
-      const foreignUntranslated = r.lang !== 'en' && !r.origTitle;
-      if (r.clusterId != null && r.tagged) { this.clusterer.add(r.id, r.title, r.publishedAt, r.clusterId); continue; }
-      if (foreignUntranslated && this.translateEnabled) continue;   // handled by the translation backfill
-      const clusterId = this.clusterer.add(r.id, r.title, r.publishedAt, r.clusterId);
-      this.store.setEnrichment(r.id, { clusterId, places: this.places(r) });
-      backfilled.push(r.id);
+    // One transaction per chunk: a commit per row (two writes each) dominated the time of a cold start.
+    for (let at = 0; at < rows.length; at += RETAG_CHUNK) {
+      this.store.tx(() => {
+        for (const r of rows.slice(at, at + RETAG_CHUNK)) {
+          if (r.lang == null) {
+            r.lang = detectLang(r.origTitle || r.title) || 'en';
+            this.store.setLang(r.id, r.lang);
+          }
+          const foreignUntranslated = r.lang !== 'en' && !r.origTitle;
+          if (r.clusterId != null && r.tagged) { this.clusterer.add(r.id, r.title, r.publishedAt, r.clusterId); continue; }
+          if (foreignUntranslated && this.translateEnabled) continue;   // handled by the translation backfill
+          const clusterId = this.clusterer.add(r.id, r.title, r.publishedAt, r.clusterId);
+          this.store.setEnrichment(r.id, { clusterId, places: this.places(r) });
+          backfilled.push(r.id);
+        }
+      });
     }
     this.log.info(`Grouping index: ${this.clusterer.size} items (${backfilled.length} backfilled) in ${Date.now() - started} ms`);
     // The UI may already be showing these items without groups/places — send the new values.
@@ -126,19 +131,23 @@ class Enricher {
    * worker can post them immediately.
    */
   process(items, source) {
-    for (const it of items) {
-      it.sourceId = source.id;
-      it.lang = detectLang(`${it.title} ${(it.summary || '').slice(0, 200)}`) || 'en';
-      this.store.setLang(it.id, it.lang);
-      if (it.lang !== 'en' && this.translateEnabled) {
-        it.translating = true;
-        it.places = [];
-        it.clusterId = it.id;
-        this.queueTranslation(it, 1);
-        continue;
+    const translate = [];
+    this.store.tx(() => {                 // one commit for the whole poll, not two per item
+      for (const it of items) {
+        it.sourceId = source.id;
+        it.lang = detectLang(`${it.title} ${(it.summary || '').slice(0, 200)}`) || 'en';
+        this.store.setLang(it.id, it.lang);
+        if (it.lang !== 'en' && this.translateEnabled) {
+          it.translating = true;
+          it.places = [];
+          it.clusterId = it.id;
+          translate.push(it);
+          continue;
+        }
+        this.enrich(it);
       }
-      this.enrich(it);
-    }
+    });
+    for (const it of translate) this.queueTranslation(it, 1);     // async: runs after the transaction closed
     return items;
   }
 
