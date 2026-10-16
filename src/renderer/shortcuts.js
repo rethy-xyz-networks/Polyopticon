@@ -30,7 +30,7 @@ export const SHORTCUTS = [
     // Ctrl+V is paste: ignored in text boxes and pages, so pasting still works there.
     { id: 'video',   combos: ['ctrl+v'], keys: [['Ctrl', 'V']], does: 'Show or hide the video player (not while typing or in a page)', typing: false, inPages: false },
     { id: 'settings', combos: ['ctrl+,'], keys: [['Ctrl', ',']], does: 'Open or close Settings' },
-    { id: 'fullscreen', combos: ['f11'], keys: [['F11']], does: 'Full screen (again to leave)' },
+    { id: 'fullscreen', combos: ['f11'], keys: [['F11']], does: 'Full screen (again to leave): the open article if you last clicked in it, otherwise the window' },
     { keys: [['Esc']], does: 'Close settings · clear the story search (again: remove the source chips) · clear the source finder' },
   ] },
   // All but back / forward act on the tabs of the area last clicked: articles, live chat, or the streams below it.

@@ -165,6 +165,43 @@ function areaOf(el) {
   return el?.closest?.('#panes .pane') ? 'story' : null;
 }
 
+// Whether the article pane itself (not the sources, the feed or the chat) was last clicked or focused:
+// F11 then makes the open article full screen instead of the window. The toolbar leaves it as it was.
+let inArticle = false;
+let articleFs = false;
+
+function articleFocus(el) {
+  if (el?.closest?.('#panes .pane')) return !!el.closest('.pane.story');
+  return null;
+}
+
+/** F11 / the full screen button: the open article when the article pane has focus, else the whole window. */
+function toggleFullScreenSmart(fromButton = false) {
+  if (articleFs || (!fromButton && inArticle && activeTab())) toggleArticleFullScreen();
+  else api.toggleFullScreen();
+}
+
+/** The article pane fills the screen (everything else hidden); the window goes full screen with it. */
+function toggleArticleFullScreen() {
+  articleFs = !articleFs;
+  if (articleFs) articleFsWasWindowFs = windowFs;
+  document.body.classList.toggle('article-fs', articleFs);
+  if (articleFs !== windowFs && (articleFs || !articleFsWasWindowFs)) api.toggleFullScreen();
+  paintFullScreen();
+}
+
+let windowFs = false;
+let articleFsWasWindowFs = false;
+
+function paintFullScreen() {
+  const on = windowFs || articleFs;
+  $('btn-fullscreen').classList.toggle('on', on);
+  $('btn-fullscreen').title = on ? 'Leave full screen (F11)' : 'Full screen (F11)';
+  const b = $('btn-article-fs');
+  b.classList.toggle('on', articleFs);
+  b.title = articleFs ? 'Leave full screen for this article (F11)' : 'Full screen for this article (F11)';
+}
+
 /** 'chat' / 'stream' while that area has focus and is showing, else 'story'. */
 function tabArea() {
   if (focusArea === 'stream' && chatOpen() && !$('video-pane').hidden) return 'stream';
@@ -193,7 +230,7 @@ function bindShortcuts() {
     chat:     () => toggleChat(),
     video:    () => toggleVideo(),
     settings: () => toggleSettings(),
-    fullscreen: () => api.toggleFullScreen(),
+    fullscreen: () => toggleFullScreenSmart(),
     nextTab:  inChat(a => cycleChatTab(a, 1), () => cycleTab(1)),
     prevTab:  inChat(a => cycleChatTab(a, -1), () => cycleTab(-1)),
     moveTabRight: inChat(a => moveChatTab(a, 1), () => moveTab(1)),
@@ -241,10 +278,13 @@ function bindToolbar() {
   $('btn-refresh').addEventListener('click', manualRefresh);
   $('btn-theme').addEventListener('click', () => setSetting('IsDarkTheme', !state.settings.IsDarkTheme));
   $('btn-help').addEventListener('click', () => openHelpTab());
-  $('btn-fullscreen').addEventListener('click', () => api.toggleFullScreen());
+  $('btn-fullscreen').addEventListener('click', () => toggleFullScreenSmart(true));
+  $('btn-article-fs').addEventListener('click', () => toggleArticleFullScreen());
   api.onFullScreen(on => {
-    $('btn-fullscreen').classList.toggle('on', on);
-    $('btn-fullscreen').title = on ? 'Leave full screen (F11)' : 'Full screen (F11)';
+    windowFs = on;
+    // Left the window's full screen some other way (e.g. the OS): leave the article's too.
+    if (!on && articleFs) { articleFs = false; document.body.classList.remove('article-fs'); }
+    paintFullScreen();
   });
   $('btn-scratch').addEventListener('click', () => openScratchTab());
   $('btn-chan').addEventListener('click', () => openChanHome());
@@ -293,11 +333,14 @@ function bindToolbar() {
     }
   });
   // Which tabs the tab shortcuts act on follows the clicks and the focus (webviews included).
-  for (const type of ['pointerdown', 'focusin']) document.addEventListener(type, e => { focusArea = areaOf(e.target) ?? focusArea; }, true);
+  for (const type of ['pointerdown', 'focusin']) document.addEventListener(type, e => {
+    focusArea = areaOf(e.target) ?? focusArea;
+    inArticle = articleFocus(e.target) ?? inArticle;
+  }, true);
   // The same shortcuts pressed while an article or chat page has focus (forwarded by main).
   api.onShortcut((combo, webContentsId) => {
     const wv = webviewOf(webContentsId);
-    if (wv) focusArea = areaOf(wv) ?? focusArea;
+    if (wv) { focusArea = areaOf(wv) ?? focusArea; inArticle = articleFocus(wv) ?? inArticle; }
     runShortcut(combo);
   });
   // Ctrl + wheel over a page zooms every page, like a browser.

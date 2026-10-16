@@ -112,7 +112,7 @@ The buttons, from left to right:
 - **Scratchpad**: Opens the [Scratchpad](#scratchpad) tab within the **Article View**.
 - **4chan**: Opens a [4chan /pol/ tab](#4chan) within the **Article View** (optional, hide it in *Settings -> General*).
 - **Theme**: Switches between the dark and light theme.
-- **Full screen** (F11): Toggleable, click again to leave.
+- **Full screen** (F11): Toggleable, click again to leave. With the window selected it makes the window full screen; after clicking in the open article it makes just that article full screen (also the button in the article's info bar).
 - **Keyboard shortcuts** (Ctrl+?): Opens the [shortcut list](#keyboard-shortcuts) tab within the **Article View**.
 
 ## Sources & Filters View

@@ -119,8 +119,13 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 10px 8px 8px; }
 .icon { display: block; flex-shrink: 0; width: 1.15em; height: 1.15em; fill: currentColor; }
 .inline-icon .icon { display: inline-block; vertical-align: -.2em; }
 /* Full screen: corners pointing out; in full screen, pointing in */
-#btn-fullscreen .fs-leave, #btn-fullscreen.on .fs-enter { display: none; }
-#btn-fullscreen.on .fs-leave { display: block; }
+#btn-fullscreen .fs-leave, #btn-fullscreen.on .fs-enter,
+#btn-article-fs .fs-leave, #btn-article-fs.on .fs-enter { display: none; }
+#btn-fullscreen.on .fs-leave, #btn-article-fs.on .fs-leave { display: block; }
+/* One article full screen: only the article pane is left (its tab strip and info bar stay) */
+body.article-fs .toolbar, body.article-fs .splitter,
+body.article-fs .pane:not(.story) { display: none; }
+body.article-fs .panes { grid-template-columns: 1fr; }
 
 .primary-btn { padding: 0 12px; background: var(--accent); color: #fff; font-size: var(--fs-sm); font-weight: 600; }
 .primary-btn:hover:not(:disabled) { filter: brightness(1.1); }
