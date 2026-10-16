@@ -162,7 +162,7 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus { border-colo
 .logo img { visibility: hidden; }
 .logo:hover img { visibility: visible; }
 .logo:hover canvas { visibility: hidden; }
-/* Polyopticon.png is full-colour, so no light-theme invert (the old GIFs were light-on-transparent). */
+/* Polyopticon.png is full-colour, so no light-theme invert. */
 .app-title {
   font-size: 15px; font-weight: 700;
   background: linear-gradient(90deg, #f00 0%, #ff8c00 14.3%, #ffeb00 28.6%, #00dc00 42.9%,

@@ -715,10 +715,9 @@ export function renderChat() {
   $('chat-reload').disabled = !list.length;                  // stays in place, right of ➕, so the buttons don't shift
   if (!open || !current) return;
 
-  // Pages are created the first time their tab is shown while the column is open.
+  // Every chat gets its page as soon as the column is open (so at startup), not when its tab is first picked.
   document.querySelector('#chat-tabs .tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  const chat = list.find(c => c.key === current);
-  if (!views.has(chat.key)) createView(chat);
+  for (const chat of list) if (!views.has(chat.key)) createView(chat);
   for (const [key, v] of views) v.wv.classList.toggle('inactive', key !== current);
 }
 

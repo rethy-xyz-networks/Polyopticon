@@ -387,9 +387,10 @@ function bindSplitters() {
   }
 }
 
-// Logo: still first frame when idle, animates on hover (if the image is animated). A random
-// variant (any file listed by main) on launch and on each click, never repeating the previous one.
-function bindLogo(logos) {
+// Logo: a static PNG (GIFs are not supported). A random variant (any PNG listed by main) on launch
+// and on each click, never repeating the previous one.
+function bindLogo(allLogos) {
+  const logos = allLogos.filter(f => /\.png$/i.test(f));
   const img = $('logo-anim'), canvas = $('logo-still');
   const drawStill = () => {
     const ctx = canvas.getContext('2d');
