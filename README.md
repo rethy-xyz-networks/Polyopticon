@@ -106,11 +106,11 @@ npm run dist       # build a portable Windows .exe into dist/
 
 Polyopticon has five main areas, known as views, with the [toolbar](#toolbar) across the top:
 
-- **[Sources & Filters View](#sources--filters-view)** (fig. 1): The sidebar on the left. It picks which outlets and wires (grouped by country) populate the **Article List View** feed, and holds the include / exclude keywords (bottom of the list).
-- **[Article List View](#article-list-view)** (fig. 2): The article list to the right of the **Sources & Filters View**. It displays incoming articles by newest first (Live), or the articles you opened previously (History).
-- **[Article View](#article-view)** (fig. 3): The centre area, where articles and sites open as separate tabs. An article opens by default as a live page, and supports a saved copy or a clean reader view. The map, Scratchpad, 4chan, Telegram pages and the shortcut list also open within this view as separate tabs. The [bias chart](#bias-chart), [Global Markets](#global-markets) and the map are not tabs: each replaces the article area while open.
-- **[Live Chat View](#live-chat-view)** (fig. 4): Twitch, Kick, destiny.gg and IRC chats, in a column on the right (Ctrl+J).
-- **[Video Player View](#video-player-view)** (fig. 5): Twitch, Kick, YouTube or direct-link streams below the chat, several at once, each with its own volume and mute (Ctrl+V).
+- **[Sources & Filters View](#sources--filters-view)**: The sidebar on the left. It picks which outlets and wires (grouped by country) populate the **Article List View** feed, and holds the include / exclude keywords (bottom of the list).
+- **[Article List View](#article-list-view)**: The article list to the right of the **Sources & Filters View**. It displays incoming articles by newest first (Live), or the articles you opened previously (History).
+- **[Article View](#article-view)**: The centre area, where articles and sites open as separate tabs. An article opens by default as a live page, and supports a saved copy or a clean reader view. The map, Scratchpad, 4chan, Telegram pages and the shortcut list also open within this view as separate tabs. The [bias chart](#bias-chart), [Global Markets](#global-markets) and the map are not tabs: each replaces the article area while open.
+- **[Live Chat View](#live-chat-view)**: Twitch, Kick, destiny.gg and IRC chats, in a column on the right (Ctrl+J).
+- **[Video Player View](#video-player-view)**: Twitch, Kick, YouTube or direct-link streams below the chat, several at once, each with its own volume and mute (Ctrl+V).
 
 Drag the bars between the views to resize them. Width and height per view are recorded and remembered.
 
