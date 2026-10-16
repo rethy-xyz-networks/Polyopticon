@@ -12,24 +12,6 @@ Polyopticon is a desktop news-monitoring dashboard. It pulls news outlets, forum
 
 Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, free API keys) are stored encrypted on your computer.
 
-<table>
-  <tr>
-    <td><img src="docs/screenshots/01.png" alt="Screenshot 1"></td>
-    <td><img src="docs/screenshots/02.png" alt="Screenshot 2"></td>
-    <td><img src="docs/screenshots/03.png" alt="Screenshot 3"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/04.png" alt="Screenshot 4"></td>
-    <td><img src="docs/screenshots/05.png" alt="Screenshot 5"></td>
-    <td><img src="docs/screenshots/06.png" alt="Screenshot 6"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/07.png" alt="Screenshot 7"></td>
-    <td><img src="docs/screenshots/08.png" alt="Screenshot 8"></td>
-    <td><img src="docs/screenshots/09.png" alt="Screenshot 9"></td>
-  </tr>
-</table>
-
 ## Contents
 
 - [Getting Started](#getting-started)
