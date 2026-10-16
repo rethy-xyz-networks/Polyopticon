@@ -25,6 +25,12 @@ const SEED_GROUPS = [
       { ...rss('NYT Politics', 'US', 'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml', '#3D566E'), since: 11 },
       { ...rss('NYT World',    'US', 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', '#46627C'), since: 11 },
       { ...rss('Trump-Truth Social', 'US', 'https://www.trumpstruth.org/feed', '#8B1E2D'), since: 9 },
+      // Added in revision 12.
+      { ...rss('CBS World',     'US', 'https://www.cbsnews.com/latest/rss/world', '#1B4F72'), since: 12 },
+      { ...rss('ABC News Intl', 'US', 'https://abcnews.go.com/abcnews/internationalheadlines', '#B03A2E'), since: 12 },
+      { ...rss('Axios',         'US', 'https://api.axios.com/feed/', '#2E4053'), since: 12 },
+      { ...rss('ProPublica',    'US', 'https://feeds.propublica.org/propublica/main', '#1F618D'), since: 12 },
+      { ...rss('The Hill',      'US', 'https://thehill.com/feed/', '#2874A6'), since: 12 },
     ],
   },
   {
@@ -33,6 +39,12 @@ const SEED_GROUPS = [
       rss('CBC',         'CA', 'https://www.cbc.ca/webfeed/rss/rss-topstories', '#912018'),
       rss('CBC NS',      'CA', 'https://www.cbc.ca/webfeed/rss/rss-canada-novascotia', '#7D3C98'),
       { ...rss('Global News', 'CA', 'https://globalnews.ca/feed/', '#0057B8'), since: 2 },
+      { ...rss('CBC World',        'CA', 'https://www.cbc.ca/webfeed/rss/rss-world', '#A93226'), since: 12 },
+      { ...rss('CBC NB',           'CA', 'https://www.cbc.ca/webfeed/rss/rss-canada-newbrunswick', '#8E44AD'), since: 12 },
+      { ...rss('Halifax Examiner', 'CA', 'https://www.halifaxexaminer.ca/feed/', '#5B2C6F'), since: 12 },
+      { ...rss('Radio-Canada',     'CA', 'https://ici.radio-canada.ca/rss/4159', '#C0392B'), since: 12 },   // French; translated
+      { ...rss('Le Devoir',        'CA', 'https://www.ledevoir.com/rss/manchettes.xml', '#1F3A5F'), since: 12 },   // French; translated
+      { ...rss('La Presse',        'CA', 'https://www.lapresse.ca/actualites/rss', '#1B6B50'), since: 12 },   // French; translated
     ],
   },
   {
@@ -51,6 +63,17 @@ const SEED_GROUPS = [
       rss('Guardian',        'UK', 'https://www.theguardian.com/world/rss', '#196F3D'),
       rss('Sky News',        'UK', 'https://feeds.skynews.com/feeds/rss/world.xml', '#1A7BB2'),
       rss('Middle East Eye', 'UK', 'https://www.middleeasteye.net/rss', '#1E8449'),
+      { ...rss('BBC World',         'UK', 'https://feeds.bbci.co.uk/news/world/rss.xml', '#A93226'), since: 12 },
+      { ...rss('BBC Africa',        'UK', 'https://feeds.bbci.co.uk/news/world/africa/rss.xml', '#B9770E'), since: 12 },
+      { ...rss('BBC Asia',          'UK', 'https://feeds.bbci.co.uk/news/world/asia/rss.xml', '#CA6F1E'), since: 12 },
+      { ...rss('BBC Europe',        'UK', 'https://feeds.bbci.co.uk/news/world/europe/rss.xml', '#2471A3'), since: 12 },
+      { ...rss('BBC Latin America', 'UK', 'https://feeds.bbci.co.uk/news/world/latin_america/rss.xml', '#1E8449'), since: 12 },
+      { ...rss('BBC Middle East',   'UK', 'https://feeds.bbci.co.uk/news/world/middle_east/rss.xml', '#7E5109'), since: 12 },
+      { ...rss('BBC US & Canada',   'UK', 'https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml', '#34495E'), since: 12 },
+      { ...rss('BBC Mundo',         'UK', 'https://feeds.bbci.co.uk/mundo/rss.xml', '#C0392B'), since: 12 },   // Spanish; translated
+      { ...rss('Guardian International', 'UK', 'https://www.theguardian.com/international/rss', '#1D8348'), since: 12 },
+      { ...rss('The Independent',   'UK', 'https://www.independent.co.uk/news/world/rss', '#922B21'), since: 12 },
+      { ...rss('The Economist',     'UK', 'https://www.economist.com/international/rss.xml', '#B71C1C'), since: 12 },
     ],
   },
   {
@@ -59,6 +82,8 @@ const SEED_GROUPS = [
       rss('France 24', 'FR', 'https://www.france24.com/en/rss', '#8B0000'),
       { ...rss('Le Monde',    'FR', 'https://www.lemonde.fr/en/rss/une.xml', '#1F2A44'), since: 2 },
       { ...rss('RFI English', 'FR', 'https://www.rfi.fr/en/rss', '#C0392B'), since: 2 },
+      { ...rss('Le Monde (FR)', 'FR', 'https://www.lemonde.fr/rss/une.xml', '#2C3E66'), since: 12 },   // French; translated
+      { ...rss('Le Figaro',     'FR', 'https://www.lefigaro.fr/rss/figaro_actualites.xml', '#1F4E79'), since: 12 },   // French; translated
     ],
   },
   {
@@ -66,6 +91,7 @@ const SEED_GROUPS = [
     sources: [
       rss('DW', 'DE', 'https://rss.dw.com/xml/rss-en-all', '#784212'),
       { ...rss('Tagesschau', 'DE', 'https://www.tagesschau.de/index~rss2.xml', '#0B3D91'), since: 2 },   // German; translated
+      { ...rss('Süddeutsche', 'DE', 'https://rss.sueddeutsche.de/rss/Topthemen', '#1E8449'), since: 12 },   // German; translated
     ],
   },
   {
@@ -73,6 +99,7 @@ const SEED_GROUPS = [
     sources: [
       { ...rss('Kyiv Independent', 'UA', 'https://kyivindependent.com/news-archive/rss/', '#1F6FB2'), since: 2 },
       { ...rss('Ukrinform',        'UA', 'https://www.ukrinform.net/rss/block-lastnews', '#B7950B'), since: 2 },
+      { ...rss('Ukrainska Pravda', 'UA', 'https://www.pravda.com.ua/eng/rss/', '#2471A3'), since: 12 },
     ],
   },
   {
@@ -81,12 +108,14 @@ const SEED_GROUPS = [
       { ...rss('TASS',         'RU', 'https://tass.com/rss/v2.xml', '#34495E'), since: 2 },
       { ...rss('Moscow Times', 'RU', 'https://www.themoscowtimes.com/rss/news', '#5D6D7E'), since: 2 },
       { ...rss('RT',           'RU', 'https://www.rt.com/rss/', '#77B300'), since: 5 },
+      { ...rss('Meduza', 'RU', 'https://meduza.io/rss/en/all', '#8E44AD'), since: 12 },   // exile-run
     ],
   },
   {
     grp: 'Turkey',
     sources: [
       { ...rss('Anadolu', 'TR', 'https://www.aa.com.tr/en/rss/default?cat=guncel', '#2E86C1'), since: 2 },
+      { ...rss('Daily Sabah', 'TR', 'https://www.dailysabah.com/rssFeed/todays-headlines', '#B03A2E'), since: 12 },
     ],
   },
   {
@@ -94,6 +123,7 @@ const SEED_GROUPS = [
     sources: [
       rss('Times of Israel', 'IL', 'https://www.timesofisrael.com/feed/', '#154360'),
       rss('Jerusalem Post',  'IL', 'https://www.jpost.com/Rss/RssFeedsIsraelNews.aspx', '#6C3483'),
+      { ...rss('Haaretz', 'IL', 'https://www.haaretz.com/srv/haaretz-latest-headlines', '#1F618D'), since: 12 },
     ],
   },
   {
@@ -118,6 +148,7 @@ const SEED_GROUPS = [
     grp: 'Iran',
     sources: [
       { ...rss('Iran International', 'IR', 'https://www.iranintl.com/en/feed', '#943126'), since: 2 },
+      { ...rss('Tehran Times', 'IR', 'https://www.tehrantimes.com/rss', '#117A65'), since: 12 },
     ],
   },
   {
@@ -131,6 +162,10 @@ const SEED_GROUPS = [
     sources: [
       { ...rss('Times of India', 'IN', 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms', '#D35400'), since: 2 },
       { ...rss('The Hindu',      'IN', 'https://www.thehindu.com/news/national/feeder/default.rss', '#1B4F72'), since: 2 },
+      { ...rss('The Hindu International', 'IN', 'https://www.thehindu.com/news/international/feeder/default.rss', '#2E86C1'), since: 12 },
+      { ...rss('NDTV',            'IN', 'https://feeds.feedburner.com/ndtvnews-top-stories', '#C0392B'), since: 12 },
+      { ...rss('Hindustan Times', 'IN', 'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml', '#E67E22'), since: 12 },
+      { ...rss('Indian Express',  'IN', 'https://indianexpress.com/feed/', '#B7950B'), since: 12 },
     ],
   },
   {
@@ -162,6 +197,8 @@ const SEED_GROUPS = [
     grp: 'Australia',
     sources: [
       { ...rss('ABC Australia', 'AU', 'https://www.abc.net.au/news/feed/2942460/rss.xml', '#196F3D'), since: 2 },
+      { ...rss('SMH',               'AU', 'https://www.smh.com.au/rss/feed.xml', '#1A5276'), since: 12 },
+      { ...rss('Guardian Australia', 'AU', 'https://www.theguardian.com/australia-news/rss', '#239B56'), since: 12 },
     ],
   },
   // Added in revision 6.
@@ -201,6 +238,94 @@ const SEED_GROUPS = [
   { grp: 'Nepal',           sources: [{ ...rss('Kathmandu Post', 'NP', 'https://kathmandupost.com/rss', '#B03A2E'), since: 7 }] },
   { grp: 'Myanmar',         sources: [{ ...rss('The Irrawaddy', 'MM', 'https://www.irrawaddy.com/feed', '#B7950B'), since: 7 }] },   // exile-run
   { grp: 'Pacific Islands', sources: [{ ...rss('RNZ Pacific', 'PAC', 'https://www.rnz.co.nz/rss/pacific.xml', '#148F77'), since: 7 }] },
+  // Added in revision 12.
+  { grp: 'New Zealand', sources: [{ ...rss('RNZ', 'NZ', 'https://www.rnz.co.nz/rss/national.xml', '#1E8449'), since: 12 }] },
+  {
+    grp: 'Spain',
+    sources: [
+      { ...rss('El País',   'ES', 'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada', '#2C3E50'), since: 12 },   // Spanish; translated
+      { ...rss('El Mundo',  'ES', 'https://e00-elmundo.uecdn.es/elmundo/rss/portada.xml', '#1F618D'), since: 12 },   // Spanish; translated
+    ],
+  },
+  {
+    grp: 'Italy',
+    sources: [
+      { ...rss('ANSA',          'IT', 'https://www.ansa.it/sito/ansait_rss.xml', '#1A5276'), since: 12 },   // Italian; translated
+      { ...rss('La Repubblica', 'IT', 'https://www.repubblica.it/rss/homepage/rss2.0.xml', '#922B21'), since: 12 },   // Italian; translated
+    ],
+  },
+  { grp: 'Netherlands', sources: [{ ...rss('NOS', 'NL', 'https://feeds.nos.nl/nosnieuwsalgemeen', '#D35400'), since: 12 }] },   // Dutch; translated
+  { grp: 'Ireland',     sources: [{ ...rss('RTÉ', 'IE', 'https://www.rte.ie/feeds/rss/?index=/news/', '#117A65'), since: 12 }] },
+  { grp: 'Sweden',      sources: [{ ...rss('The Local (Sweden)', 'SE', 'https://www.thelocal.se/feeds/rss.php', '#1A5276'), since: 12 }] },
+  { grp: 'Poland',      sources: [{ ...rss('Notes from Poland', 'PL', 'https://notesfrompoland.com/feed/', '#B03A2E'), since: 12 }] },
+  {
+    grp: 'Singapore',
+    sources: [
+      { ...rss('Straits Times', 'SG', 'https://www.straitstimes.com/news/world/rss.xml', '#1F618D'), since: 12 },
+      { ...rss('CNA',           'SG', 'https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml', '#B71C1C'), since: 12 },
+    ],
+  },
+  { grp: 'Vietnam', sources: [{ ...rss('VnExpress', 'VN', 'https://e.vnexpress.net/rss/news.rss', '#C0392B'), since: 12 }] },
+  {
+    grp: 'Africa',
+    sources: [
+      { ...rss('AllAfrica',        'AF', 'https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf', '#B9770E'), since: 12 },
+      { ...rss('Africanews',       'AF', 'https://www.africanews.com/feed/rss', '#CA6F1E'), since: 12 },
+      { ...rss('Daily Maverick',   'ZA', 'https://www.dailymaverick.co.za/dmrss/', '#7B241C'), since: 12 },
+      { ...rss('Premium Times',    'NG', 'https://www.premiumtimesng.com/feed', '#117A65'), since: 12 },
+      { ...rss('Punch',            'NG', 'https://punchng.com/feed/', '#B03A2E'), since: 12 },
+      { ...rss('Egypt Independent', 'EG', 'https://egyptindependent.com/feed/', '#7E5109'), since: 12 },
+    ],
+  },
+  {
+    grp: 'Brazil',
+    sources: [
+      { ...rss('Folha',     'BR', 'https://feeds.folha.uol.com.br/emcimadahora/rss091.xml', '#1E8449'), since: 12 },   // Portuguese; translated
+      { ...rss('G1',        'BR', 'https://g1.globo.com/rss/g1/', '#C0392B'), since: 12 },   // Portuguese; translated
+      { ...rss('Rio Times', 'BR', 'https://www.riotimesonline.com/feed/', '#148F77'), since: 12 },
+    ],
+  },
+  {
+    grp: 'Argentina',
+    sources: [
+      { ...rss('Clarín',  'AR', 'https://www.clarin.com/rss/lo-ultimo/', '#2874A6'), since: 12 },   // Spanish; translated
+      { ...rss('Infobae', 'AR', 'https://www.infobae.com/arc/outboundfeeds/rss/', '#E67E22'), since: 12 },   // Spanish; translated
+    ],
+  },
+  {
+    grp: 'International',
+    sources: [
+      { ...rss('Euronews',         'INT', 'https://www.euronews.com/rss', '#1F618D'), since: 12 },
+      { ...rss('UN News',          'INT', 'https://news.un.org/feed/subscribe/en/news/all/rss.xml', '#2E86C1'), since: 12 },
+      { ...rss('Global Voices',    'INT', 'https://globalvoices.org/feed/', '#D35400'), since: 12 },
+      { ...rss('Rest of World',    'INT', 'https://restofworld.org/feed/latest', '#B71C1C'), since: 12 },
+      { ...rss('The Conversation', 'INT', 'https://theconversation.com/global/articles.atom', '#C0392B'), since: 12 },
+      { ...rss('Foreign Policy',   'INT', 'https://foreignpolicy.com/feed/', '#922B21'), since: 12 },
+      { ...rss('Foreign Affairs',  'INT', 'https://www.foreignaffairs.com/rss.xml', '#2C3E50'), since: 12 },
+      { ...rss('Politico Europe',  'INT', 'https://www.politico.eu/feed/', '#B03A2E'), since: 12 },
+      { ...rss('The Diplomat',     'INT', 'https://thediplomat.com/feed/', '#1A5276'), since: 12 },
+      { ...rss('Bellingcat',       'INT', 'https://www.bellingcat.com/feed/', '#5D6D7E'), since: 12 },
+      { ...rss('War on the Rocks', 'INT', 'https://warontherocks.com/feed/', '#4A5A8C'), since: 12 },
+    ],
+  },
+  {
+    grp: 'Disasters & Health',
+    sources: [
+      { ...rss('USGS Significant Quakes', 'QUAKE', 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.atom', '#A04000'), since: 12 },
+      { ...rss('USGS M4.5+ Quakes',       'QUAKE', 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.atom', '#B9770E'), since: 12 },
+      { ...rss('GDACS',                   'DISASTER', 'https://www.gdacs.org/xml/rss.xml', '#C0392B'), since: 12 },
+      { ...rss('NASA Breaking News',      'SPACE', 'https://www.nasa.gov/rss/dyn/breaking_news.rss', '#1F4E9C'), since: 12 },
+    ],
+  },
+  {
+    grp: 'Business',
+    sources: [
+      { ...rss('FT',                'BIZ', 'https://www.ft.com/rss/home', '#C0765B'), since: 12 },
+      { ...rss('Bloomberg Markets', 'BIZ', 'https://feeds.bloomberg.com/markets/news.rss', '#2E4057'), since: 12 },
+      { ...rss('CNBC',              'BIZ', 'https://www.cnbc.com/id/100003114/device/rss/rss.html', '#1A5276'), since: 12 },
+      { ...rss('MarketWatch',       'BIZ', 'http://feeds.marketwatch.com/marketwatch/topstories/', '#117A65'), since: 12 },
+    ],
+  },
   {
     grp: 'Telegram',
     sources: [
@@ -240,6 +365,6 @@ const RENAMED = [
 ];
 
 /** Bump when SEED_GROUPS gains sources marked `since: <n>`, or RETIRED / RENAMED gain entries. */
-const SEED_REVISION = 11;
+const SEED_REVISION = 12;
 
 module.exports = { SEED_GROUPS, SEED_REVISION, RETIRED, RENAMED };

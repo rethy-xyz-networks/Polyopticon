@@ -2,6 +2,8 @@
 
 // Shared helpers for source adapters: text cleanup, date parsing, HTTP.
 
+const { Agent, fetch } = require('undici');
+
 const USER_AGENT  = 'Mozilla/5.0 (compatible; Polyopticon/2.0; news monitor)';
 const BROWSER_UA  = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const TIMEOUT_MS  = 15000;
@@ -38,11 +40,15 @@ function splitCredentials(url, headers) {
   return [u.href, { Authorization: `Basic ${Buffer.from(login).toString('base64')}`, ...headers }];
 }
 
+// Feeds are polled every 5 – 20 s, longer than Node's default 4 s idle timeout, so each poll used to open (and
+// TLS-handshake) a new connection: 40 ms of CPU per request against 17 ms on a kept one. Same requests, same timing.
+const agent = new Agent({ keepAliveTimeout: 60_000, keepAliveMaxTimeout: 600_000 });
+
 async function request(url, { signal, headers = {}, method = 'GET', body, timeout = TIMEOUT_MS, browser = false } = {}) {
   const sig = AbortSignal.any([signal ?? new AbortController().signal, AbortSignal.timeout(timeout)]);
   [url, headers] = splitCredentials(url, headers);
   const resp = await fetch(url, {
-    method, body, signal: sig, redirect: 'follow',
+    method, body, signal: sig, redirect: 'follow', dispatcher: agent,
     headers: { 'User-Agent': browser ? BROWSER_UA : USER_AGENT, ...headers },
   });
   return resp;
