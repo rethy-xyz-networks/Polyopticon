@@ -55,6 +55,8 @@ Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, 
   - [Offline Reading](#offline-reading)
   - [Translation](#translation)
     - [Benchmark](#benchmark)
+  - [Bias chart](#bias-chart)
+  - [Global Markets](#global-markets)
   - [Map](#map)
   - [Other Tabs](#other-tabs)
     - [Telegram Channel](#telegram-channel)
@@ -106,7 +108,7 @@ Polyopticon has five main areas, known as views, with the [toolbar](#toolbar) ac
 
 - **[Sources & Filters View](#sources--filters-view)** (fig. 1): The sidebar on the left. It picks which outlets and wires (grouped by country) populate the **Article List View** feed, and holds the include / exclude keywords (bottom of the list).
 - **[Article List View](#article-list-view)** (fig. 2): The article list to the right of the **Sources & Filters View**. It displays incoming articles by newest first (Live), or the articles you opened previously (History).
-- **[Article View](#article-view)** (fig. 3): The centre area, where articles and sites open as separate tabs. An article opens by default as a live page, and supports a saved copy or a clean reader view. The map, Scratchpad, 4chan, Telegram pages and the shortcut list also open within this view as separate tabs.
+- **[Article View](#article-view)** (fig. 3): The centre area, where articles and sites open as separate tabs. An article opens by default as a live page, and supports a saved copy or a clean reader view. The map, Scratchpad, 4chan, Telegram pages and the shortcut list also open within this view as separate tabs. The [bias chart](#bias-chart), [Global Markets](#global-markets) and the map are not tabs: each replaces the article area while open.
 - **[Live Chat View](#live-chat-view)** (fig. 4): Twitch, Kick, destiny.gg and IRC chats, in a column on the right (Ctrl+J).
 - **[Video Player View](#video-player-view)** (fig. 5): Twitch, Kick, YouTube or direct-link streams below the chat, several at once, each with its own volume and mute (Ctrl+V).
 
@@ -122,6 +124,8 @@ The buttons, from left to right:
 - **Chat** (Ctrl+J): Shows or hides the [Live Chat View](#live-chat-view).
 - **Video** (Ctrl+V): Shows or hides the [Video Player View](#video-player-view) below the chat, or opens the chat if it is hidden.
 - **Telegram**: Opens a [Telegram channel tab](#telegram-channel) within the **Article View**.
+- **Bias chart** (Ctrl+B): Shows or hides the [bias chart](#bias-chart), plotting each news feed's outlet by political lean and reliability.
+- **Global Markets** (Ctrl+G): Shows or hides [Global Markets](#global-markets), live prices for indices, energy, metals, currencies and crypto.
 - **Settings** (Ctrl+,): Toggles the [Settings](#settings) panel.
 - **Scratchpad**: Opens the [Scratchpad](#scratchpad) tab within the **Article View**.
 - **4chan**: Opens a [4chan /pol/ tab](#4chan) within the **Article View** (optional, hide it in *Settings -> General*).
@@ -143,9 +147,9 @@ The search box at the top of the **Sources & Filters View** sidebar finds a sour
 
 The sidebar lists sources in three sections:
 
-- **Countries:** USA, Canada, Mexico, UK, Iceland, France, Germany, Ukraine, Russia, Turkey, Syria, Israel, Egypt, Qatar, Saudi Arabia, UAE, Iran, Pakistan, India, Thailand, China, Mongolia, Philippines, North Korea, South Korea, Japan and Australia.
-- **Areas:** Groups spanning several countries, such as the EU, or Polynesia.
-- **Other:** Telegram, then Wires & Search.
+- **Countries:** USA, Canada, Mexico, UK, Iceland, France, Germany, Spain, Italy, Netherlands, Ireland, Sweden, Poland, Ukraine, Russia, Turkey, Syria, Israel, Egypt, Qatar, Saudi Arabia, UAE, Iran, Pakistan, India, Singapore, Vietnam, Thailand, China, Mongolia, Philippines, North Korea, South Korea, Japan, Australia, New Zealand, Brazil, Argentina and more.
+- **Areas:** Groups spanning several countries: the EU, Pacific Islands, Africa, and International (outlets and analysis with a world focus, such as Euronews, UN News and Foreign Policy).
+- **Other:** Telegram, Wires & Search, Disasters & Health (USGS and GDACS alerts, NASA) and Business (FT, Bloomberg, CNBC, MarketWatch).
 
 A source's group is the "Group" field in its editor. A new group name counts as a country unless it is one of the areas above.
 
@@ -331,6 +335,8 @@ A 5,000-character article takes around half a minute with an Opus-MT language, 3
 
 ### Bias chart
 
+<img src="docs/screenshots/bias-chart.png">
+
 The **Bias chart** button (Ctrl+B), next to the map button in the header, plots each news feed's outlet by political lean (left to right) and reliability (bottom to top). Like the map it is a special view that replaces the article area, not a tab. Hover a dot for each rater's verdict; click it for the full rating on mediabias.news. Feeds of one outlet (the five SCMP feeds) share a dot.
 
 Ratings come from the [MediaBias News API](https://mediabias.news), which republishes the verdicts of AllSides, Ad Fontes Media and Media Bias/Fact Check. A dot sits at the *average* of the raters' verdicts (finer than the API's own five-step rating, and raters that disagree pull it between steps).
@@ -342,10 +348,13 @@ Ratings come from the [MediaBias News API](https://mediabias.news), which republ
 
 ### Global Markets
 
+<img src="docs/screenshots/global-markets.png">
+
 The **Global Markets** button (Ctrl+G), next to the bias button, shows a tile per instrument with its exact current price and today's change (▲ / ▼ and a percent, measured from the previous close). Like the map it is a special view that replaces the article area, not a tab. Groups: United States, Canada, Asia-Pacific, Europe, Energy, Metals & currencies and Crypto (BTC, ETH, XRP). Each group header counts how many of its markets are open, and tiles for closed markets are dimmed. Nothing historical is kept.
 
 - **Live, but only while you look.** Prices come from Yahoo Finance's unofficial quote endpoint: one batch request per second covers every tile. It polls only while the view is open and the window visible. Measured: one request per second for five minutes, and two per second for a minute, drew no rate limiting. There is no documented limit, so on a 429 or an error the poller backs off (5, 10, 30, then 60 s, or the server's Retry-After) and the header says so.
 - **Adding a tile.** Each group ends in **+ Add**: type a Yahoo symbol (`SOL-USD`, `^GSPC`, `AAPL`); it is checked against Yahoo and added to that group. Hover a tile and click **×** to remove it; **Restore removed** brings hidden defaults back. Both are kept in `ui.json` (`marketsAdded`, `marketsRemoved`).
+- **Search.** The box in the header filters the tiles by group, country, name or ticker symbol. **Refresh** reconnects and fetches the prices at once.
 - Exchanges can delay quotes by up to 15 minutes.
 
 ### Map
@@ -516,6 +525,7 @@ The **Settings** button (Ctrl+,) opens the panel. Esc or the close button closes
   - *Live chat:* Twitch and Kick channels, destiny.gg, and IRC rooms (also set from the chat's **+**).
   - *Article viewer:* default page zoom and the screenshot folder.
   - *Polling:* the delay between sources at start (takes effect on restart).
+  - *Media bias:* how far the [bias lookups](#bias-chart) have got, and **Recheck**.
   - *Logs:* how many session logs to keep, and debug logging.
 - **Sources:** add, edit, enable and disable sources, grouped like the sidebar.
 - **Accounts:** API keys and logins (Telegram, Bluesky, The Guardian, New York Times, NewsAPI), encrypted with Windows DPAPI.
@@ -526,13 +536,13 @@ The **Settings** button (Ctrl+,) opens the panel. Esc or the close button closes
 <img src="docs/screenshots/data-folder.png">
 
 Everything the app stores lives outside the repository, in `%LocalAppData%\Polyopticon\`:
-`polyopticon.db` (items, history, saved text), `snapshots/` (saved pages), `models/` (translation models),
+`polyopticon.db` (items, history, saved text, and each feed's bias lookup), `snapshots/` (saved pages), `models/` (translation models),
 `icons/`, `logs/`, `accounts.bin` (encrypted keys and sessions), `scratchpad.bin` (the encrypted Scratchpad note), and `settings.json`, `tags.json`,
 `ui.json`, `pinned.json` (the open tabs).
 
 The app reopens the way you left it: window size, position and maximised state, pane widths,
 unticked sources, Live/History (and its scope), the Group / auto-scroll / case toggles, the map and its
-time window, the chat column (`ui.json`), keyword filters (`tags.json`), and the open tabs (`pinned.json`).
+time window, the Global Markets tiles you added or removed, the chat column (`ui.json`), keyword filters (`tags.json`), and the open tabs (`pinned.json`).
 
 To run a separate copy with its own data (e.g. for testing), set `POLYOPTICON_DATA_DIR` to another folder
 before `npm start`.
@@ -558,6 +568,8 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
     │   ├── page/           scripts injected into article pages before saving (cleanup, extraction, images)
     │   ├── db.js           SQLite schema, migrations and queries (node:sqlite, FTS5)
     │   ├── snapshots.js    MHTML + text capture, background capture, retention
+    │   ├── bias.js         political-lean lookups (MediaBias News), one per feed, kept in the database
+    │   ├── markets.js      live quotes for Global Markets (Yahoo Finance, batched, with back-off)
     │   ├── favicons.js     site icons, fetched once and cached
     │   ├── chat.js         chat-panel session and webview lock-down
     │   ├── irc.js          anonymous, read-only IRC connections for the chat column
@@ -576,7 +588,7 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
         ├── telegram.js     parsing Telegram channel names and t.me links for the Telegram button
         ├── streams.js      Twitch / Kick / YouTube stream names, links and player pages for the split
         ├── reorder.js      drag-to-reorder for the tab strips (articles, chats)
-        ├── feed.js, history.js, tabs.js, scratchpad.js, map.js, chat.js, irc.js, sidebar.js, settings.js, sourcesearch.js
+        ├── feed.js, history.js, tabs.js, scratchpad.js, map.js, bias.js, markets.js, chat.js, irc.js, sidebar.js, settings.js, sourcesearch.js
         ├── state.js, ui.js, dom.js
         └── assets/         logo, offline world map, icon licence
 ```
@@ -584,6 +596,8 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
 ## Credits
 
 Place data from [GeoNames](https://www.geonames.org/) (CC BY 4.0) and [Natural Earth](https://www.naturalearthdata.com/) (public domain).
+
+Political-lean ratings: [MediaBias News](https://mediabias.news), republishing AllSides, Ad Fontes Media and Media Bias/Fact Check. Market prices: Yahoo Finance.
 
 Translation models: Helsinki-NLP Opus-MT and Meta NLLB-200, via Transformers.js.
 
