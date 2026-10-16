@@ -162,14 +162,11 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus { border-colo
   font-size: 15px; font-weight: 700;
   background: linear-gradient(90deg, #f00 0%, #ff8c00 14.3%, #ffeb00 28.6%, #00dc00 42.9%,
                                      #00c8ff 57.1%, #3c50ff 71.4%, #c800ff 85.7%, #f00 100%);
-  background-size: 200% 100%;
+  background-size: 100% 100%;
   -webkit-background-clip: text; background-clip: text; color: transparent;
-  /* Turning the hue carries the colours along the word like the old sliding gradient, but on the compositor:
-     animating background-position repainted the text every frame, about 9% of a core while the app sat idle. */
-  will-change: filter;
-  animation: rainbow 4s linear infinite;
+  /* A still rainbow: the full spectrum across the word. Animating it kept the window drawing 60 frames a
+     second at idle (about 3.6 points of CPU across the renderer and GPU). */
 }
-@keyframes rainbow { to { filter: hue-rotate(360deg); } }
 .app-sub { color: var(--text-2); font-size: var(--fs-lg); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status { color: var(--text-2); font-size: var(--fs-sm); display: flex; gap: 6px; align-items: baseline; }
 .countdown { color: var(--text); font-weight: 600; min-width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
