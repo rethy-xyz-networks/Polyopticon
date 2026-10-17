@@ -327,6 +327,12 @@ const SEED_GROUPS = [
     ],
   },
   {
+    grp: 'Sports',
+    sources: [
+      { ...rss('AFTN', 'SPORT', 'https://aftn.ca/feed/', '#C8102E'), since: 13 },   // Canadian soccer
+    ],
+  },
+  {
     grp: 'Telegram',
     sources: [
       { type: 'telegram', name: 'Global News Monitor', category: 'TG', color: '#229ED9', config: { channel: 'warmonitors' } },
@@ -365,6 +371,6 @@ const RENAMED = [
 ];
 
 /** Bump when SEED_GROUPS gains sources marked `since: <n>`, or RETIRED / RENAMED gain entries. */
-const SEED_REVISION = 12;
+const SEED_REVISION = 13;
 
 module.exports = { SEED_GROUPS, SEED_REVISION, RETIRED, RENAMED };
