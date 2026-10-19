@@ -279,6 +279,8 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .tab .close { width: 20px; height: 20px; min-width: 0; padding: 0; border: 0; font-size: 9px; color: var(--text-2); flex-shrink: 0; }
 .tab .snd { font-size: 10px; cursor: pointer; flex-shrink: 0; }
 .tab .snd.off { opacity: .7; }
+/* Muted: the same red as the header's mute button (.icon-btn.on). */
+.tab .snd.on { display: inline-flex; padding: 2px 3px; border-radius: var(--radius); opacity: 1; background: var(--ctl-on); color: var(--ctl-on-text); box-shadow: inset 0 -2px 0 var(--accent); }
 
 .infobar .nav-btns { display: inline-flex; margin: 0 2px 0 -4px; }
 .infobar {
