@@ -420,7 +420,7 @@ function paintVideo() {
       id: key, kind: s.site, label, title: where,
       active: key === currentStream, pinned: s.pinned,
       lead: [h('span', { class: 'dot' })],
-      trail: [h('span', { class: `snd${silent(s) ? ' off' : ''}`, title: silent(s) ? 'Silent: click for sound' : 'Click to mute this stream',
+      trail: [h('span', { class: `snd${silent(s) ? ' off' : ''}${mutedOf(s) ? ' on' : ''}`, title: silent(s) ? 'Silent: click for sound' : 'Click to mute this stream',
         onclick: e => { e.stopPropagation(); toggleMute(s); } }, icon(silent(s) ? 'muted' : 'volume-2'))],
       closeTitle: `Close ${label}`,
       onSelect: () => { saveUi({ streamTab: key }); paintVideo(); },
