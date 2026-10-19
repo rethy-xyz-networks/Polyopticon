@@ -92,5 +92,8 @@ export const YOUTUBE_CSS = `
   ytd-watch-flexy #columns, ytd-watch-flexy #primary, ytd-watch-flexy #primary-inner, ytd-watch-flexy #player,
   ytd-watch-flexy #player-container-outer, ytd-watch-flexy #player-container-inner, ytd-watch-flexy #player-container,
   ytd-watch-flexy #movie_player { position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
+  /* Live streams play in #full-bleed-container, under the (then empty) boxes above: they let clicks through to the player (Skip Ad, controls). */
+  ytd-watch-flexy #columns, ytd-watch-flexy #full-bleed-container { pointer-events: none !important; }
+  ytd-watch-flexy #movie_player { pointer-events: auto !important; }
   .html5-video-container, video.html5-main-video { width: 100% !important; height: 100% !important; left: 0 !important; top: 0 !important; object-fit: contain; }
 `;
