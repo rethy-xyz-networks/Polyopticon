@@ -74,13 +74,16 @@ New binaries are built for each release.
 
 ### Building
 
-Requires [Node.js](https://nodejs.org/) 22 or newer, Windows, and Electron.
+Requires [Node.js](https://nodejs.org/) 22 or newer, on Windows or Linux. Each build has to be made on the platform it's for.
 
 ```
 npm install
 npm start          # run
 npm run dist       # build a portable Windows .exe into dist/
+npm run dist:linux # build a Linux AppImage into dist/
 ```
+
+Publishing a release on GitHub builds both and attaches them to it (`.github/workflows/release.yml`).
 
 ## Layout
 
