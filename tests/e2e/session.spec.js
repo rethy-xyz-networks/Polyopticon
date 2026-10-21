@@ -33,7 +33,7 @@ const launch = dir => electron.launch({ args: [ROOT], cwd: ROOT, env: { ...proce
 
 test('open tabs are saved on close and resumed on open, with the selected one selected', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'polyopticon-session-'));
-  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ TranslateEnabled: false, ChatDestiny: false, ChatTwitchChannels: '', ChatIrc: '' }));
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ ChatDestiny: false, ChatTwitchChannels: '', ChatIrc: '' }));
   const labels = window => window.locator('#tabs .tab .label');
   try {
     // First session: an article, a Telegram channel, the Scratchpad, the shortcut list (pinned)

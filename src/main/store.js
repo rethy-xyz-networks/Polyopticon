@@ -25,7 +25,6 @@ const DEFAULT_SETTINGS = Object.freeze({
   DebugLogging: false,
   IsDarkTheme: true,
   SnapshotRetentionDays: 90,
-  TranslateEnabled: false,
   TranslateLargeModel: true,
   GroupStories: true,
   ChatTwitchChannels: '',      // comma-separated Twitch channel names

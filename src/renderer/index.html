@@ -335,17 +335,13 @@
         </label>
 
         <h3>Translation</h3>
-        <label class="field switch">Translate non-English headlines to English automatically
-          <small>Runs entirely on your computer. Models download from Hugging Face the first time each language appears (~75 MB each).</small>
-          <input type="checkbox" data-setting="TranslateEnabled"><span class="track"></span>
-        </label>
         <label class="field switch">Use the large model for other languages
           <small>Meta NLLB-200 (~1 GB, a few seconds per item) covers Hebrew, Persian, Urdu, Greek and more.</small>
           <input type="checkbox" data-setting="TranslateLargeModel"><span class="track"></span>
         </label>
         <p id="translate-progress" class="help" hidden></p>
         <div class="field">Stop all translation
-          <small>Ends the translation process right away, which frees the CPU and memory it was using. Headline translation stays paused until you translate an article or toggle the setting above.</small>
+          <small>Ends the translation process right away, which frees the CPU and memory it was using.</small>
           <button id="btn-translate-stop-all" class="toggle-btn">Stop</button>
         </div>
 

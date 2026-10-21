@@ -172,7 +172,7 @@ function sourcesChanged() {
 // stall the main process. The worker forwards log calls here.
 
 function workerSettings() {
-  return { intervalSeconds: settings.RefreshIntervalSeconds, staggerMs: settings.SourceStaggerMs, translate: settings.TranslateEnabled };
+  return { intervalSeconds: settings.RefreshIntervalSeconds, staggerMs: settings.SourceStaggerMs };
 }
 
 // Translator process
@@ -180,7 +180,6 @@ function workerSettings() {
 
 let translator = null;
 let translateSeq = 0;
-let translationPaused = false;   // after Stop: background (headline) translation stays off until the user translates something or toggles the setting
 let stopping = false;
 const pendingTranslate = new Map();
 const MODELS_DIR = path.join(DATA_DIR, 'models');
@@ -207,19 +206,16 @@ function ensureTranslator() {
 
 /** Hard stop: ends the translator process (and with it any download, model load or translation in progress). */
 function stopTranslation() {
-  translationPaused = true;
   if (!translator) return false;
   stopping = true;
   translator.kill();
   return true;
 }
 
-/** Stops the translator (it holds the model files open), then deletes every downloaded model.
- *  Headline translation stays paused, as after Stop, so the models aren't fetched again straight away. */
+/** Stops the translator (it holds the model files open), then deletes every downloaded model. */
 async function clearModels() {
   const t = translator;
   if (t) await new Promise(resolve => { t.once('exit', resolve); stopTranslation(); });
-  else translationPaused = true;
   fs.rmSync(MODELS_DIR, { recursive: true, force: true, maxRetries: 3 });
   log.info('Cleared translation models');
 }
@@ -237,7 +233,6 @@ function removePartialDownloads(dir) {
 
 /** -> { out: string[] | null, reason?, model?, ms? } */
 function translate(lang, texts, priority = 0, tag) {   // tag: lets progress messages name the request (an item id)
-  if (translationPaused && priority < 2) return Promise.resolve({ out: null, reason: 'paused' });   // headlines wait; articles are the user's own request
   const id = ++translateSeq;
   return new Promise(resolve => {
     pendingTranslate.set(id, resolve);
@@ -271,9 +266,6 @@ function onWorkerMessage(msg) {
       break;
     }
     case 'items-updated': send('feed:updated', msg.items); break;
-    case 'translate':
-      translate(msg.lang, msg.texts, msg.priority).then(r => worker?.postMessage({ cmd: 'translated', reqId: msg.reqId, out: r.out }));
-      break;
     case 'refreshed':
       pendingRefreshes.get(msg.id)?.();
       pendingRefreshes.delete(msg.id);
@@ -326,8 +318,6 @@ function applySettings(next) {
   if (prev.LogRetentionCount !== settings.LogRetentionCount) log.trimToRetention(settings.LogRetentionCount);
   if (prev.IsDarkTheme !== settings.IsDarkTheme) nativeTheme.themeSource = settings.IsDarkTheme ? 'dark' : 'light';
   if (prev.SnapshotRetentionDays !== settings.SnapshotRetentionDays) snapshots.expire(settings.SnapshotRetentionDays);
-  if (prev.TranslateEnabled !== settings.TranslateEnabled) translationPaused = false;
-  if (prev.TranslateEnabled !== settings.TranslateEnabled) worker?.postMessage({ cmd: 'settings', settings: workerSettings() });
   if (prev.TranslateLargeModel !== settings.TranslateLargeModel)
     translator?.postMessage({ cmd: 'options', options: { allowLarge: settings.TranslateLargeModel } });
 }
@@ -450,7 +440,6 @@ function registerIpc() {
     if (!snap?.text) return { ok: false, error: 'No saved text for this article' };
     if (snap.translated_text) return { ok: true };
     if (!snap.lang || snap.lang === 'en') return { ok: false, error: 'This article is already in English' };
-    translationPaused = false;                                   // the user asked for this one
     const r = await translate(snap.lang, [snap.text], 2, itemId);
     if (!r.out) {
       if (r.reason === 'cancelled') return { ok: false, cancelled: true, error: 'Translation stopped' };

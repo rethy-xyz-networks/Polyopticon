@@ -23,7 +23,7 @@ test('first launch after the rename moves the old folders and database', async (
   await (await app.firstWindow()).waitForLoadState('domcontentloaded');
   await app.close();
   fs.copyFileSync(path.join(seed, 'polyopticon.db'), path.join(oldData, 'itsover.db'));
-  fs.writeFileSync(path.join(oldData, 'settings.json'), JSON.stringify({ IsDarkTheme: false, ChatDestiny: false, TranslateEnabled: false }));
+  fs.writeFileSync(path.join(oldData, 'settings.json'), JSON.stringify({ IsDarkTheme: false, ChatDestiny: false }));
   fs.writeFileSync(path.join(oldBrowser, 'marker.txt'), 'cookies live here');
 
   const env = { ...process.env, LOCALAPPDATA: local, APPDATA: roaming, POLYOPTICON_OFFSCREEN: '1' };

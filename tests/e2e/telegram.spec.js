@@ -69,7 +69,7 @@ appTest('✈️ opens a tab with a channel field where the title goes; connectin
 
 test('a pinned Telegram channel comes back at the next start', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'polyopticon-tg-'));
-  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ TranslateEnabled: false, ChatDestiny: false, ChatTwitchChannels: '', ChatIrc: '' }));
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ ChatDestiny: false, ChatTwitchChannels: '', ChatIrc: '' }));
   fs.writeFileSync(path.join(dir, 'pinned.json'), JSON.stringify([
     { id: -5, mode: 'live', chan: true, url: 'https://t.me/s/telegram/', title: '@telegram' },
     { id: -6, mode: 'live', chan: true, url: 'file:///etc/passwd', title: 'not a web page' },        // refused

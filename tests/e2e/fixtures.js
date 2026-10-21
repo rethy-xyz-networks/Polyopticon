@@ -17,11 +17,10 @@ const LISTS = 'adblock-lists.bin';
 const SHARED_LISTS = path.join(os.tmpdir(), `polyopticon-test-${LISTS}`);
 const mtime = f => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
 
-// Pre-seeded settings: keep runs quick and quiet. Translation would otherwise
-// download language models (up to ~1 GB) the first time a foreign story arrives,
+// Pre-seeded settings: keep runs quick and quiet. The large translation model is
+// ~1 GB to download if a test translates an article,
 // and the chat panel would load destiny.gg.
 const TEST_SETTINGS = {
-  TranslateEnabled: false,
   TranslateLargeModel: false,
   ChatDestiny: false,
   ChatTwitchChannels: '',

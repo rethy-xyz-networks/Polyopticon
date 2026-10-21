@@ -233,7 +233,7 @@ Each story shows its source badge, its publisher's icon, its title and when it w
 
 Site icons are fetched once from the site (falling back to Google's favicon service when a site blocks it), shrunk to 32 px and cached in `%LocalAppData%\Polyopticon\icons` (`src/main/favicons.js`, served as `polyopticon-icon://`).
 
-With headline translation on (see [Translation](#translation)), non-English headlines appear immediately and update when their translation is ready. Hover the "AR -> EN" tag for the original.
+Non-English headlines show their language as a tag (e.g. "AR"). To read one in English, open it and use **Translate** (see [Translation](#translation)).
 
 ## Article View
 
@@ -285,21 +285,18 @@ Ctrl+= / Ctrl+- / Ctrl+0 zoom the page in, out and back. The default zoom is in 
   </tr>
 </table>
 
-Translation is manual and runs entirely on your computer (no service, no key). Machine-translation models:
-Opus-MT (~75 MB each, ~0.5 s per headline) for ~25 languages, and Meta's NLLB-200 (~1 GB, a few seconds
+Translation is manual, one article at a time, and runs entirely on your computer (no service, no key). Machine-translation models:
+Opus-MT (~75 MB each, ~0.5 s per paragraph) for ~25 languages, and Meta's NLLB-200 (~1 GB, a few seconds
 per item) for Turkish, Hebrew, Persian, Urdu, Icelandic, Slovak, Croatian and others. Models download from Hugging Face the first time a
 language is translated and are kept in `%LocalAppData%\Polyopticon\models`.
 
-- **Articles:** the **Translate** button in the article bar translates the open article to English and shows
-  it in Reader view (it saves the page first if needed). **Original** switches back. It's greyed out for
-  articles that are already in English. The button shows how far along it is: model download (first use of a
-  language only), model loading, then the percentage of the article translated. Long articles in the large
-  model take a few minutes.
-- **Headlines:** off by default. Turn on Settings -> General -> Translation to translate non-English
-  headlines as they arrive. They appear immediately and update when their translation is ready. Hover the
-  "AR -> EN" tag for the original.
+The **Translate** button in the article bar translates the open article to English and shows it in Reader
+view (it saves the page first if needed). **Original** switches back. It's greyed out for articles that are
+already in English. The button shows how far along it is: model download (first use of a language only),
+model loading, then the percentage of the article translated. Long articles in the large model take a few
+minutes.
 
-The **Stop** button next to Translate (or Settings -> General -> Stop all translation) ends a translation at any time. Headline translation (off by default) repeats all this for every non-English headline, so with the NLLB languages it keeps the CPU busy. Leave it off if that's a concern.
+The **Stop** button next to Translate (or Settings -> General -> Stop all translation) ends a translation at any time.
 
 #### Benchmark
 
@@ -503,7 +500,7 @@ The **Settings** button (Ctrl+,) opens the panel. Esc or the close button closes
 - **General:**
   - *Appearance:* font, font size, feed density, source badges, scrollable tabs, the 4chan button, and description length.
   - *Feed behaviour:* refresh interval, max article age, max items in the live feed, always open in browser, and grouping.
-  - *Translation:* automatic headline translation, the large NLLB model, and Stop all translation.
+  - *Translation:* the large NLLB model, and Stop all translation.
   - *Live chat:* Twitch and Kick channels, destiny.gg, and IRC rooms (also set from the chat's **+**).
   - *Article viewer:* default page zoom and the screenshot folder.
   - *Polling:* the delay between sources at start (takes effect on restart).

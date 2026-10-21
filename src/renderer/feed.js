@@ -94,9 +94,8 @@ export function iconUrl(it) {
 function langTag(it) {
   if (!it.lang || it.lang === 'en') return null;
   const code = it.lang.toUpperCase();
-  if (it.translating) return h('span', { class: 'xl pending', title: 'Translating on your computer…' }, `${code} -> EN…`);
   if (it.origTitle) return h('span', { class: 'xl', title: `Machine-translated from ${code}. Original:\n${it.origTitle}` }, `${code} -> EN`);
-  return h('span', { class: 'xl raw', title: 'Not translated (translation off or no model for this language)' }, code);
+  return h('span', { class: 'xl raw', title: 'Not translated' }, code);
 }
 
 export function markSaved(itemId) {
@@ -391,7 +390,7 @@ export function updateItems(updates) {
     if (!it) continue;
     Object.assign(it, {
       title: u.title, summary: u.summary, clusterId: u.clusterId, places: u.places ?? [],
-      lang: u.lang, origTitle: u.origTitle ?? null, translating: !!u.translating, fresh: false,
+      lang: u.lang, origTitle: u.origTitle ?? null, fresh: false,
       titleLower: u.title.toLowerCase(), summaryLower: (u.summary ?? '').toLowerCase(),
       _filterSig: null,                                         // re-check filters (new title/places)
     });

@@ -181,7 +181,6 @@ function freshDb(n = 0) {
   for (const id of ids.slice(0, 500)) db.recordOpen(id, 'tab');
   run('db', "history scope=opened (500 opens)", () => db.history({ scope: 'opened', limit: 200 }), { iters: 20 });
   run('db', "history scope=opened, search", () => db.history({ scope: 'opened', query: 'government', limit: 200 }), { iters: 20 });
-  run('db', 'untranslated()', () => db.untranslated(Date.now() - 24 * 3600e3, 300), { iters: 20 });
   run('db', 'stats()', () => db.stats(), { iters: 20 });
   run('db', 'getMeta ×2000', () => { for (let i = 0; i < 2000; i++) db.getMeta('geotagVersion'); }, { items: 2000, iters: 5 });
   db.close();
@@ -190,7 +189,7 @@ function freshDb(n = 0) {
 // 6. enricher (what the worker does for every arriving item and at startup)
 function enricherOver(db) {
   const log = { info() {}, warn() {}, debug() {}, error() {} };
-  return new Enricher({ store: db, log, translate: async () => null, emitUpdate() {}, translateEnabled: false });
+  return new Enricher({ store: db, log, emitUpdate() {} });
 }
 {
   const batch = makeStories(50);

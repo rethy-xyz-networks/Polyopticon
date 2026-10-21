@@ -47,24 +47,6 @@ test('recentItems: respects the age cutoff for the per-source minimum too', () =
   } finally { done(); }
 });
 
-test('untranslated: foreign items without a translation, newest first, through the partial index', () => {
-  const { db, add, done } = setup();
-  try {
-    const s = add('src');
-    const now = Date.now();
-    const added = db.insertItems(s.id, [item(1, now - 1 * HOUR), item(2, now - 2 * HOUR), item(3, now - 3 * HOUR), item(4, now - 40 * HOUR), item(5, now - 4 * HOUR)]);
-    const [a, b, c, old, en] = added.map(x => x.id);
-    for (const [id, lang] of [[a, 'ar'], [b, 'ru'], [c, 'fr'], [old, 'de'], [en, 'en']]) db.setLang(id, lang);
-    assert.deepEqual(db.untranslated(now - 24 * HOUR, 10).map(r => r.id), [a, b, c]);        // not the English one, not the one older than a day
-    assert.deepEqual(db.untranslated(now - 24 * HOUR, 2).map(r => r.id), [a, b]);            // limit
-    db.applyTranslation(b, { title: 'Translated', summary: 'Yes', lang: 'ru' });
-    assert.deepEqual(db.untranslated(now - 24 * HOUR, 10).map(r => r.id), [a, c]);            // translated ones drop out
-    const plan = db.raw.prepare(`EXPLAIN QUERY PLAN SELECT id FROM items
-      WHERE published_at >= ? AND lang IS NOT NULL AND lang != 'en' AND orig_title IS NULL ORDER BY published_at DESC LIMIT 300`).all(0).map(r => r.detail).join(' ');
-    assert.match(plan, /items_untranslated/);
-  } finally { done(); }
-});
-
 test('history: search, source chips and paging return the same rows however often it runs', () => {
   const { db, add, done } = setup();
   try {
@@ -116,7 +98,7 @@ test('enrichment in one transaction per batch writes every item', () => {
       item(3, now, { title: 'Parliament votes on the budget in Paris' }),
     ]);
     const log = { info() {}, warn() {}, debug() {}, error() {} };
-    const e = new Enricher({ store: db, log, translate: async () => null, emitUpdate() {}, translateEnabled: false });
+    const e = new Enricher({ store: db, log, emitUpdate() {} });
     e.process(added, src);
     const rows = added.map(a => db.getItem(a.id));
     assert.ok(rows.every(r => r.lang === 'en'));

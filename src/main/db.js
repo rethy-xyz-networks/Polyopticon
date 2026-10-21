@@ -44,6 +44,8 @@ const MIGRATIONS = [
   //     so finding them no longer reads every recent item. The query must repeat these conditions to use it.
   `CREATE INDEX IF NOT EXISTS items_untranslated ON items(published_at)
      WHERE lang IS NOT NULL AND lang != 'en' AND orig_title IS NULL;`,
+  // v8: headline translation was removed, so nothing reads the v7 index any more.
+  `DROP INDEX IF EXISTS items_untranslated;`,
 ];
 const SCHEMA_VERSION = 1 + MIGRATIONS.length;
 
@@ -251,7 +253,7 @@ function wrap(db) {
     getItem: id =>
       itemRow(q(`SELECT ${ITEM_COLS} FROM items i JOIN sources s ON s.id = i.source_id WHERE i.id = ?`).get(id)),
 
-    // Enrichment (worker): grouping, places, translation
+    // Enrichment (worker): grouping, places, language
     /** Items for the clustering index: newest first within the window. */
     clusterWindow: since =>
       q(`SELECT id, source_id AS sourceId, title, summary, published_at AS publishedAt, cluster_id AS clusterId, lang, orig_title AS origTitle, places IS NOT NULL AS tagged
@@ -269,27 +271,6 @@ function wrap(db) {
     setPlaces: (id, places) => q(`UPDATE items SET places = ? WHERE id = ?`).run(JSON.stringify(places ?? []), id),
 
     setLang: (id, lang) => q(`UPDATE items SET lang = ? WHERE id = ?`).run(lang, id),
-
-    /** Replaces title/summary with their English translation, keeping the originals. */
-    applyTranslation(id, { title, summary, lang }) {
-      api.tx(() => {
-        const it = q(`SELECT title, summary, orig_title FROM items WHERE id = ?`).get(id);
-        if (!it || it.orig_title) return;
-        q(`UPDATE items SET title = ?, summary = ?, orig_title = ?, orig_summary = ?, lang = ? WHERE id = ?`)
-          .run(title, summary ?? null, it.title, it.summary, lang, id);
-        // Index both languages so either finds the item.
-        const art = q(`SELECT article FROM items_fts WHERE rowid = ?`).get(id)?.article ?? '';
-        q(`DELETE FROM items_fts WHERE rowid = ?`).run(id);
-        q(`INSERT INTO items_fts (rowid, title, summary, article) VALUES (?, ?, ?, ?)`)
-          .run(id, title, [summary, it.title, it.summary].filter(Boolean).join('\n'), art);
-      });
-    },
-
-    /** Non-English items still awaiting translation (newest first). */
-    untranslated: (since, limit) =>
-      q(`SELECT id, title, summary, lang FROM items
-         WHERE published_at >= ? AND lang IS NOT NULL AND lang != 'en' AND orig_title IS NULL
-         ORDER BY published_at DESC LIMIT ?`).all(since, limit),
 
     saveSnapshotTranslation: (itemId, text) =>
       q(`UPDATE snapshots SET translated_text = ? WHERE item_id = ?`).run(text, itemId),

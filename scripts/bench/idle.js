@@ -20,7 +20,7 @@ const SAMPLE_MS = 2000;
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'polybench-idle-'));
-  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ TranslateEnabled: false, ChatDestiny: false, ChatTwitchChannels: '', ChatIrc: '' }));
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ ChatDestiny: false, ChatTwitchChannels: '', ChatIrc: '' }));
   const app = await electron.launch({ args: [APP], cwd: APP, env: { ...process.env, POLYOPTICON_DATA_DIR: dir, POLYOPTICON_OFFSCREEN: '1' } });
   const win = await app.firstWindow();
   await win.waitForLoadState('domcontentloaded');

@@ -38,7 +38,7 @@ const ctx = {
           id: it.id, sourceId: source.id, sourceName: source.name, kind: it.kind || 'article',
           title: it.title, summary: it.summary ?? null, url: it.url ?? null, author: it.author ?? null,
           publishedAt: it.publishedAt, clusterId: it.clusterId, places: it.places, lang: it.lang,
-          translating: !!it.translating, site: it.extra?.site ?? null,
+          site: it.extra?.site ?? null,
         })),
       });
     }
@@ -88,16 +88,10 @@ async function handle(data) {
       settings = data.settings;
       credentials = data.credentials || {};
       enricher = new Enricher({
-        store, log, translate: requestTranslation, translateEnabled: settings.translate !== false,
+        store, log,
         emitUpdate: items => post({ type: 'items-updated', items }),
       });
       enricher.init();
-      enricher.backfillTranslations();
-      break;
-
-    case 'translated':
-      pendingTranslations.get(data.reqId)?.(data.out);
-      pendingTranslations.delete(data.reqId);
       break;
 
     case 'sources':
@@ -108,7 +102,6 @@ async function handle(data) {
 
     case 'settings':
       settings = { ...settings, ...data.settings };
-      enricher?.setTranslation(settings.translate !== false);
       for (const { adapter } of running.values()) adapter.reschedule();
       break;
 
@@ -164,17 +157,7 @@ async function handle(data) {
 
 let tgAnswer = null;
 
-// Translation (done by the translator process, brokered by main)
 let enricher = null;
-let translationSeq = 0;
-const pendingTranslations = new Map();
-function requestTranslation(lang, texts, priority) {
-  const reqId = ++translationSeq;
-  return new Promise(resolve => {
-    pendingTranslations.set(reqId, resolve);
-    post({ type: 'translate', reqId, lang, texts, priority });
-  });
-}
 
 port.on('message', ({ data }) => {
   handle(data).catch(e => log.error(`Worker command '${data.cmd}' failed`, e));

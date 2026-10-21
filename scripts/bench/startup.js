@@ -64,7 +64,7 @@ const median = a => { a = a.filter(x => x != null).sort((x, y) => x - y); return
   for (let r = 0; r < RUNS; r++) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'polybench-run-'));
     for (const f of fs.readdirSync(template)) fs.cpSync(path.join(template, f), path.join(dir, f), { recursive: true });
-    fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ TranslateEnabled: false, ChatDestiny: false, ChatTwitchChannels: '', ChatIrc: '' }));
+    fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ ChatDestiny: false, ChatTwitchChannels: '', ChatIrc: '' }));
     const t0 = Date.now();
     const app = await electron.launch({ args: [APP], cwd: APP, env: { ...process.env, POLYOPTICON_DATA_DIR: dir, POLYOPTICON_OFFSCREEN: '1' } });
     const win = await app.firstWindow();

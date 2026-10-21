@@ -442,7 +442,6 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 
 .item .xl { font-size: 9px; font-weight: 700; letter-spacing: .04em; padding: 0 4px; border-radius: var(--radius); white-space: nowrap; flex-shrink: 0;
   color: #0A7AFF; border: 1px solid #0A7AFF66; }
-.item .xl.pending { color: var(--text-2); border-color: var(--border); animation: pulse .9s steps(4) infinite alternate; }
 .item .xl.raw { color: var(--text-2); border-color: var(--border); }
 
 .item .group-chip {

@@ -164,7 +164,7 @@ test('the Scratchpad and the shortcut list can be pinned like any tab', async ({
 
 base('pinned app tabs come back at the next start', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'polyopticon-pin-'));
-  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ TranslateEnabled: false, ChatDestiny: false, ChatTwitchChannels: '', ChatIrc: '' }));
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ ChatDestiny: false, ChatTwitchChannels: '', ChatIrc: '' }));
   fs.writeFileSync(path.join(dir, 'pinned.json'), JSON.stringify([
     { id: -999999, mode: 'live', app: 'scratch' },
     { id: -1, mode: 'live', app: 'help' },
