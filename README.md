@@ -129,8 +129,8 @@ The search box at the top of the **Sources & Filters View** sidebar finds a sour
 
 The sidebar lists sources in three sections:
 
-- **Countries:** USA, Canada, Mexico, UK, Iceland, France, Germany, Spain, Italy, Netherlands, Ireland, Sweden, Poland, Ukraine, Russia, Turkey, Syria, Israel, Egypt, Qatar, Saudi Arabia, UAE, Iran, Pakistan, India, Singapore, Vietnam, Thailand, China, Mongolia, Philippines, North Korea, South Korea, Japan, Australia, New Zealand, Brazil, Argentina and more.
-- **Areas:** Groups spanning several countries: the EU, Pacific Islands, Africa, and International (outlets and analysis with a world focus, such as Euronews, UN News and Foreign Policy).
+- **Countries:** USA, Canada, Mexico, UK, Iceland, France, Germany, Spain, Italy, Netherlands, Ireland, Sweden, Denmark, Finland, Poland, Hungary, Serbia, Croatia, Ukraine, Russia, Georgia, Turkey, Syria, Israel, Egypt, Qatar, Saudi Arabia, UAE, Iran, Pakistan, India, Singapore, Vietnam, Thailand, China, Mongolia, Philippines, North Korea, South Korea, Japan, Australia, New Zealand, Brazil, Argentina and more.
+- **Areas:** Groups spanning several countries: the EU, the Balkans, Pacific Islands, Africa, and International (outlets and analysis with a world focus, such as Euronews, UN News and Foreign Policy).
 - **Other:** Telegram, Wires & Search, Disasters & Health (USGS and GDACS alerts, NASA) Business (FT, Bloomberg, CNBC, MarketWatch) and Sports (AFTN).
 
 A source's group is the "Group" field in its editor. A new group name counts as a country unless it is one of the areas above.

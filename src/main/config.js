@@ -31,6 +31,7 @@ const SEED_GROUPS = [
       { ...rss('Axios',         'US', 'https://api.axios.com/feed/', '#2E4053'), since: 12 },
       { ...rss('ProPublica',    'US', 'https://feeds.propublica.org/propublica/main', '#1F618D'), since: 12 },
       { ...rss('The Hill',      'US', 'https://thehill.com/feed/', '#2874A6'), since: 12 },
+      { ...rss('NPR World',     'US', 'https://feeds.npr.org/1004/rss.xml', '#1F5F8B'), since: 14 },
     ],
   },
   {
@@ -227,7 +228,14 @@ const SEED_GROUPS = [
   },
   { grp: 'Mongolia',    sources: [{ ...rss('Mongolia Focus', 'MN', 'https://mongoliafocus.com/feed/atom/', '#A93226'), since: 6 }] },
   { grp: 'Philippines', sources: [{ ...rss('Rappler', 'PH', 'https://www.rappler.com/philippines/feed/', '#D35400'), since: 6 }] },
-  { grp: 'North Korea', sources: [{ ...rss('NK News', 'KP', 'https://www.nknews.org/feed/', '#5D6D7E'), since: 6 }] },
+  {
+    grp: 'North Korea',
+    sources: [
+      { ...rss('NK News', 'KP', 'https://www.nknews.org/feed/', '#5D6D7E'), since: 6 },
+      { ...rss('Daily NK',   'KP', 'https://www.dailynk.com/english/feed/', '#8E44AD'), since: 14 },
+      { ...rss('NK TechLab', 'KP', 'https://www.nktechlab.org/feed/', '#16A085'), since: 14 },   // North Korean technology
+    ],
+  },
   // Added in revision 7.
   { grp: 'Uruguay',         sources: [{ ...rss('MercoPress', 'UY', 'https://en.mercopress.com/rss', '#2874A6'), since: 7 }] },
   { grp: 'Estonia',         sources: [{ ...rss('ERR News', 'EE', 'https://news.err.ee/rss', '#0072CE'), since: 7 }] },
@@ -254,7 +262,13 @@ const SEED_GROUPS = [
       { ...rss('La Repubblica', 'IT', 'https://www.repubblica.it/rss/homepage/rss2.0.xml', '#922B21'), since: 12 },   // Italian; translated
     ],
   },
-  { grp: 'Netherlands', sources: [{ ...rss('NOS', 'NL', 'https://feeds.nos.nl/nosnieuwsalgemeen', '#D35400'), since: 12 }] },   // Dutch; translated
+  {
+    grp: 'Netherlands',
+    sources: [
+      { ...rss('NOS', 'NL', 'https://feeds.nos.nl/nosnieuwsalgemeen', '#D35400'), since: 12 },   // Dutch; translated
+      { ...rss('NRC', 'NL', 'https://www.nrc.nl/rss/', '#C0392B'), since: 14 },   // Dutch; translated
+    ],
+  },
   { grp: 'Ireland',     sources: [{ ...rss('RTÉ', 'IE', 'https://www.rte.ie/feeds/rss/?index=/news/', '#117A65'), since: 12 }] },
   { grp: 'Sweden',      sources: [{ ...rss('The Local (Sweden)', 'SE', 'https://www.thelocal.se/feeds/rss.php', '#1A5276'), since: 12 }] },
   { grp: 'Poland',      sources: [{ ...rss('Notes from Poland', 'PL', 'https://notesfrompoland.com/feed/', '#B03A2E'), since: 12 }] },
@@ -326,6 +340,26 @@ const SEED_GROUPS = [
       { ...rss('MarketWatch',       'BIZ', 'http://feeds.marketwatch.com/marketwatch/topstories/', '#117A65'), since: 12 },
     ],
   },
+  // Added in revision 14.
+  {
+    grp: 'Serbia',
+    sources: [
+      { ...rss('Serbian News Media', 'RS', 'https://snm.rs/news/feed/', '#1A5276'), since: 14 },
+      { ...rss('N1 Serbia',          'RS', 'https://n1info.rs/english/news/feed/', '#C0392B'), since: 14 },
+    ],
+  },
+  { grp: 'Croatia',  sources: [{ ...rss('Croatian Government', 'HR', 'https://vlada.gov.hr/RSS?id=14956', '#B03A2E'), since: 14 }] },   // English news
+  { grp: 'Denmark',  sources: [{ ...rss('Copenhagen Post', 'DK', 'https://cphpost.dk/category/news/politics/feed/', '#A93226'), since: 14 }] },   // politics
+  { grp: 'Finland',  sources: [{ ...rss('Finland Today', 'FI', 'https://finlandtoday.fi/politics/feed/', '#1F618D'), since: 14 }] },   // politics
+  { grp: 'Georgia',  sources: [{ ...rss('Civil Georgia', 'GE', 'https://civil.ge/feed', '#922B21'), since: 14 }] },
+  {
+    grp: 'Hungary',
+    sources: [
+      { ...rss('Hungary Today',  'HU', 'https://hungarytoday.hu/feed/', '#196F3D'), since: 14 },
+      { ...rss('Budapest Times', 'HU', 'https://www.budapesttimes.hu/feed/', '#7E5109'), since: 14 },
+    ],
+  },
+  { grp: 'Balkans',  sources: [{ ...rss('Balkan Insight', 'BALK', 'https://balkaninsight.com/feed/', '#B9770E'), since: 14 }] },   // BIRN, region-wide
   {
     grp: 'Sports',
     sources: [
@@ -371,6 +405,6 @@ const RENAMED = [
 ];
 
 /** Bump when SEED_GROUPS gains sources marked `since: <n>`, or RETIRED / RENAMED gain entries. */
-const SEED_REVISION = 13;
+const SEED_REVISION = 14;
 
 module.exports = { SEED_GROUPS, SEED_REVISION, RETIRED, RENAMED };

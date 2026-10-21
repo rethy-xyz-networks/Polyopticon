@@ -55,7 +55,7 @@ export const SECTIONS = [
   { key: 'areas',     title: 'Areas' },
   { key: 'other',     title: 'Other' },
 ];
-const AREA_GROUPS  = ['EU', 'Pacific Islands', 'Africa', 'International'];
+const AREA_GROUPS  = ['EU', 'Balkans', 'Pacific Islands', 'Africa', 'International'];
 const OTHER_GROUPS = ['Telegram', 'Wires & Search', 'Disasters & Health', 'Business', 'Sports'];   // kept in this order
 
 export const sectionOf = grp => AREA_GROUPS.includes(grp) ? 'areas' : OTHER_GROUPS.includes(grp) ? 'other' : 'countries';

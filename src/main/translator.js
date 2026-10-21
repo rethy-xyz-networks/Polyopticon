@@ -2,7 +2,8 @@
 
 // Offline machine translation (-> English) in its own utility process, using
 // transformers.js + ONNX Runtime on the CPU. Models download from Hugging Face
-// on first use and are cached in %LocalAppData%\Polyopticon\models.
+// on first use and are cached in the data folder's models folder
+// (%LocalAppData%\Polyopticon\models on Windows, ~/.config/Polyopticon/models on Linux).
 //
 //   • Opus-MT (Helsinki-NLP, ~75 MB each, ~0.5 s per headline) for languages that have one
 //   • NLLB-200 distilled 600M (Meta, ~1 GB, a few seconds per headline) for everything else
@@ -68,6 +69,10 @@ async function getPipe(model, tag) {
     let lastPct = -1, sentLoading = false;
     const pipe = await tf.pipeline('translation', `Xenova/${model}`, {
       dtype: 'q8',
+      // ONNX Runtime's memory arena grows by doubling; for NLLB its next step is a single 2 GiB block,
+      // which Electron's allocator refuses by crashing the utility process (SIGTRAP, exit code 133).
+      // Without the arena each tensor is allocated on its own: a little slower, ~1 GB less memory.
+      ...(model === NLLB_MODEL ? { session_options: { enableCpuMemArena: false } } : {}),
       progress_callback: ev => {
         if (ev.status !== 'progress' || !(ev.total > 0)) return;
         files.set(ev.file, { loaded: ev.loaded, total: ev.total });
