@@ -16,12 +16,13 @@
 // 4. Selection: the title decides. Places it names are kept, and the summary only adds
 //    places inside them (Russia -> Irkutsk). With no place in the title, summary places
 //    in the title's actor countries come first ("Ukrainian drones…" + "a data center in
-//    Vladimir"), then other summary places, then the actor countries, then the dateline.
+//    Vladimir"), then other summary places, then the actor countries, then the dateline,
+//    then continents and blocs (Europe, EU).
 //    A country is dropped when a place inside it is kept.
 
 const gaz = require('./gazetteer.json');
 
-const VERSION = 4;                 // bump when results change, so stored items are re-tagged
+const VERSION = 5;                 // bump when results change, so stored items are re-tagged
 const MAX_WORDS = 4;
 const MAX_PLACES = 3;
 const SUMMARY_CHARS = 400;
@@ -35,8 +36,8 @@ const key  = s => { const n = norm(s); return n.includes('-') ? n.replace(/-/g, 
 // it leaves out on purpose (Dūmā -> "Duma", Salé -> "sale").
 const NON_ASCII = /[^\x00-\x7f]/;
 // Accented words that are not the unaccented English place: the Americas (América Latina, Club América), a first
-// name (Germán), the Spanish word for river (Pinar del Río).
-const KEEP_ACCENT = new Set(['américa', 'germán', 'río']);
+// name (Germán), the Spanish words for river and bay (Pinar del Río, Bahía Blanca).
+const KEEP_ACCENT = new Set(['américa', 'germán', 'río', 'bahía']);
 const unaccent = k => NON_ASCII.test(k) && !k.split(' ').some(w => KEEP_ACCENT.has(w)) ? k.normalize('NFD').replace(/\p{M}/gu, '') : null;
 /** A map entry by key, else by its unaccented form. */
 const find = (map, k) => map.get(k) ?? (map.has(unaccent(k)) ? map.get(unaccent(k)) : undefined);
@@ -52,16 +53,20 @@ const places  = gaz.places;        // [key, name, kind, cc, lat, lon, pop?]
 const index   = nameMap(gaz.index);
 const actors  = nameMap(gaz.actors);
 const weak    = new Set((gaz.weak ?? []).map(key));
+// State codes a country's own press writes after places ("Campinas (SP)", "chuvas no RS"): cc -> code -> place.
+// Only for that country's sources, since the codes are English abbreviations too (SC, AP, PR).
+const codes   = new Map(Object.entries(gaz.codes ?? {}).map(([cc, m]) => [cc, new Map(Object.entries(m))]));
 
-const KIND_PRIOR = { country: 9, region: 8.5, state: 8 };
+const KIND_PRIOR = { country: 9, region: 8.5, area: 8.5, state: 8 };
 const STATE_HOMONYM = 1.5;         // a state named like a country (Georgia) is the likelier one in English news
 const CONTEXT_PLACE = 4;           // another place in the same country
 const CONTEXT_ACTOR = 1;           // an actor word for the country
 const SOURCE_HOME   = 2;           // the source's own country
 
-// Publications: "<place> Post", "Times of <place>".
+// Publications and competitions: "<place> Post", "Europa Press", "Asia Cup", "Times of <place>".
 const ORG_NEXT = new Set(('Post Times Herald Tribune Guardian Gazette Journal Chronicle Telegraph Observer Independent ' +
-  'Insider Examiner Inquirer Express Mail Star Standard Review').split(' '));
+  'Insider Examiner Inquirer Express Mail Star Standard Review Press League Cup').split(' '));
+const TITLES = new Set('Prince Princess Príncipe Princesa Princes Duke Duchess Duque Duquesa Earl Count Countess Conde Condesa'.split(' '));
 // Companies, in any case: "Sapporo breweries".
 const COMPANY_NEXT = new Set('brewery breweries holdings corp corporation inc ltd'.split(' '));
 // Words after a weak name that keep it a place (Victoria Harbour, Austin Airport).
@@ -126,8 +131,9 @@ function caseless(tokens) {
 /**
  * @returns {Array<{ pos, n, phrase, cands?, actor?, weak, evidence, seg }>}
  *   cands: place indexes; actor: country place index.
+ * @param stateCodes  postal code -> state, for a source whose country writes them
  */
-function mentions(text, seg) {
+function mentions(text, seg, stateCodes) {
   const tokens = tokenize(text);
   const noCase = caseless(tokens);
   const out = [];
@@ -135,6 +141,13 @@ function mentions(text, seg) {
   for (let i = 0; i < tokens.length;) {
     let matched = 0;
     const t = tokens[i];
+    // Not inside a name or a party tag: "Mostra SP", "SP Prefecture", "(PL-MG)"
+    const inName = (w, gap) => w && (gap === ' ' && isCap(w.w) || gap === '-');
+    if (stateCodes && !noCase && t.w.length === 2 && stateCodes.has(t.w) && !inName(tokens[i - 1], t.gap) && !inName(tokens[i + 1], tokens[i + 1]?.gap)) {
+      out.push({ pos: t.start, n: 1, phrase: t.w, seg, cands: [stateCodes.get(t.w)], code: true, weak: false, evidence: false, noCase, setting: false });
+      i++;
+      continue;
+    }
     if (isCap(t.w) && isFirstWord(key(t.w)) && !(ARTICLES.has(norm(t.w)) && tokens[i + 1]?.joined)) {
       for (let n = Math.min(MAX_WORDS, tokens.length - i); n >= 1; n--) {
         const words = tokens.slice(i, i + n);
@@ -153,6 +166,8 @@ function mentions(text, seg) {
         // A publication or company: Jerusalem Post, Times of India, Sapporo Breweries
         if (next && /^\s+$/.test(after) && (ORG_NEXT.has(next.w) || COMPANY_NEXT.has(next.w.toLowerCase()))) break;
         if (prev && norm(prev.w) === 'of' && tokens[i - 2]?.w === 'Times') break;
+        // A title: Princess of Asturias, Príncipe de Gales, Duke of Sussex
+        if (prev && (norm(prev.w) === 'of' || norm(prev.w) === 'de') && TITLES.has(tokens[i - 2]?.w)) break;
 
         const prevWord = prev && /^\s+$/.test(t.gap) ? prev.w.toLowerCase() : null;
         const m = { pos: t.start, n, phrase, seg, weak: weak.has(phrase) || weak.has(unaccent(phrase)), evidence: false, noCase, setting: SETTING.has(prevWord) };
@@ -261,9 +276,13 @@ function dominant(summary) {
 }
 
 function select(title, summary, dateline, homeCc) {
-  const names  = ms => ms.filter(m => m.place != null).map(m => m.place);
   const ccOf   = i => places[i][3];
   const kindOf = i => places[i][2];
+  // Continents and blocs (Europe, EU) are set aside: like actor words, they place a story only when nothing else does.
+  const isArea = m => m.place != null && kindOf(m.place) === 'area';
+  const areas  = [...title, ...summary].filter(isArea).map(m => m.place);
+  [title, summary, dateline] = [title, summary, dateline].map(ms => ms.filter(m => !isArea(m)));
+  const names  = ms => ms.filter(m => m.place != null).map(m => m.place);
   const isCountry = i => kindOf(i) === 'country';
   const tNames = names(title), sNames = names(summary), dNames = names(dateline);
 
@@ -288,12 +307,17 @@ function select(title, summary, dateline, homeCc) {
     chosen = inActors.length ? inActors
       : sNames.length ? dominant(summary)
       : actorCount.size ? [...actorCount].filter(([, n]) => n === topActor).map(([i]) => i)
-      : dNames;
+      : dNames.length ? dNames
+      : areas;
   }
 
   const unique = [...new Set(chosen)];
   const inside = new Set(unique.filter(i => !isCountry(i)).map(ccOf).filter(Boolean));
-  return unique.filter(i => !(isCountry(i) && inside.has(ccOf(i)))).slice(0, MAX_PLACES);
+  // A state named only by its code ("Guarulhos (SP)") says which state the other places are in: shown only alone.
+  const byCode = new Set([...title, ...summary].filter(m => m.code).map(m => m.place));
+  for (const m of [...title, ...summary]) if (!m.code) byCode.delete(m.place);
+  const others = new Set(unique.filter(i => !isCountry(i) && !byCode.has(i)).map(ccOf));
+  return unique.filter(i => !(isCountry(i) && inside.has(ccOf(i))) && !(byCode.has(i) && others.has(ccOf(i)))).slice(0, MAX_PLACES);
 }
 
 // API
@@ -315,11 +339,12 @@ function geotag(input, { cc = null } = {}) {
   const { title = '', summary = '' } = typeof input === 'string' || input == null ? { title: input || '' } : input;
   if (!title && !summary) return [];
   const s = cleanSummary(title, summary);
-  const t = mentions(String(title), 'title');
+  const stateCodes = codes.get(cc);
+  const t = mentions(String(title), 'title', stateCodes);
   let sum = gdeltMentions(s), date = [];
   if (!sum) {
     const end = datelineEnd(s);
-    const all = mentions(s, 'summary');
+    const all = mentions(s, 'summary', stateCodes);
     date = all.filter(m => m.pos < end);
     sum = all.filter(m => m.pos >= end);
   }

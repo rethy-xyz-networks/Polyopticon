@@ -56,6 +56,32 @@ test('other languages\' names for countries and cities', () => {
   assert.deepEqual(names('La diputada Kenia López Rabadán propone castigos'), []);
 });
 
+test('states and provinces beyond the US, and their qualified forms', () => {
+  assert.deepEqual(names('Lluvias en Cataluña y Andalucía'), ['Catalonia', 'Andalusia']);
+  assert.deepEqual(names('Lagos State flooding displaces thousands', '', 'NG'), ['Lagos State']);
+  assert.deepEqual(names('Kharkiv region shelled overnight'), ['Kharkiv Oblast']);
+  assert.deepEqual(names('Kharkiv shelled overnight'), ['Kharkiv']);
+  assert.deepEqual(names('Lluvias en el Estado de México'), ['State of Mexico']);
+  assert.deepEqual(names('Delta Air Lines cancels flights'), []);
+  assert.deepEqual(names('Bayern coach taken to hospital'), []);
+  assert.deepEqual(names('Princesa de Asturias de Ciencias Sociales'), []);
+});
+
+test('Brazilian state codes, only from Brazilian sources and not inside names', () => {
+  assert.deepEqual(names('Chuvas fortes atingem o RS', '', 'BR'), ['Rio Grande do Sul']);
+  assert.deepEqual(names('Chuvas fortes atingem o RS'), []);
+  assert.deepEqual(names('SC hears plea on bail', '', 'IN'), []);
+  assert.deepEqual(names('Incêndio em Guarulhos (SP)', '', 'BR'), ['Guarulhos']);   // the code only says which state
+  assert.deepEqual(names('Deputado Nikolas (PL-MG) critica governo', '', 'BR'), []);
+});
+
+test('continents, blocs and seas', () => {
+  assert.deepEqual(names('EU ministers meet on migration'), ['European Union']);
+  assert.deepEqual(names('Ola de calor en Europa'), ['Europe']);
+  assert.deepEqual(names('Europa Press informa del acuerdo'), []);
+  assert.deepEqual(names('Amazon layoffs hit Seattle'), ['Seattle']);
+});
+
 test('a currency prefix is not a country', () => {
   assert.deepEqual(names('Honduras Remittances Top US$10 Billion'), ['Honduras']);
   assert.deepEqual(names('Petrobras lucra R$ 30 bilhões'), []);

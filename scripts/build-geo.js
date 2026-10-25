@@ -6,7 +6,7 @@
 //   node scripts/build-geo.js
 //
 // Data: GeoNames cities15000 + countryInfo (CC BY 4.0, geonames.org) and
-// Natural Earth 1:50m countries / admin-1 (public domain, naturalearthdata.com).
+// Natural Earth 1:50m countries and 1:10m admin-1 (public domain, naturalearthdata.com).
 // Outputs:
 //   src/main/enrich/gazetteer.json       place list + name index
 //   src/renderer/assets/world.geojson    simplified country outlines
@@ -23,7 +23,7 @@ const SRC = {
   cities:    'https://download.geonames.org/export/dump/cities15000.zip',
   countries: 'https://download.geonames.org/export/dump/countryInfo.txt',
   ne0:       'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson',
-  ne1:       'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson',
+  ne1:       'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson',
 };
 
 // Countries where every town ≥15k people is included (conflict/news-heavy regions).
@@ -38,13 +38,14 @@ const EXCLUDE = new Set(('mobile reading split nice bath orange university colle
   'concord mercedes trinidad progreso esperanza providence carmel dover washington columbia sale bergen gent march may ' +
   'june august male marks brent toyota perm mesa mocha batman bimbo plast oral golfe warder buy gay tara kira kita serra ' +
   'sim terek nikel dura natal ondo singa bida gombe erode aba sabha kalyan mataram duma gusev zarya plast surman ' +
-  'kelar enem fili asha').split(' '));
+  'kelar enem fili asha bayern').split(' '));   // Bayern: the football club; the state is Bavaria
 
 // Place names that are also common first names or surnames. Matched only with evidence that a
 // place is meant: "in Austin", "Douglas, Georgia", or another place in the same country.
 const WEAK = new Set(('vladimir anna sofia victoria austin alexandria orlando phoenix columbus kennedy douglas stanley ' +
   'lyon leon ariel farah florence lincoln jackson charlotte hamilton aurora marion clayton franklin salem santos sucre ' +
-  'kirov adler murom sokol jordan chad kingston newcastle surrey wellington darwin nelson preston engels roma napoli torino kenia florencia londra').split(' '));
+  'kirov adler murom sokol jordan chad kingston newcastle surrey wellington darwin nelson preston engels roma napoli torino kenia florencia londra ' +
+  'guerrero hidalgo morelos magdalena caldas bolívar cesar acre bahia').split(' '));
 
 // Words that point at a country without placing the story there: demonyms, armed groups,
 // leaders, institutions. They only place a story when nothing more specific does.
@@ -115,7 +116,7 @@ const COUNTRY_EXONYMS = {
   KP: 'Corea del Norte|Coreia do Norte|Corée du Nord|Corea del Nord|Nordkorea|Noord-Korea', TH: 'Tailandia|Tailândia|Thaïlande',
   PH: 'Filipinas', MY: 'Malasia|Malásia|Malaisie', VN: 'Vietnã', NZ: 'Nueva Zelanda|Nova Zelândia|Nouvelle-Zélande|Neuseeland',
   DO: 'República Dominicana|République dominicaine', PY: 'Paraguai', EC: 'Equador', GL: 'Groenlandia|Groenlândia|Groenland|Grönland',
-  VA: 'Vaticano|Ciudad del Vaticano|Cidade do Vaticano', CY: 'Chipre|Chypre',
+  VA: 'Vaticano|Ciudad del Vaticano|Cidade do Vaticano', CY: 'Chipre|Chypre', AQ: 'Antártida|Antártica|Antarctique|Antarktis',
 };
 
 // Display names for countries whose Natural Earth name reads oddly in a list.
@@ -135,17 +136,118 @@ const REGIONS = [
   ['Arctic', '', 78.0, 15.0], ['Middle East', '', 29.0, 41.0, 'Mideast|West Asia'], ['Tigray', 'ET', 14.0, 39.0],
   ['Northern Ireland', 'GB', 54.6, -6.7], ['Scotland', 'GB', 56.5, -4.2, 'Scottish'], ['Wales', 'GB', 52.3, -3.7, 'Welsh'],
   ['England', 'GB', 52.6, -1.5], ['Khyber Pakhtunkhwa', 'PK', 34.5, 72.0],
+  // Seas, oceans and other named areas, with their names in the feeds' other languages
+  ['Pacific Ocean', '', 0.0, -160.0, 'Pacífico|Pacifique|Océano Pacífico|Oceano Pacífico'],
+  ['South Pacific', '', -20.0, -150.0, 'Pacífico Sur|Pacífico Sul'],
+  ['Atlantic Ocean', '', 25.0, -40.0, 'Atlántico|Atlântico|Atlantique|Océano Atlántico|Oceano Atlântico'],
+  ['Indian Ocean', '', -15.0, 75.0, 'Océano Índico|Oceano Índico|Océan Indien'], ['Southern Ocean', '', -62.0, 0.0],
+  ['Mediterranean Sea', '', 35.0, 18.0, 'Mediterranean|Mediterráneo|Mediterrâneo|Méditerranée|Mediterraneo|Mittelmeer|Mar Mediterráneo'],
+  ['North Sea', '', 56.0, 3.0, 'Mar del Norte|Mar do Norte|Mer du Nord|Nordsee|Noordzee'],
+  ['Baltic Sea', '', 58.0, 20.0, 'Mar Báltico|Mer Baltique|Ostsee'],
+  ['Caribbean', '', 15.0, -75.0, 'Caribe|Caraïbes|Caribbean Sea|Mar Caribe'],
+  ['Gulf of Mexico', '', 25.0, -90.0, 'Golfo de México|Gulf of America|Golfe du Mexique'],
+  ['Adriatic Sea', '', 43.0, 15.5, 'Adriatic|Adriático|Adriatique|Jadran'], ['Ionian Sea', '', 38.0, 19.0],
+  ['Sea of Azov', '', 46.0, 36.5, 'Azov Sea|Mar de Azov'],
+  ['English Channel', '', 50.2, -1.0, 'Canal de la Mancha|La Manche|Canal da Mancha'],
+  ['Bay of Bengal', '', 15.0, 88.0, 'Golfo de Bengala'],
+  ['Amazon Rainforest', '', -4.0, -62.0, 'Amazonia|Amazônia|Amazonía|Amazon rainforest|Amazonie|Floresta Amazônica|Selva amazónica'],
+  ['Pantanal', 'BR', -18.0, -57.0], ['Pyrenees', '', 42.6, 1.0, 'Pirineos|Pirineus|Pyrénées'],
+  ['Alps', '', 46.5, 10.0, 'Alpes|Alpi|Alpen'], ['Korean Demilitarized Zone', '', 38.0, 127.0, 'DMZ'],
+  ['Spratly Islands', '', 10.0, 114.3, 'Spratlys|Spratly'], ['Second Thomas Shoal', '', 9.75, 115.87, 'Ayungin Shoal'],
+  ['Scarborough Shoal', '', 15.15, 117.76], ['Abyei', '', 9.6, 28.4], ['Northern Sea Route', '', 75.0, 100.0],
+  ['Patagonia', '', -45.0, -69.0],
 ];
 
-// States and provinces (Natural Earth admin-1) for these countries. Extra names: NE name -> aliases.
-const STATE_COUNTRIES = ['US', 'CA', 'AU', 'IN', 'CN'];
+// Continents and blocs, with their names in the feeds' other languages. Like actor words they place a story only
+// when nothing more specific does: "Asia races to stockpile oil as Iran…" is about Iran.
+const AREAS = [
+  ['Europe', '', 50.0, 15.0, 'Europa|Evropa|Evropi'],
+  ['European Union', '', 50.8, 4.4, 'EU|UE|Unión Europea|União Europeia|Union européenne|Unione europea|Europäische Union|Europese Unie|Evropska unija|Eurozone|Eurozona|Zona Euro'],
+  ['Africa', '', 2.0, 20.0, 'África|Afrique|Afrika'], ['Asia', '', 34.0, 100.0, 'Ásia|Asie|Asien|Azija'],
+  ['Latin America', '', -10.0, -60.0, 'América Latina|Latinoamérica|Amérique latine|Lateinamerika|Latijns-Amerika|Iberoamérica|Ibero-America'],
+  ['Americas', '', 10.0, -80.0, 'Américas|Amériques'],
+  ['Southeast Asia', '', 10.0, 106.0, 'Sudeste Asiático|Sudeste da Ásia|Asie du Sud-Est'],
+  ['Central Asia', '', 43.0, 65.0, 'Asia Central|Ásia Central|Asie centrale'],
+  ['South Asia', '', 22.0, 79.0, 'Asia del Sur|Sul da Ásia'],
+  ['North Africa', '', 28.0, 10.0, 'Norte de África|Norte da África|Afrique du Nord|Maghreb|Magreb'],
+  ['East Africa', '', 0.0, 37.0, 'África Oriental|Afrique de l\'Est'],
+  ['West Africa', '', 11.0, -3.0, 'África Occidental|África Ocidental|Afrique de l\'Ouest'],
+  ['Balkans', '', 43.0, 21.0, 'Balcanes|Bálcãs|Balkan|Balcani'], ['South Caucasus', '', 41.0, 45.0, 'Cáucaso Sur|Caucase du Sud'],
+  ['Caucasus', '', 42.5, 45.0, 'Cáucaso|Caucase|Kaukasus'],
+  ['Scandinavia', '', 63.0, 15.0, 'Escandinavia|Escandinávia|Scandinavie|Skandinavien'],
+];
+
+// States and provinces (Natural Earth admin-1) for these countries, with the qualified forms news uses for
+// them ("Kharkiv Oblast", "Estado de Goiás", "Lagos State"). X is the state's name.
+const STATE_QUALIFIERS = {
+  US: ['X State'], CA: ['X Province'], AU: ['X State'], IN: ['X State'], CN: ['X Province'],
+  BR: ['Estado de X', 'Estado do X', 'Estado da X', 'X State'], MX: ['Estado de X', 'State of X', 'X State'],
+  AR: ['Provincia de X', 'Province of X', 'X Province'], CO: ['Departamento de X', 'X Department'], NG: ['X State'],
+  UA: ['X Oblast', 'X region'], RU: ['X Oblast', 'X region', 'X Krai'], DE: ['X State'], ZA: ['X Province'],
+  PK: ['X Province'], AF: ['X Province'], ID: ['X Province'], MM: ['X State', 'X Region'], ET: ['X Region'],
+  SY: ['X Governorate', 'X Province'], IQ: ['X Governorate', 'X Province'], YE: ['X Governorate', 'X Province'],
+  SD: ['X State'],
+};
+const STATE_COUNTRIES = Object.keys(STATE_QUALIFIERS);
+// Countries whose Natural Earth names are local (Bayern, Ninawa): their English names (name_en) are used too.
+const STATE_NAME_EN = new Set(['DE', 'UA', 'RU', 'PK', 'AF', 'ID', 'MM', 'ET', 'SY', 'IQ', 'YE', 'SD']);
+// Extra names: NE name -> aliases. Matched plainly even when the state's own name isn't.
 const STATE_ALIASES = {
   Xizang: 'Tibet', 'Inner Mongol': 'Inner Mongolia', Odisha: 'Orissa', 'British Columbia': 'B.C.',
   'New Mexico': 'Nuevo México|Novo México|Nouveau-Mexique', 'New Jersey': 'Nueva Jersey|Nova Jersey', Hawaii: 'Hawái|Havaí',
   'North Carolina': 'Carolina del Norte|Carolina do Norte', 'South Carolina': 'Carolina del Sur|Carolina do Sul',
-  Louisiana: 'Luisiana', Pennsylvania: 'Pensilvania|Pensilvânia|Pennsylvanie',
+  Louisiana: 'Luisiana', Pennsylvania: 'Pensilvania|Pensilvânia|Pennsylvanie', Washington: 'Washington State',
+  'México': 'Estado de México|State of Mexico|Edomex', 'Distrito Federal': 'Federal District', 'Michoacán': 'Michoacán de Ocampo',
+  'Nuevo León': 'Nuevo Leon', 'Federal Capital Territory': 'FCT', 'Nassarawa': 'Nasarawa',
+  'Zaporizhzhya': 'Zaporizhzhia Oblast|Zaporizhia Oblast|Zaporozhye Oblast', 'Dnipropetrovs\'k': 'Dnipropetrovsk Oblast',
+  "Donets'k": 'Donetsk Oblast|Donetsk region', "Luhans'k": 'Luhansk Oblast|Luhansk region', Kharkiv: 'Kharkiv Oblast|Kharkiv region',
+  Kherson: 'Kherson Oblast|Kherson region', Sumy: 'Sumy Oblast|Sumy region', Kursk: 'Kursk region', Belgorod: 'Belgorod Oblast|Belgorod region',
+  Bryansk: 'Bryansk Oblast|Bryansk region', 'Ninawa': 'Nineveh|Ninawa', 'Sala ad-Din': 'Salahuddin|Salah al-Din|Saladin Governorate',
+  'Al-Anbar': 'Anbar', 'Hilmand': 'Helmand', 'Baluchistan': 'Balochistan',
+  'Rif Dimashq': 'Rif Dimashq|Damascus countryside', 'Sind': 'Sindh', 'Northern Areas': 'Gilgit-Baltistan', 'Chechnya': 'Chechnya',
+  'Oromiya': 'Oromia', 'Nordrhein-Westfalen': 'NRW',
 };
-const STATE_DISPLAY = { Xizang: 'Tibet', 'Inner Mongol': 'Inner Mongolia' };
+const STATE_DISPLAY = {
+  Xizang: 'Tibet', 'Inner Mongol': 'Inner Mongolia', 'México': 'State of Mexico', 'Distrito Federal': 'Federal District',
+  'Sala ad-Din': 'Salahuddin', 'Ninawa': 'Nineveh', 'Yevrey': 'Jewish Autonomous Oblast',
+};
+// States not added: the capital city is the place (Buenos Aires city, Kyiv city), or another entry covers them.
+const STATE_SKIP = new Set(['Ciudad de Buenos Aires', 'Kiev City', 'UNDOF', 'Amanat Al Asimah', 'Crimea', 'Sevastopol',
+  'K.P.', 'F.A.T.A.', 'F.C.T.']);
+// States whose own name is a word, firm, person or people: only their qualified forms and aliases are matched.
+// (Those that are also people's names, like Guerrero and Bolívar, are in WEAK instead.)
+const STATE_QUALIFIED_ONLY = new Set(['Niger', 'Delta', 'Rivers', 'Plateau', 'Imo', 'Meta', 'Santander', 'Sucre', 'Córdoba',
+  'Atlántico', 'Chin', 'Mon', 'Shan', 'Somali', 'North West', 'Free State', 'Northern', 'Yevrey', 'Sala ad-Din', 'Leningrad',
+  'Amur', 'Chita', 'Distrito Federal', 'Babil', 'Wasit', 'Ghor', 'Khost', 'Bali', 'Papua']);
+// States matched by their plain name although a city or country shares it (they're the likelier meaning).
+const STATE_PLAIN = new Set(['Georgia', 'Victoria', 'Santa Catarina']);
+// Regions of countries whose admin-1 are provinces or departments: Natural Earth region -> display|names.
+const REGION_GROUPS = {
+  ES: {
+    'Cataluña': 'Catalonia|Cataluña|Catalunya|Catalogne|Catalunha', 'Andalucía': 'Andalusia|Andalucía|Andaluzia|Andalousie',
+    'País Vasco': 'Basque Country|País Vasco|Euskadi|País Basco|Pays basque', 'Foral de Navarra': 'Navarre|Navarra',
+    'Aragón': 'Aragon|Aragón', 'Extremadura': 'Extremadura', 'Galicia': 'Galicia|Galiza', 'Castilla y León': 'Castile and Leon|Castilla y León|Castile and León',
+    'Valenciana': 'Valencian Community|Comunidad Valenciana|Comunitat Valenciana', 'Murcia': 'Region of Murcia|Región de Murcia',
+    'Asturias': 'Asturias|Principado de Asturias', 'Cantabria': 'Cantabria', 'Canary Is.': 'Canary Islands|Canarias|Islas Canarias|Ilhas Canárias|Canaries',
+    'Islas Baleares': 'Balearic Islands|Baleares|Islas Baleares|Illes Balears|Mallorca|Majorca', 'La Rioja': 'La Rioja',
+    'Castilla-La Mancha': 'Castilla-La Mancha|Castile-La Mancha', 'Madrid': 'Community of Madrid|Comunidad de Madrid',
+  },
+  IT: {
+    "Valle d'Aosta": "Aosta Valley|Valle d'Aosta", 'Piemonte': 'Piedmont|Piemonte', 'Lombardia': 'Lombardy|Lombardia|Lombardía|Lombardie',
+    'Trentino-Alto Adige': 'Trentino-Alto Adige|South Tyrol|Alto Adige|Südtirol|Trentino', 'Liguria': 'Liguria', 'Emilia-Romagna': 'Emilia-Romagna',
+    'Marche': 'Marche|Le Marche', 'Veneto': 'Veneto', 'Friuli-Venezia Giulia': 'Friuli-Venezia Giulia|Friuli', 'Abruzzo': 'Abruzzo',
+    'Molise': 'Molise', 'Apulia': 'Apulia|Puglia|Pouilles', 'Basilicata': 'Basilicata', 'Calabria': 'Calabria|Calabre', 'Campania': 'Campania|Campanie',
+    'Toscana': 'Tuscany|Toscana|Toscane', 'Sicily': 'Sicily|Sicilia|Sicile|Sizilien', 'Sardegna': 'Sardinia|Sardegna|Cerdeña|Sardenha|Sardaigne',
+    'Umbria': 'Umbria|Ombrie',
+  },
+  FR: {
+    'Hauts-de-France': 'Hauts-de-France', 'Grand Est': 'Grand Est', "Provence-Alpes-Côte-d'Azur": "Provence-Alpes-Côte d'Azur|Provence|Côte d'Azur|PACA",
+    'Auvergne-Rhône-Alpes': 'Auvergne-Rhône-Alpes', 'Nouvelle-Aquitaine': 'Nouvelle-Aquitaine', 'Occitanie': 'Occitania|Occitanie',
+    'Bourgogne-Franche-Comté': 'Bourgogne-Franche-Comté|Burgundy', 'Pays de la Loire': 'Pays de la Loire', 'Bretagne': 'Brittany|Bretagne|Bretaña',
+    'Normandie': 'Normandy|Normandie|Normandía', 'Corse': 'Corsica|Corse|Córcega|Córsega', 'Centre-Val de Loire': 'Centre-Val de Loire',
+    'Île-de-France': 'Île-de-France|Ile-de-France',
+  },
+};
 
 // Landmarks that stand for a city in headlines: name -> [city ascii name, country].
 const LANDMARKS = {
@@ -300,9 +402,9 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     if (countryIdx.has(iso)) for (const w of words.split('|')) addName(w, countryIdx.get(iso), actors);
 
   // Regions (skipped where a country of that name exists, e.g. Hong Kong, Greenland)
-  for (const [name, cc, lat, lon, aliases] of REGIONS) {
+  for (const [name, cc, lat, lon, aliases, kind = 'region'] of [...REGIONS, ...AREAS.map(a => [...a.slice(0, 5), 'area'])]) {
     if (index.has(norm(name))) { console.warn(`  region "${name}" is already a country`); continue; }
-    const idx = addPlace(`r:${name.toLowerCase().replace(/\W+/g, '-')}`, name, 'region', cc, lat, lon);
+    const idx = addPlace(`r:${name.toLowerCase().replace(/\W+/g, '-')}`, name, kind, cc, lat, lon);
     addName(name, idx);
     for (const a of (aliases || '').split('|').filter(Boolean)) addName(a, idx);
   }
@@ -375,14 +477,47 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     for (const i of cities) if (places[i][6] * NAME_SHARE_RATIO < top) set.delete(i);
   }
 
-  // States and provinces
+  // States and provinces. One named like a city anywhere (Quebec, San Juan, Kharkiv) or already a place
+  // (Crimea, México) gets only its qualified forms and aliases, so the city or country keeps the plain name.
+  // Compared unaccented, as the matcher looks accented words up unaccented too (México -> Mexico).
+  const fold = k => k.normalize('NFD').replace(/\p{M}/gu, '');
+  const cityAnywhere = new Set([...cityNames].map(k => fold(k.split('|')[0])));
+  const taken = new Set([...index.keys()].map(fold));   // countries, regions and cities, not other states
+  const clash = n => cityAnywhere.has(fold(norm(n))) || taken.has(fold(norm(n)));
+  const codes = {};             // cc -> postal code -> place index (Brazilian sources write "Campinas (SP)")
+  const stateKeys = new Set();
   for (const f of ne1.features) {
     const p = f.properties;
-    if (!STATE_COUNTRIES.includes(p.iso_a2) || p.latitude == null) continue;
-    if (cityNames.has(`${norm(p.name)}|${p.iso_a2}`)) continue;
-    const idx = addPlace(`a:${p.iso_3166_2}`, STATE_DISPLAY[p.name] ?? p.name, 'state', p.iso_a2, p.latitude, p.longitude);
-    addName(p.name, idx);
-    for (const a of (STATE_ALIASES[p.name] || '').split('|').filter(Boolean)) addName(a, idx);
+    const cc = p.iso_a2;
+    if (!STATE_COUNTRIES.includes(cc) || p.latitude == null || STATE_SKIP.has(p.name) || stateKeys.has(p.iso_3166_2)) continue;
+    stateKeys.add(p.iso_3166_2);
+    const en = STATE_NAME_EN.has(cc) ? p.name_en : null;
+    const own = [p.name, en].filter(n => n && !/[.`()]/.test(n) && (n === en || !n.includes("'") || !en));
+    const plain = STATE_PLAIN.has(p.name) || (!STATE_QUALIFIED_ONLY.has(p.name) && !own.some(clash));
+    // One matched only in qualified form shows that form, so it doesn't read as the city (Lagos State, Kharkiv Oblast).
+    const english = STATE_QUALIFIERS[cc].find(q => q.startsWith('X ')) ?? STATE_QUALIFIERS[cc][0];
+    const base = (own.includes(en) ? en : own[0]) ?? p.name;
+    const display = STATE_DISPLAY[p.name] ?? (plain || base.endsWith(english.slice(1)) ? base : english.replace('X', base));
+    if (!plain && process.env.GEO_DEBUG) console.log(`  qualified only: ${cc} ${p.name}`);
+    const names = new Set((STATE_ALIASES[p.name] || '').split('|').filter(Boolean));
+    for (const n of own) {
+      if (plain) names.add(n);
+      for (const q of STATE_QUALIFIERS[cc]) if (!n.endsWith(q.replace('X ', ' '))) names.add(q.replace('X', n));
+    }
+    const idx = addPlace(`a:${p.iso_3166_2}`, display, 'state', cc, p.latitude, p.longitude);
+    for (const n of names) if (!EXCLUDE.has(norm(n))) addName(n, idx);
+    if (cc === 'BR' && /^[A-Z]{2}$/.test(p.postal ?? '')) (codes.BR ??= {})[p.postal] = idx;
+  }
+  // Regions of Spain, Italy and France, placed at the middle of their provinces.
+  for (const [cc, groups] of Object.entries(REGION_GROUPS)) {
+    for (const [region, list] of Object.entries(groups)) {
+      const parts = ne1.features.map(f => f.properties).filter(p => p.iso_a2 === cc && p.region === region);
+      if (!parts.length) { console.warn(`  region group "${region}": no provinces in ${cc}`); continue; }
+      const [display, ...aliases] = list.split('|');
+      const mean = k => parts.reduce((a, p) => a + p[k], 0) / parts.length;
+      const idx = addPlace(`a:${cc}-${display.toLowerCase().replace(/\W+/g, '-')}`, display, 'state', cc, mean('latitude'), mean('longitude'));
+      for (const n of new Set([display, ...aliases])) if (!clash(n)) addName(n, idx);
+    }
   }
 
   const aliasNamed = new Set();
@@ -409,7 +544,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
   const out = map => Object.fromEntries([...map].filter(([, v]) => v.size).map(([k, v]) => [k, [...v]]));
   const gaz = {
     built: new Date().toISOString().slice(0, 10), places, index: out(index), actors: out(actors),
-    weak: [...WEAK].filter(w => index.has(w)),
+    weak: [...WEAK].filter(w => index.has(w)), codes,
   };
   fs.writeFileSync(OUT_GAZ, JSON.stringify(gaz));
   console.log(`Gazetteer: ${places.length} places (${nCities} cities), ${index.size} names, ${actors.size} actor words -> ${(fs.statSync(OUT_GAZ).size / 1024).toFixed(0)} KB`);
