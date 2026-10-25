@@ -17,7 +17,8 @@
     "bench": "node scripts/bench/main.js",
     "bench:startup": "node scripts/bench/startup.js",
     "bench:idle": "node scripts/bench/idle.js",
-    "bench:article": "electron scripts/bench/article.js"
+    "bench:article": "electron scripts/bench/article.js",
+    "bench:geo": "node scripts/bench/geo.js"
   },
   "build": {
     "appId": "com.polyopticon.newsmonitor",
