@@ -5,6 +5,10 @@
 
 const { defineConfig } = require('@playwright/test');
 
+// On Linux the app must run on the virtual display scripts/playwright.js sets up, or its windows open on the desktop.
+if (process.platform === 'linux' && process.env.POLYOPTICON_XVFB !== '1')
+  throw new Error('Run the e2e tests with `npm run test:e2e` (or test:perf), which keeps their windows off the desktop.');
+
 module.exports = defineConfig({
   testDir: 'tests/e2e',
   outputDir: 'test-results',
