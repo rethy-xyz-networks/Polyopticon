@@ -36,7 +36,8 @@ const fold = s => String(s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowe
 const index = new Map();
 for (const [k, v] of Object.entries(gaz.index)) index.set(fold(k), [...new Set([...(index.get(fold(k)) ?? []), ...v])]);
 const byKey = new Map(gaz.places.map(p => [p[0], p]));
-const KINDS = { city: ['city', 'capital'], landmark: ['city', 'capital'], state: ['state'], country: ['country'], area: ['region'] };
+// Labellers called the same places states or areas (Scotland, Crimea), so either matches either.
+const KINDS = { city: ['city', 'capital'], landmark: ['city', 'capital'], state: ['state', 'region', 'area'], country: ['country'], area: ['region', 'area', 'state'] };
 const sameCc = (label, place) => !label.cc || !place[3] || label.cc.toUpperCase() === place[3];
 // City-states (Hong Kong, Singapore, Macau): the country and its capital share a name, and labels call them
 // either, so a label for one is also the other.
@@ -45,9 +46,17 @@ for (const p of gaz.places) if (p[2] === 'capital') {
   const country = gaz.places.find(c => c[2] === 'country' && c[3] === p[3]);
   if (country && (index.get(fold(p[1])) ?? []).some(i => gaz.places[i] === country)) cityState.set(p[3], [country, p]);
 }
+// States matched only in qualified form ("São Paulo State", "Kharkiv Oblast") under their bare name, as labels write them.
+const QUALIFIER = /\s+(state|province|oblast|region|governorate|department)$/;
+const bareStates = new Map();
+for (const p of gaz.places) if (p[2] === 'state' && QUALIFIER.test(fold(p[1]))) {
+  const k = fold(p[1]).replace(QUALIFIER, '');
+  bareStates.set(k, [...(bareStates.get(k) ?? []), p]);
+}
 /** The gazetteer places a label means (same name, same country, compatible kind). */
 const resolve = label => {
-  const named = (index.get(fold(label.name)) ?? []).map(i => gaz.places[i]).filter(p => sameCc(label, p));
+  const named = [...(index.get(fold(label.name)) ?? []).map(i => gaz.places[i]), ...(bareStates.get(fold(label.name)) ?? [])]
+    .filter(p => sameCc(label, p));
   const pair = cityState.get(label.cc?.toUpperCase());
   if (pair && named.some(p => pair.includes(p))) return pair;
   return named.filter(p => !KINDS[label.kind] || KINDS[label.kind].includes(p[2]));
