@@ -44,7 +44,7 @@ const EXCLUDE = new Set(('mobile reading split nice bath orange university colle
 // place is meant: "in Austin", "Douglas, Georgia", or another place in the same country.
 const WEAK = new Set(('vladimir anna sofia victoria austin alexandria orlando phoenix columbus kennedy douglas stanley ' +
   'lyon leon ariel farah florence lincoln jackson charlotte hamilton aurora marion clayton franklin salem santos sucre ' +
-  'kirov adler murom sokol jordan chad kingston newcastle surrey wellington darwin nelson preston engels').split(' '));
+  'kirov adler murom sokol jordan chad kingston newcastle surrey wellington darwin nelson preston engels roma napoli torino kenia florencia londra').split(' '));
 
 // Words that point at a country without placing the story there: demonyms, armed groups,
 // leaders, institutions. They only place a story when nothing more specific does.
@@ -82,6 +82,42 @@ const COUNTRY_ALIASES = {
   AE: 'UAE|Emirates', FK: 'Falklands', FO: 'Faroe Islands',
 };
 
+// Other languages' names for countries, for feeds in Spanish, Portuguese, French, Italian, German, Dutch, Slovene,
+// Icelandic and Russian. Accented as written: the matcher only folds accents for names the gazetteer has unaccented.
+const COUNTRY_EXONYMS = {
+  US: 'Estados Unidos|EEUU|EE.UU.|EUA|États-Unis|Etats-Unis|Stati Uniti|Vereinigte Staaten|Verenigde Staten|США',
+  GB: 'Reino Unido|Royaume-Uni|Regno Unito|Vereinigtes Königreich|Verenigd Koninkrijk|Gran Bretaña|Grã-Bretanha|Grande-Bretagne',
+  DE: 'Alemania|Alemanha|Allemagne|Germania|Deutschland|Duitsland|Nemčija|Nemčiji|Германия|Германии',
+  FR: 'Francia|França|Frankreich|Frankrijk|Francija|Franciji|Франция|Франции',
+  IT: 'Italia|Itália|Italie|Italien|Italië|Italija|Italiji', ES: 'España|Espanha|Espagne|Spagna|Spanien|Spanje|Španija|Španiji|Испания',
+  BR: 'Brasil|Brésil|Brasile|Brasilien|Brazilië', NL: 'Países Bajos|Países Baixos|Pays-Bas|Paesi Bassi|Niederlande|Nederland|Holanda',
+  BE: 'Bélgica|Belgique|Belgio|Belgien|België', CH: 'Suiza|Suíça|Suisse|Svizzera|Schweiz|Zwitserland|Švica',
+  AT: 'Österreich|Autriche|Áustria|Oostenrijk|Avstrija|Avstriji', SE: 'Suecia|Suécia|Suède|Svezia|Schweden|Zweden',
+  NO: 'Noruega|Norvège|Norvegia|Norwegen|Noorwegen', DK: 'Dinamarca|Danemark|Danimarca|Dänemark|Denemarken',
+  FI: 'Finlandia|Finlândia|Finlande|Finnland', PL: 'Polonia|Polônia|Polónia|Pologne|Polen|Poljska|Poljski',
+  GR: 'Grecia|Grécia|Grèce|Griechenland|Griekenland|Grčija', TR: 'Turquía|Turquia|Turquie|Turchia|Türkei|Turkije|Turčija|Турция',
+  HU: 'Hungría|Hungria|Hongrie|Ungheria|Ungarn|Hongarije|Madžarska', RO: 'Rumania|Rumanía|Romênia|Roménia|Roumanie|Rumänien',
+  CZ: 'Chequia|República Checa|República Tcheca|Tchéquie|Tschechien|Tsjechië|Češka', HR: 'Croacia|Croácia|Croatie|Kroatien|Kroatië|Hrvaška|Hrvaški',
+  RS: 'Serbie|Serbien|Servië|Srbija|Srbiji', SI: 'Eslovenia|Eslovênia|Slovénie|Slowenien|Slovenija|Sloveniji|Slovenije',
+  SK: 'Eslovaquia|Eslováquia|Slovaquie|Slowakei|Slovaška', IE: 'Irlanda|Irlande|Irland|Ierland', IS: 'Islandia|Islândia|Islande|Ísland|Íslandi|Íslands',
+  RU: 'Rusia|Rússia|Russie|Russland|Rusland|Rusija|Rusiji|Россия|России|Россию', UA: 'Ucrania|Ucrânia|Ucraina|Oekraïne|Ukrajina|Ukrajini|Украина|Украины|Украине|Украину',
+  BY: 'Bielorrusia|Bielorrússia|Biélorussie|Weißrussland|Belarús', GE: 'Géorgie',
+  EG: 'Egipto|Egito|Égypte|Egitto|Ägypten|Egypte', MA: 'Marruecos|Marrocos|Maroc|Marocco|Marokko', DZ: 'Argelia|Argélia|Algérie|Algerien',
+  TN: 'Túnez|Tunísia|Tunisie', LY: 'Libia|Líbia|Libye|Libyen', ZA: 'Sudáfrica|África do Sul|Afrique du Sud|Sudafrica|Südafrika|Zuid-Afrika',
+  ET: 'Etiopía|Etiópia|Éthiopie|Äthiopien', KE: 'Kenia|Quênia|Quénia', CM: 'Camerún|Camarões|Cameroun|Kamerun',
+  CI: 'Costa de Marfil|Costa do Marfim', CD: 'República Democrática del Congo|República Democrática do Congo|RDC',
+  SA: 'Arabia Saudita|Arabia Saudí|Arábia Saudita|Arabie saoudite|Arabie Saoudite|Saudi-Arabien',
+  AE: 'Emiratos Árabes Unidos|Emirados Árabes Unidos|Émirats arabes unis|EAU', QA: 'Catar', IQ: 'Irak|Iraque',
+  SY: 'Siria|Síria|Syrie|Syrien', LB: 'Líbano|Liban|Libano|Libanon', JO: 'Jordania|Jordânia|Jordanie|Jordanien',
+  YE: 'Iémen|Iêmen|Yémen|Jemen', IL: 'Israël|Израиль|Израиля', IR: 'Irã|Иран', PS: 'Palestina',
+  AF: 'Afganistán|Afeganistão', PK: 'Pakistán|Paquistão', IN: 'Inde|Indien|Индия', CN: 'Chine|Cina|Китай|Китая',
+  JP: 'Japón|Japão|Japon|Giappone|Japonska|Японии|Япония', KR: 'Corea del Sur|Coreia do Sul|Corée du Sud|Corea del Sud|Südkorea|Zuid-Korea',
+  KP: 'Corea del Norte|Coreia do Norte|Corée du Nord|Corea del Nord|Nordkorea|Noord-Korea', TH: 'Tailandia|Tailândia|Thaïlande',
+  PH: 'Filipinas', MY: 'Malasia|Malásia|Malaisie', VN: 'Vietnã', NZ: 'Nueva Zelanda|Nova Zelândia|Nouvelle-Zélande|Neuseeland',
+  DO: 'República Dominicana|République dominicaine', PY: 'Paraguai', EC: 'Equador', GL: 'Groenlandia|Groenlândia|Groenland|Grönland',
+  VA: 'Vaticano|Ciudad del Vaticano|Cidade do Vaticano', CY: 'Chipre|Chypre',
+};
+
 // Display names for countries whose Natural Earth name reads oddly in a list.
 const COUNTRY_DISPLAY = { FK: 'Falkland Islands', FO: 'Faroe Islands', SZ: 'Eswatini', MO: 'Macau', BL: 'Saint Barthélemy', MF: 'Saint Martin' };
 
@@ -103,7 +139,12 @@ const REGIONS = [
 
 // States and provinces (Natural Earth admin-1) for these countries. Extra names: NE name -> aliases.
 const STATE_COUNTRIES = ['US', 'CA', 'AU', 'IN', 'CN'];
-const STATE_ALIASES = { Xizang: 'Tibet', 'Inner Mongol': 'Inner Mongolia', Odisha: 'Orissa', 'British Columbia': 'B.C.' };
+const STATE_ALIASES = {
+  Xizang: 'Tibet', 'Inner Mongol': 'Inner Mongolia', Odisha: 'Orissa', 'British Columbia': 'B.C.',
+  'New Mexico': 'Nuevo México|Novo México|Nouveau-Mexique', 'New Jersey': 'Nueva Jersey|Nova Jersey', Hawaii: 'Hawái|Havaí',
+  'North Carolina': 'Carolina del Norte|Carolina do Norte', 'South Carolina': 'Carolina del Sur|Carolina do Sul',
+  Louisiana: 'Luisiana', Pennsylvania: 'Pensilvania|Pensilvânia|Pennsylvanie',
+};
 const STATE_DISPLAY = { Xizang: 'Tibet', 'Inner Mongol': 'Inner Mongolia' };
 
 // Landmarks that stand for a city in headlines: name -> [city ascii name, country].
@@ -158,6 +199,29 @@ const CITY_ALIASES = [
   ['Kathmandu', 'Kathmandu', 'NP'], ['Katmandu', 'Kathmandu', 'NP'], ['The Bronx', 'The Bronx', 'US'], ['Bronx', 'The Bronx', 'US'],
   ['Johannesburg', 'Johannesburg', 'ZA'], ['Joburg', 'Johannesburg', 'ZA'], ['Philadelphia', 'Philadelphia', 'US'], ['Philly', 'Philadelphia', 'US'],
 ];
+
+// Other languages' names for cities: "ascii name|country" -> names. Unlike CITY_ALIASES they don't rename the city.
+const CITY_EXONYMS = {
+  'New York City|US': 'Nueva York|Nova York|Nova Iorque', 'London|GB': 'Londres|Londra',
+  'Moscow|RU': 'Moscú|Moscou|Mosca|Moskau|Moskou|Moskva|Москва|Москве|Москвы', 'Beijing|CN': 'Pekín|Pequim|Pékin|Pechino',
+  'Tokyo|JP': 'Tokio|Tóquio', 'New Delhi|IN': 'Nueva Delhi|Nova Délhi|Nova Deli', 'Brussels|BE': 'Bruselas|Bruxelas|Bruxelles|Brüssel|Bruxelles-Capitale',
+  'Vienna|AT': 'Viena|Wien', 'Athens|GR': 'Atenas|Athènes|Atene|Athen',
+  'Warsaw|PL': 'Varsovia|Varsóvia|Varsovie|Warschau', 'Prague|CZ': 'Praga|Prag', 'Stockholm|SE': 'Estocolmo',
+  'Copenhagen|DK': 'Copenhague|Kopenhagen', 'Lisbon|PT': 'Lisboa|Lisbonne|Lissabon', 'Milan|IT': 'Milán|Milão|Milano|Mailand',
+  'Naples|IT': 'Nápoles|Napoli|Neapel', 'Florence|IT': 'Florencia|Florença|Firenze|Florenz',
+  'Turin|IT': 'Turín|Turim', 'Rome|IT': 'Roma', 'Munich|DE': 'Múnich|Munique|München|Monaco di Baviera', 'Koeln|DE': 'Köln',
+  'Istanbul|TR': 'Estambul|Istambul|İstanbul', 'Cairo|EG': 'El Cairo|Le Caire|Il Cairo', 'Jerusalem|IL': 'Jerusalén|Jerusalém|Jérusalem|Gerusalemme',
+  'Tehran|IR': 'Teherán|Teerã|Téhéran|Teheran|Тегеран', 'Baghdad|IQ': 'Bagdad|Bagdá', 'Damascus|SY': 'Damasco', 'Beirut|LB': 'Beyrouth',
+  'Kyiv|UA': 'Kiev|Kiew|Kijev|Kijevu|Киев|Киева|Киеве|Київ', 'Krakow|PL': 'Cracovia|Cracóvia|Cracovie|Kraków', 'Edinburgh|GB': 'Edimburgo',
+  'Mexico City|MX': 'Ciudad de México|Cidade do México', 'Guatemala City|GT': 'Ciudad de Guatemala', 'Panama City|PA': 'Ciudad de Panamá',
+  'New Orleans|US': 'Nueva Orleans|Nova Orleans|La Nouvelle-Orléans', 'Philadelphia|US': 'Filadelfia|Filadélfia',
+  'Saint Petersburg|RU': 'San Petersburgo|São Petersburgo|Saint-Pétersbourg|San Pietroburgo|Sankt Petersburg|Петербург|Петербурге',
+  'Cape Town|ZA': 'Ciudad del Cabo|Cidade do Cabo', 'Havana|CU': 'La Habana|Habana|Havane|L\'Avana', 'Sevilla|ES': 'Sevilla|Sevilha|Séville',
+  'Zaragoza|ES': 'Saragossa|Saragosse', 'Barcelona|ES': 'Barcelone', 'Marseille|FR': 'Marsella|Marselha|Marsiglia',
+  'Hamburg|DE': 'Hambourg|Amburgo', 'Berlin|DE': 'Berlino', 'Paris|FR': 'Parigi', 'Ljubljana|SI': 'Ljubljani|Ljubljane|Liubliana',
+  'Reykjavik|IS': 'Reykjavík|Reykjavíkur', 'Bucharest|RO': 'Bucarest|Bucareste|București', 'Budapest|HU': 'Budapeste',
+  'The Hague|NL': 'La Haya|Haia|La Haye|Den Haag|L\'Aia', 'Antwerp|BE': 'Amberes|Antuérpia|Anvers|Antwerpen',
+};
 
 // helpers
 
@@ -230,7 +294,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     const idx = addPlace(`c:${iso}`, display, 'country', iso, ne.LABEL_Y, ne.LABEL_X);
     countryIdx.set(iso, idx);
     for (const n of new Set([name, ne.NAME, ne.NAME_LONG, ne.ADMIN, ne.NAME_EN, display].filter(Boolean))) if (!n.includes('.')) addName(n, idx);
-    for (const n of (COUNTRY_ALIASES[iso] || '').split('|').filter(Boolean)) addName(n, idx);
+    for (const n of `${COUNTRY_ALIASES[iso] || ''}|${COUNTRY_EXONYMS[iso] || ''}`.split('|').filter(Boolean)) addName(n, idx);
   }
   for (const [iso, words] of Object.entries(ACTORS))
     if (countryIdx.has(iso)) for (const w of words.split('|')) addName(w, countryIdx.get(iso), actors);
@@ -318,7 +382,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     if (cityNames.has(`${norm(p.name)}|${p.iso_a2}`)) continue;
     const idx = addPlace(`a:${p.iso_3166_2}`, STATE_DISPLAY[p.name] ?? p.name, 'state', p.iso_a2, p.latitude, p.longitude);
     addName(p.name, idx);
-    if (STATE_ALIASES[p.name]) addName(STATE_ALIASES[p.name], idx);
+    for (const a of (STATE_ALIASES[p.name] || '').split('|').filter(Boolean)) addName(a, idx);
   }
 
   const aliasNamed = new Set();
@@ -328,6 +392,12 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     if (!aliasNamed.has(idx) && alias.length > 3) { places[idx][1] = alias; aliasNamed.add(idx); }   // first alias = display name (news spelling)
     index.delete(norm(alias));              // the alias is authoritative
     addName(alias, idx);
+  }
+  for (const [city, names] of Object.entries(CITY_EXONYMS)) {
+    const [ascii, cc] = city.split('|');
+    const idx = cityByKey.get(`${ascii.toLowerCase()}|${cc}`);
+    if (idx == null) { console.warn(`  exonyms: no city "${city}"`); continue; }
+    for (const n of names.split('|')) { index.delete(norm(n)); addName(n, idx); }
   }
   for (const [mark, [cityName, cc]] of Object.entries(LANDMARKS)) {
     const idx = cityByKey.get(`${cityName.toLowerCase()}|${cc}`);

@@ -32,6 +32,30 @@ test('accents do not stop a match', () => {
   assert.deepEqual(names('Toque de queda en París'), ['Paris']);
 });
 
+test('other languages\' names for countries and cities', () => {
+  assert.deepEqual(names('Francia y Alemania firman un acuerdo'), ['France', 'Germany']);
+  assert.deepEqual(names('Tiroteio em Nova York deixa dois mortos'), ['New York']);
+  assert.deepEqual(names('EE. UU. impone aranceles a China'), ['United States', 'China']);
+  assert.deepEqual(names('Россия и Украина обменялись пленными'), ['Russia', 'Ukraine']);
+  assert.deepEqual(names('Lluvias en Nuevo México'), ['New Mexico']);       // not Mexico
+  // Ones that are also names or clubs need a place context
+  assert.deepEqual(names('El papa celebra misa en Roma'), ['Rome']);
+  assert.deepEqual(names('AS Roma beat Lazio in the derby'), []);
+  assert.deepEqual(names('La diputada Kenia López Rabadán propone castigos'), []);
+});
+
+test('other languages\' names for countries and cities', () => {
+  assert.deepEqual(names('Francia y Alemania firman un acuerdo'), ['France', 'Germany']);
+  assert.deepEqual(names('Tiroteio em Nova York deixa dois mortos'), ['New York']);
+  assert.deepEqual(names('EE. UU. impone aranceles a China'), ['United States', 'China']);
+  assert.deepEqual(names('Россия и Украина обменялись пленными'), ['Russia', 'Ukraine']);
+  assert.deepEqual(names('Lluvias en Nuevo México'), ['New Mexico']);       // not Mexico
+  // Ones that are also names or clubs need a place context
+  assert.deepEqual(names('El papa celebra misa en Roma'), ['Rome']);
+  assert.deepEqual(names('AS Roma beat Lazio in the derby'), []);
+  assert.deepEqual(names('La diputada Kenia López Rabadán propone castigos'), []);
+});
+
 test('a currency prefix is not a country', () => {
   assert.deepEqual(names('Honduras Remittances Top US$10 Billion'), ['Honduras']);
   assert.deepEqual(names('Petrobras lucra R$ 30 bilhões'), []);

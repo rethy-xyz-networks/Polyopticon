@@ -21,7 +21,7 @@
 
 const gaz = require('./gazetteer.json');
 
-const VERSION = 3;                 // bump when results change, so stored items are re-tagged
+const VERSION = 4;                 // bump when results change, so stored items are re-tagged
 const MAX_WORDS = 4;
 const MAX_PLACES = 3;
 const SUMMARY_CHARS = 400;
@@ -71,7 +71,8 @@ const PLACE_NEXT = new Set(('City Province Region Oblast Governorate District Co
 // Capitalised words before a weak name that keep it a place (Northern Victoria, Greater Columbus).
 const PLACE_PREV = new Set(('North South East West Northern Southern Eastern Western Central Greater Upper Lower Old ' +
   'New Downtown Occupied Coastal Rural Suburban Metro In At Near From To Outside Across Around').split(' '));
-const LOCATIVE = new Set('in at near from to into outside across around toward towards inside via off over through throughout within of'.split(' '));
+const LOCATIVE = new Set(('in at near from to into outside across around toward towards inside via off over through throughout within of ' +
+  'en em no na à dans nel nella desde').split(' '));   // and in Spanish, Portuguese, French, Italian
 // Prepositions that say an event happened there (more than "to" or "of" do).
 const SETTING = new Set('in at near outside inside across around throughout within'.split(' '));
 const ARTICLES = new Set('al el ad ash as an ar at az'.split(' '));
@@ -90,13 +91,14 @@ const isFirstWord = k => firstWords.has(k) || firstWords.has(unaccent(k));
 // Tokens
 
 /** Words with their offsets. Hyphens split words (US-Iran, Al-Mukalla) since names are
- *  indexed with spaces; "'s", closing quotes and trailing dots go, except in acronyms (U.S.). */
+ *  indexed with spaces; "'s", closing quotes and trailing dots go, except in acronyms (U.S., EE.UU.). */
 function tokenize(text) {
   const out = [];
+  if (text.includes('EE. UU.')) text = text.replace(/EE\. UU\./g, 'EE.UU. ');   // Spanish "EE. UU.", same length so offsets hold
   for (const m of text.matchAll(/[\p{L}\p{N}][\p{L}\p{N}.'’]*/gu)) {
     let w = m[0];
     if (w.includes("'") || w.includes('’')) w = w.replace(/['’]s$/u, '').replace(/['’]+$/u, '');
-    if (w.endsWith('.') && !/^(\p{Lu}\.)+$/u.test(w)) w = w.replace(/\.+$/, '');
+    if (w.endsWith('.') && !/^(\p{Lu}{1,2}\.)+$/u.test(w)) w = w.replace(/\.+$/, '');
     if (!w) continue;
     out.push({ w, start: m.index, end: m.index + w.length });
   }
