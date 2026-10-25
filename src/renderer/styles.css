@@ -23,6 +23,7 @@
   --map-land: #1d2228;
   --map-border: #3a4048;
   --map-pin-edge: rgba(255, 255, 255, .75);   /* outline that keeps dark site colours visible */
+  --map-shade: #d9707a;                         /* a country with stories about it */
   color-scheme: dark;
 }
 :root[data-theme="light"] {
@@ -49,6 +50,7 @@
   --map-land: #f4f2ee;
   --map-border: #a9b0b8;
   --map-pin-edge: rgba(0, 0, 0, .6);
+  --map-shade: #b23a44;
   color-scheme: light;
 }
 
@@ -489,6 +491,8 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .map-legend svg { display: block; }
 .map-legend path, .map-cluster path { stroke: var(--map-pin-edge); stroke-width: 1; }
 .map-legend circle, .map-cluster circle { fill: #fff; }
+.map-legend-shade { display: inline-block; width: 12px; height: 9px; border: 1px solid var(--map-border);
+  background: color-mix(in srgb, var(--map-shade) 45%, var(--map-land)); }
 
 /* Bias chart (bias.js) */
 .bias-view { position: absolute; inset: 0; display: none; flex-direction: column; background: var(--panel-bg); z-index: 0; }

@@ -1,10 +1,11 @@
 // Map view: where the stories in the live list are happening. Places come from
-// the offline gazetteer (tagged in the feed worker). Every story is a pin in its
+// the offline gazetteer (tagged in the feed worker). A story about a whole country
+// shades the country, darker with more stories. Every other story is a pin in its
 // site's colour, faded with age. A place's pins, and those of places that would
 // overlap at the current zoom, gather in one cluster that stops growing at
-// CLUSTER_PINS pins; its number is the count of stories. Clicking a cluster lists
-// all its stories, with a search box. Fully offline: Natural Earth country
-// outlines, no tile server.
+// CLUSTER_PINS pins; its number is the count of stories. Clicking a cluster or a
+// shaded country lists all its stories, with a search box. Fully offline: Natural
+// Earth country outlines, no tile server.
 
 import * as L from '../../node_modules/leaflet/dist/leaflet-src.esm.js';
 import { $, h, relTime, formatTime } from './dom.js';
@@ -22,9 +23,15 @@ const PIN_PATH = 'M0 0C-1.2-3.6-5-6.2-5-10a5 5 0 0 1 10 0c0 3.8-3.8 6.4-5 10z';
 const CLUSTER_PINS = 30;
 const LIST_ROWS = 200;           // rows in a cluster's list before "narrow the search"
 const PLACES_LISTED = 10;        // places named in a merged cluster's header
+// A country this small (degrees across) can't be seen shaded at world zoom: it gets a pin (Singapore, Bahrain).
+const SMALL_COUNTRY = 1.5;
+const SHADES = [[15, 0.8], [5, 0.6], [2, 0.42], [1, 0.22]];   // [stories at least, fill opacity]
 
 let map = null;
 let world = null;            // GeoJSON country layer
+let shadeLayer = null;       // shaded countries, rebuilt when their stories change
+let shadeSig = '';
+const countryShapes = new Map();   // ISO code -> GeoJSON features (only countries big enough to shade)
 let markers = new Map();     // cluster anchor place key -> marker
 let markerLayer = null;
 let windowMs = 24 * 3600e3;
@@ -119,12 +126,24 @@ async function createMap() {
     e.popup.getElement()?.querySelector('input')?.focus();
   });
   map.on('popupclose', () => { popupOpen = false; if (dirty) refresh(true); });
-  map.on('tooltipopen', e => fitTooltip(e.tooltip));
+  map.on('tooltipopen', e => { if (!e.tooltip.options.sticky) fitTooltip(e.tooltip); });   // a country's follows the mouse
 
   const geo = await (await fetch('assets/world.geojson')).json();
   world = L.geoJSON(geo, { style: worldStyle, interactive: false }).addTo(map);
   world.bringToBack();
   map.attributionControl.addAttribution('Natural Earth · GeoNames');
+  const spans = new Map();
+  for (const f of geo.features) {
+    const iso = f.properties.iso;
+    if (!iso) continue;
+    if (!countryShapes.has(iso)) countryShapes.set(iso, []);
+    countryShapes.get(iso).push(f);
+    const b = L.geoJSON(f).getBounds(), [w, h0] = spans.get(iso) ?? [0, 0];
+    spans.set(iso, [Math.max(w, b.getEast() - b.getWest()), Math.max(h0, b.getNorth() - b.getSouth())]);
+  }
+  for (const [iso, [w, h0]] of spans) if (Math.max(w, h0) < SMALL_COUNTRY) countryShapes.delete(iso);
+  shadeLayer = L.layerGroup().addTo(map);
+  refresh(true);                               // countries drawn as pins until the outlines loaded
 }
 
 function worldStyle() {
@@ -134,6 +153,42 @@ function worldStyle() {
 /** Theme changed. */
 export function applyMapAppearance() {
   world?.setStyle(worldStyle());
+  shadeSig = '';
+  if (open) refresh(true);
+}
+
+/** A shaded country's style: darker with more stories, outlined when it's the feed's place filter. */
+function shadeStyle(n, on) {
+  return {
+    fillColor: css('--map-shade'), fillOpacity: SHADES.find(([min]) => n >= min)[1],
+    color: on ? css('--accent') : css('--map-border'), weight: on ? 2 : 0.6,
+  };
+}
+
+const isShaded = p => p.key.startsWith('c:') && countryShapes.has(p.key.slice(2));
+
+/** One list of stories, as a cluster's popup shows them, for a place on its own. */
+const single = p => ({ places: [p], keys: [p.key], name: p.name, anchor: p, stories: p.items.map(it => ({ it, place: p.name })) });
+
+function drawShades(countries, filtered) {
+  const sig = [...countries].map(p => `${p.key}:${p.items.length}:${filtered.has(p.key) ? 1 : 0}:${p.items.slice(0, 1).map(it => it.id)}`).join();
+  if (sig === shadeSig) return;
+  shadeSig = sig;
+  shadeLayer.clearLayers();
+  for (const p of countries) {
+    const n = p.items.length;
+    const layer = L.geoJSON(countryShapes.get(p.key.slice(2)), { style: () => shadeStyle(n, filtered.has(p.key)) });
+    layer.bindTooltip(`${p.name} · ${n} stor${n === 1 ? 'y' : 'ies'}`, { sticky: true, direction: 'top' });
+    layer.on('click', e => L.popup({ maxWidth: 440, minWidth: 360, className: 'map-popup', autoPanPadding: [20, 20] })
+      .setLatLng(e.latlng).setContent(popupFor(single(p))).openOn(map));
+    shadeLayer.addLayer(layer);
+  }
+}
+
+/** Where a place is drawn, in page pixels (for the tests, which can't see into the canvas). */
+export function placePoint(lat, lon) {
+  const pt = map.latLngToContainerPoint([lat, lon]), box = map.getContainer().getBoundingClientRect();
+  return { x: box.left + pt.x, y: box.top + pt.y };
 }
 
 // Data
@@ -225,8 +280,10 @@ function refreshNow(force) {
   if (popupOpen) { dirty = true; return; }   // redrawn when the list closes
   dirty = false;
   const places = aggregate();
-  const clusters = clusterPlaces(places);
   const filtered = new Set(state.placeFilter?.keys ?? []);
+  const countries = [...places.values()].filter(isShaded);
+  if (shadeLayer) drawShades(countries, filtered);
+  const clusters = clusterPlaces(new Map([...places].filter(([, p]) => !isShaded(p))));
   const live = new Set();
   for (const c of clusters) {
     const on = c.keys.some(k => filtered.has(k));

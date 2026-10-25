@@ -1,6 +1,7 @@
 'use strict';
 
-// The map: stories as pins in their site's colour, gathered into clusters by place.
+// The map: stories as pins in their site's colour, gathered into clusters by place; stories
+// about a whole country shade it.
 
 const { test, expect } = require('./fixtures');
 
@@ -31,15 +32,14 @@ test('stories are pins in their site\'s colour; nearby places share a cluster th
   const [colorA, colorB] = await addStories(window);
   await window.locator('#search').fill('mapsynth');          // only the synthetic stories, whatever the feeds bring in
 
-  // Jerusalem and Tel Aviv overlap at world zoom, so they share a cluster; France is its own.
+  // Jerusalem and Tel Aviv overlap at world zoom, so they share a cluster; France is shaded, not a pin.
   const clusters = window.locator('.map-cluster');
-  await expect(clusters).toHaveCount(2);
+  await expect(clusters).toHaveCount(1);
   const levant = clusters.filter({ has: window.locator('.map-count', { hasText: /^8$/ }) });
   await expect(levant.locator('path')).toHaveCount(8);       // a pin per story
   const fills = await levant.locator('path').evaluateAll(ps => ps.map(p => p.getAttribute('fill')));
   expect(fills.filter(f => f === colorA)).toHaveLength(5);
   expect(fills.filter(f => f === colorB)).toHaveLength(3);
-  await expect(clusters.filter({ hasNot: window.locator('.map-count') }).locator('path')).toHaveCount(1);   // France: one story, no number
 
   // The list, with a search box that has the focus
   await levant.click();
@@ -65,16 +65,31 @@ test('stories are pins in their site\'s colour; nearby places share a cluster th
   expect(window.pageErrors).toEqual([]);
 });
 
+test('a country\'s stories shade it; hovering names it and clicking lists them', async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await addStories(window);
+  await window.locator('#search').fill('mapsynth');
+  await expect(window.locator('.map-cluster')).toHaveCount(1);
+  const at = await window.evaluate(async ([, , lat, lon]) => (await import('./map.js')).placePoint(lat, lon), FRANCE);
+  await window.mouse.move(at.x, at.y);
+  await expect(window.locator('.leaflet-tooltip')).toContainText('France · 1 story');
+  await window.mouse.click(at.x, at.y);
+  await expect(window.locator('.map-pop-head')).toContainText('France');
+  await expect(window.locator('.map-pop-list li')).toHaveCount(1);
+  await expect(window.locator('.map-pop-search')).toBeFocused();
+  expect(window.pageErrors).toEqual([]);
+});
+
 test('zooming in splits a cluster into its places', async ({ window }) => {
   await expect(window.locator('#source-groups .source').first()).toBeVisible();
   await addStories(window);
   await window.locator('#search').fill('mapsynth');
   const clusters = window.locator('.map-cluster');
-  await expect(clusters).toHaveCount(2);
+  await expect(clusters).toHaveCount(1);
   const zoomIn = window.locator('.leaflet-control-zoom-in');
   for (let i = 0; i < 6; i++) { await zoomIn.click(); await window.waitForTimeout(350); }
   // The Levant may now be off-screen, but Jerusalem and Tel Aviv are separate markers.
-  await expect.poll(() => clusters.count()).toBe(3);
+  await expect.poll(() => clusters.count()).toBe(2);
   expect(window.pageErrors).toEqual([]);
 });
 
