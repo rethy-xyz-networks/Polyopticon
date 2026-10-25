@@ -21,7 +21,7 @@
 
 const gaz = require('./gazetteer.json');
 
-const VERSION = 2;                 // bump when results change, so stored items are re-tagged
+const VERSION = 3;                 // bump when results change, so stored items are re-tagged
 const MAX_WORDS = 4;
 const MAX_PLACES = 3;
 const SUMMARY_CHARS = 400;
@@ -29,6 +29,17 @@ const SUMMARY_CHARS = 400;
 // Called for every word of every headline: the replacements only run when there is something to replace.
 const norm = s => { const l = s.toLowerCase(); return l.includes('’') ? l.replace(/’/g, "'") : l; };
 const key  = s => { const n = norm(s); return n.includes('-') ? n.replace(/-/g, ' ') : n; };      // the tokenizer splits on hyphens
+
+// A name written with accents that the gazetteer has without them (México, Perú, París) is looked up
+// unaccented too. Only the text is folded: folding the gazetteer's own accented names would revive names
+// it leaves out on purpose (Dūmā -> "Duma", Salé -> "sale").
+const NON_ASCII = /[^\x00-\x7f]/;
+// Accented words that are not the unaccented English place: the Americas (América Latina, Club América), a first
+// name (Germán), the Spanish word for river (Pinar del Río).
+const KEEP_ACCENT = new Set(['américa', 'germán', 'río']);
+const unaccent = k => NON_ASCII.test(k) && !k.split(' ').some(w => KEEP_ACCENT.has(w)) ? k.normalize('NFD').replace(/\p{M}/gu, '') : null;
+/** A map entry by key, else by its unaccented form. */
+const find = (map, k) => map.get(k) ?? (map.has(unaccent(k)) ? map.get(unaccent(k)) : undefined);
 
 /** name -> candidates, with hyphenated names (Rostov-on-Don) under their spaced form. */
 function nameMap(obj) {
@@ -68,12 +79,13 @@ const ARTICLES = new Set('al el ad ash as an ar at az'.split(' '));
 // ASCII letters decide without a regex (most words are ASCII).
 const isCap = w => { const c = w.charCodeAt(0); return c < 128 ? c >= 65 && c <= 90 : /^\p{Lu}/u.test(w); };
 const isUpper = w => w === w.toUpperCase() && /\p{L}/u.test(w);
-const lookup = phrase => index.get(key(phrase)) ?? null;
+const lookup = phrase => find(index, key(phrase)) ?? null;
 
 // The first word of every name in the gazetteer. A capitalised word that starts none of them can't begin a
 // place, so its 1-4 word phrases are not looked up at all (most capitalised words in a headline).
 const firstWords = new Set();
 for (const map of [index, actors]) for (const k of map.keys()) firstWords.add(k.split(' ')[0]);
+const isFirstWord = k => firstWords.has(k) || firstWords.has(unaccent(k));
 
 // Tokens
 
@@ -117,29 +129,31 @@ function mentions(text, seg) {
   const tokens = tokenize(text);
   const noCase = caseless(tokens);
   const out = [];
-  const isPlace = w => index.has(key(w));
+  const isPlace = w => find(index, key(w)) != null;
   for (let i = 0; i < tokens.length;) {
     let matched = 0;
     const t = tokens[i];
-    if (isCap(t.w) && firstWords.has(key(t.w)) && !(ARTICLES.has(norm(t.w)) && tokens[i + 1]?.joined)) {
+    if (isCap(t.w) && isFirstWord(key(t.w)) && !(ARTICLES.has(norm(t.w)) && tokens[i + 1]?.joined)) {
       for (let n = Math.min(MAX_WORDS, tokens.length - i); n >= 1; n--) {
         const words = tokens.slice(i, i + n);
         if (words.slice(1).some(w => !w.joined && /[,.;:!?]/.test(w.gap))) continue;   // a phrase doesn't cross punctuation
         const phrase = key(words.map(w => w.w).join(' '));
-        const cands = index.get(phrase) ?? null;
-        const actor = actors.get(phrase)?.[0];
+        const cands = find(index, phrase) ?? null;
+        const actor = find(actors, phrase)?.[0];
         if (!cands && actor == null) continue;
         if (phrase.length <= 2 && !isUpper(t.w)) continue;   // US, UK, LA must be in caps
         matched = n;
         const prev = tokens[i - 1], next = tokens[i + n];
         const after = text.slice(words[n - 1].end, next ? next.start : undefined);
 
+        // A currency: US$, R$, NZ$
+        if (after.startsWith('$')) break;
         // A publication or company: Jerusalem Post, Times of India, Sapporo Breweries
         if (next && /^\s+$/.test(after) && (ORG_NEXT.has(next.w) || COMPANY_NEXT.has(next.w.toLowerCase()))) break;
         if (prev && norm(prev.w) === 'of' && tokens[i - 2]?.w === 'Times') break;
 
         const prevWord = prev && /^\s+$/.test(t.gap) ? prev.w.toLowerCase() : null;
-        const m = { pos: t.start, n, phrase, seg, weak: weak.has(phrase), evidence: false, noCase, setting: SETTING.has(prevWord) };
+        const m = { pos: t.start, n, phrase, seg, weak: weak.has(phrase) || weak.has(unaccent(phrase)), evidence: false, noCase, setting: SETTING.has(prevWord) };
         if (cands) m.cands = cands; else m.actor = actor;
 
         if (m.weak) {
@@ -182,7 +196,7 @@ function gdeltMentions(summary) {
     if (parts.length === 1) {
       const cands = lookup(countryName);
       if (cands) out.push({ ...at, phrase: countryName, cands });
-      else if (actors.has(key(countryName))) out.push({ ...at, phrase: countryName, actor: actors.get(key(countryName))[0] });
+      else if (find(actors, key(countryName))) out.push({ ...at, phrase: countryName, actor: find(actors, key(countryName))[0] });
       continue;
     }
     const cc = country != null ? places[country][3] : null;

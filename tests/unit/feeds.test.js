@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { parseFeed, undatedPublished, itemTitle } = require('../../src/main/adapters/rss');
-const { decodeEntities, cleanHtml, trunc, headline, hash, parseDate, splitCredentials } = require('../../src/main/adapters/util');
+const { decodeEntities, cleanHtml, trunc, headline, hash, parseDate, splitCredentials, feedText } = require('../../src/main/adapters/util');
 
 // Feed parsing
 
@@ -128,4 +128,12 @@ test('itemTitle: real titles are kept, even ones mentioning "no title"', () => {
   assert.equal(itemTitle({ title: 'No title defence for champion after loss', summary: 'Body' }), 'No title defence for champion after loss');
   assert.equal(itemTitle({ title: '[No Title]', summary: '' }), '[No Title]');      // nothing better available
   assert.equal(itemTitle({ title: null, summary: null }), '(no title)');
+});
+
+test('feedText: reads the charset from the header, else the XML declaration', async () => {
+  const latin1 = Buffer.from('<?xml version="1.0" encoding="ISO-8859-1"?><t>S\xe3o Paulo</t>', 'latin1');
+  assert.match(await feedText(new Response(latin1, { headers: { 'content-type': 'text/xml' } })), /São Paulo/);
+  assert.match(await feedText(new Response(latin1, { headers: { 'content-type': 'text/xml; charset=iso-8859-1' } })), /São Paulo/);
+  assert.match(await feedText(new Response('<t>São Paulo</t>', { headers: { 'content-type': 'text/xml' } })), /São Paulo/);
+  assert.match(await feedText(new Response('<t>ok</t>', { headers: { 'content-type': 'text/xml; charset=bogus' } })), /ok/);
 });

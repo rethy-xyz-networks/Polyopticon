@@ -27,6 +27,16 @@ test('short codes only match in capitals', () => {
   assert.deepEqual(names('Let us know'), []);
 });
 
+test('accents do not stop a match', () => {
+  assert.deepEqual(names('La Bolsa de México repunta un 1,43 %'), ['Mexico']);
+  assert.deepEqual(names('Toque de queda en París'), ['Paris']);
+});
+
+test('a currency prefix is not a country', () => {
+  assert.deepEqual(names('Honduras Remittances Top US$10 Billion'), ['Honduras']);
+  assert.deepEqual(names('Petrobras lucra R$ 30 bilhões'), []);
+});
+
 test('uses other places and the source country to resolve ambiguous names', () => {
   const georgia = (title, cc) => geotag({ title }, { cc }).find(p => p[1] === 'Georgia');
   assert.ok(georgia('Storms hit Atlanta, Georgia overnight')[3] < -60, 'US state next to Atlanta');

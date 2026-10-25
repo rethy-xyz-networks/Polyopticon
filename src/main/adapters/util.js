@@ -54,6 +54,17 @@ async function request(url, { signal, headers = {}, method = 'GET', body, timeou
   return resp;
 }
 
+/**
+ * A feed body as text, in the charset the server or the XML declaration names. `resp.text()` always reads
+ * UTF-8, which garbles feeds that are still Latin-1 (Folha's `<?xml … encoding="ISO-8859-1"?>`).
+ */
+async function feedText(resp) {
+  const bytes = new Uint8Array(await resp.arrayBuffer());
+  const charset = /charset=["']?([\w-]+)/i.exec(resp.headers.get('content-type') ?? '')?.[1]
+    ?? /^\s*<\?xml[^>]*encoding=["']([\w-]+)/i.exec(new TextDecoder('latin1').decode(bytes.subarray(0, 200)))?.[1];
+  try { return new TextDecoder(charset || 'utf-8').decode(bytes); } catch { return new TextDecoder().decode(bytes); }   // unknown label
+}
+
 async function getJson(url, opts) {
   const resp = await request(url, { ...opts, headers: { Accept: 'application/json', ...opts?.headers } });
   const text = await resp.text();
@@ -169,6 +180,6 @@ function parseDate(raw) {
 const sanePublished = ms => Math.min(ms, Date.now());
 
 module.exports = {
-  USER_AGENT, BROWSER_UA, SourceError, parseRetryAfter, request, getJson, splitCredentials,
+  USER_AGENT, BROWSER_UA, SourceError, parseRetryAfter, request, feedText, getJson, splitCredentials,
   decodeEntities, text, cleanText, cleanHtml, trunc, headline, hash, parseDate, sanePublished,
 };

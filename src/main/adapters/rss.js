@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const { XMLParser } = require('fast-xml-parser');
 const { Adapter }   = require('./base');
 const { freshnessMs } = require('./pacing');
-const { SourceError, parseRetryAfter, request, text, cleanText, cleanHtml, trunc, hash, parseDate, sanePublished } = require('./util');
+const { SourceError, parseRetryAfter, request, feedText, text, cleanText, cleanHtml, trunc, hash, parseDate, sanePublished } = require('./util');
 
 const xml = new XMLParser({
   ignoreAttributes: false,
@@ -130,7 +130,7 @@ class RssAdapter extends Adapter {
 
     this.etag    = resp.headers.get('etag');
     this.lastMod = resp.headers.get('last-modified');
-    const body = await resp.text();
+    const body = await feedText(resp);
     this.net.bytes += body.length;
     if (!body.trim()) return [];
 
