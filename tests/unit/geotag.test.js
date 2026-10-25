@@ -93,6 +93,18 @@ test('surnames, clubs, rivers and photo credits are not places', () => {
   assert.deepEqual(names('Desahucio de una familia en Vitoria-Gasteiz'), ['Vitoria-Gasteiz']);
 });
 
+test('institutions and leaders place a story when nothing else does', () => {
+  assert.deepEqual(names('El PSOE y Vox chocan en el debate presupuestario'), ['Spain']);
+  assert.deepEqual(names('TSE rejeita pedido de cassação', '', 'BR'), ['Brazil']);
+  assert.deepEqual(names('Lok Sabha passes the bill after a heated debate'), ['India']);
+  assert.deepEqual(names('Milei se reúne con gobernadores en Córdoba'), ['Cordoba']);   // a place wins
+});
+
+test('a state in the title is refined by a place in it, not by one next door', () => {
+  assert.deepEqual(names('Mulher é encontrada morta no Paraná', 'O crime ocorreu em Cascavel, no oeste do estado', 'BR'), ['Paraná', 'Cascavel']);
+  assert.deepEqual(names('Mother and son run over in Jharkhand', 'The family was from Bihar'), ['Jharkhand']);
+});
+
 test('continents, blocs and seas', () => {
   assert.deepEqual(names('EU ministers meet on migration'), ['European Union']);
   assert.deepEqual(names('Ola de calor en Europa'), ['Europe']);
@@ -103,7 +115,7 @@ test('continents, blocs and seas', () => {
 
 test('a currency prefix is not a country', () => {
   assert.deepEqual(names('Honduras Remittances Top US$10 Billion'), ['Honduras']);
-  assert.deepEqual(names('Petrobras lucra R$ 30 bilhões'), []);
+  assert.deepEqual(names('Lucro do banco sobe para R$ 30 bilhões'), []);
 });
 
 test('uses other places and the source country to resolve ambiguous names', () => {
@@ -143,7 +155,7 @@ test('other languages\' names for cities are not matched (Sam, Part, Philadelphi
 });
 
 test('first names and surnames that are also places need a place context', () => {
-  assert.deepEqual(names('Trump’s deal with Vladimir Putin will have little impact'), ['Russia']);   // via "Putin", not the city
+  assert.deepEqual(names('Trump’s deal with Vladimir Putin will have little impact'), ['United States', 'Russia']);   // via "Trump" and "Putin", not the city
   assert.deepEqual(names('Ukrainian drones target Russian tech giant’s data centers', 'A drone strike shut down a data center in Vladimir'), ['Vladimir']);
   assert.deepEqual(names('Morgan Stanley executive says markets are primed'), []);
   assert.deepEqual(names('Conor Kennedy and Giulia Be Married in Rio'), ['Rio de Janeiro']);

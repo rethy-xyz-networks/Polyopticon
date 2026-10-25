@@ -14,7 +14,7 @@
 // 3. Ambiguous names (Georgia, Tripoli, Hyderabad) take the candidate that best fits
 //    the other places in the text and the source's home country, then the larger one.
 // 4. Selection: the title decides. Places it names are kept, and the summary only adds
-//    places inside them (Russia -> Irkutsk). With no place in the title, summary places
+//    places inside them (Russia -> Irkutsk, Paraná -> Cascavel). With no place in the title, summary places
 //    in the title's actor countries come first ("Ukrainian drones…" + "a data center in
 //    Vladimir"), then other summary places, then the actor countries, then the dateline,
 //    then continents and blocs (Europe, EU).
@@ -22,7 +22,7 @@
 
 const gaz = require('./gazetteer.json');
 
-const VERSION = 7;                 // bump when results change, so stored items are re-tagged
+const VERSION = 9;                 // bump when results change, so stored items are re-tagged
 const MAX_WORDS = 4;
 const MAX_PLACES = 3;
 const SUMMARY_CHARS = 400;
@@ -52,7 +52,7 @@ function nameMap(obj) {
   return map;
 }
 
-const places  = gaz.places;        // [key, name, kind, cc, lat, lon, pop?]
+const places  = gaz.places;        // [key, name, kind, cc, lat, lon, pop?, state?] (state: index of a city's state)
 const index   = nameMap(gaz.index);
 const actors  = nameMap(gaz.actors);
 const weak    = new Set((gaz.weak ?? []).map(key));
@@ -139,6 +139,7 @@ function caseless(tokens) {
 // evidence of its country (another place there, or the source's home) and of a place: a preposition before it
 // ("em Avaré") or a place after it ("Avaré (SP)", "Itanhaém, SP"). Towns don't vouch for other places.
 const isTown = i => places[i][2] === 'town';
+const stateOf = i => places[i][7] ?? null;
 
 // Mentions
 
@@ -320,10 +321,13 @@ function select(title, summary, dateline, homeCc) {
 
   let chosen;
   if (tNames.length) {
-    // The summary only refines a country or region the title names (Russia -> Irkutsk, Scotland ->
-    // Glasgow). Not with a capital: "Moscow" or "Beijing" in a summary usually means the government.
+    // The summary only refines a country, region or state the title names (Russia -> Irkutsk, Scotland ->
+    // Glasgow, Paraná -> Cascavel, not a town in the next state). Not with a capital: "Moscow" or "Beijing" in
+    // a summary usually means the government.
     const areas = new Set(tNames.filter(i => isCountry(i) || kindOf(i) === 'region').map(ccOf).filter(Boolean));
-    chosen = [...tNames, ...sNames.filter(i => !isCountry(i) && kindOf(i) !== 'capital' && areas.has(ccOf(i)))];
+    const states = new Set(tNames.filter(i => kindOf(i) === 'state'));
+    chosen = [...tNames, ...sNames.filter(i => !isCountry(i) && kindOf(i) !== 'capital'
+      && (areas.has(ccOf(i)) || states.has(stateOf(i))))];
   } else {
     // Actor countries: the title's, else the summary's own-country ones ("Icelandic teachers" on RÚV,
     // but not "two Latvian nationals" in a BBC story about an RAF base)
@@ -391,4 +395,14 @@ function countryCode(name) {
   return i == null ? null : places[i][3];
 }
 
-module.exports = { geotag, countryCode, GEOTAG_VERSION: VERSION };
+const ccByKey = new Map(places.map(p => [p[0], p[3]]));
+/** Country code of a place returned by geotag, from its key. */
+const placeCc = key => ccByKey.get(key) || null;
+
+/** A country as geotag returns places, for a story placed in its source's home country. */
+function countryPlace(cc) {
+  const p = places.find(q => q[2] === 'country' && q[3] === cc);
+  return p ? [p[0], p[1], p[4], p[5]] : null;
+}
+
+module.exports = { geotag, countryCode, placeCc, countryPlace, GEOTAG_VERSION: VERSION };

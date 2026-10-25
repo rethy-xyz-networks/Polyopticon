@@ -9,17 +9,22 @@
 //   node scripts/bench/geo.js --json=out.json  # per-story results, to compare runs
 //   node scripts/bench/geo.js --half=tune      # only the tuning half (even i); --half=holdout for the odd half.
 //                                                Tune on one, check on the other, so fixes aren't fitted to the test.
+//   node scripts/bench/geo.js --no-home        # without the home-country fallback for national outlets
+//
+// As in the app (src/main/enrich), a national outlet's story that names no place goes to its home
+// country; which sources are national is counted from the matcher's places on all 5,000 stories.
 //
 // Each story was labelled independently by two models (Claude Sonnet, with 100 stories by Claude Opus;
 // DeepSeek v4 Pro) from the text the matcher reads, following bench-data/geo/guide.txt; where they
-// disagreed, DeepSeek v4 Pro adjudicated. Labels are places { name, cc, kind } in three lists:
+// disagreed, an adjudicator settled it (DeepSeek v4 Pro for 116 stories, Claude Opus for 985). Labels are places { name, cc, kind } in three lists:
 //   want     where the story happens, as precisely as the text says
 //   ok       also acceptable: the containing area, the countries involved
 //   implied  no place named, but where it is is plain (a ministry, a national court)
 
 const fs = require('fs');
 const path = require('path');
-const { geotag } = require('../../src/main/enrich/geotag');
+const { geotag, placeCc, countryPlace } = require('../../src/main/enrich/geotag');
+const { HomeShare } = require('../../src/main/enrich/home');
 const gaz = require('../../src/main/enrich/gazetteer.json');
 
 const args = process.argv.slice(2);
@@ -27,9 +32,24 @@ const listArg = args.find(a => a.startsWith('--list'));
 const listOnly = listArg?.includes('=') ? listArg.split('=')[1] : null;
 const jsonOut = args.find(a => a.startsWith('--json='))?.slice(7);
 const half = args.find(a => a.startsWith('--half='))?.slice(7);
+const homeFallback = !args.includes('--no-home');
 if (half && !['tune', 'holdout'].includes(half)) throw new Error('--half is tune or holdout');
-const bench = JSON.parse(fs.readFileSync(path.join(__dirname, 'geo-bench.json'), 'utf8'))
-  .filter(it => !half || (it.i % 2 === 0) === (half === 'tune'));
+const all = JSON.parse(fs.readFileSync(path.join(__dirname, 'geo-bench.json'), 'utf8'));
+const bench = all.filter(it => !half || (it.i % 2 === 0) === (half === 'tune'));
+
+// The matcher's places for every story, and from them which sources are national outlets
+const found = new Map(), homeShare = new HomeShare();
+for (const it of all) {
+  const places = geotag({ title: it.title, summary: it.summary }, { cc: it.cc });
+  found.set(it.i, places);
+  homeShare.record(it.source, it.cc, places.map(p => placeCc(p[0])));
+}
+const placesOf = it => {
+  const places = found.get(it.i);
+  if (places.length || !homeFallback || !homeShare.national(it.source)) return places;
+  const home = countryPlace(it.cc);
+  return home ? [home] : [];
+};
 
 // Labels to gazetteer places
 const fold = s => String(s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[’']/g, "'").replace(/[-.]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -72,7 +92,7 @@ const byLang = {}, bySource = {};
 const results = [];
 
 for (const it of bench) {
-  const got = geotag({ title: it.title, summary: it.summary }, { cc: it.cc });
+  const got = placesOf(it);
   const kind = p => it.want.some(l => is(p, l)) ? 'right'
     : it.ok.some(l => is(p, l)) || it.implied.some(l => is(p, l)) ? 'ok'
     : [...it.want, ...it.ok].some(l => namesake(p, l)) ? 'approx' : 'wrong';

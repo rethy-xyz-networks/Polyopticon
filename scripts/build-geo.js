@@ -81,6 +81,19 @@ const ACTORS = {
   NP: 'Nepali|Nepalese', NA: 'Namibian|Namibians', MN: 'Mongolian|Mongolians', OM: 'Omani|Omanis', KW: 'Kuwaiti|Kuwaitis',
   BH: 'Bahraini|Bahrainis', DZ: 'Algerian|Algerians', MA: 'Moroccan|Moroccans', TN: 'Tunisian|Tunisians',
 };
+// Institutions, parties and leaders that place a story in their country when nothing else does (added to
+// ACTORS). Not bare surnames common across a language's countries (Sánchez, Fernández).
+const INSTITUTIONS = {
+  ES: 'PSOE|PP|Vox|Moncloa|Pedro Sánchez|Feijóo|Ayuso|Sumar|Podemos|Puigdemont|Junts|Audiencia Nacional|Congreso de los Diputados|Generalitat',
+  BR: 'Lula|Bolsonaro|STF|TSE|Itamaraty|Petrobras|Alckmin|Tarcísio|Câmara dos Deputados|Supremo Tribunal Federal|Tribunal Superior Eleitoral',
+  AR: 'Milei|Kicillof|Kirchner|Casa Rosada|Bullrich|Villarruel|ANSES|INDEC',
+  CO: 'Gustavo Petro|Petro|JEP|Uribe|Espriella|Registraduría', PE: 'EsSalud|SUNAT|Sunat|Boluarte|ONPE|JNJ|Reniec|RENIEC',
+  MX: 'Sheinbaum|AMLO|Pemex', CL: 'Boric|Kast', VE: 'Maduro|Machado', NG: 'Tinubu|APC|INEC|Peter Obi|Wike|Fubara',
+  FR: 'Macron|Matignon|Le Pen|Bardella|Lecornu|Mélenchon|Assemblée nationale', DE: 'AfD|Bundestag|Merz|Weidel|Bundesrat|Bundeswehr',
+  IT: 'Meloni|Palazzo Chigi|Quirinale', GB: 'Starmer|Tories|Farage|Badenoch|Reform UK', US: 'Trump|Senate Republicans|House Republicans',
+  IN: 'Lok Sabha|Rajya Sabha|Modi|BJP|Rahul Gandhi|RBI|Sensex|Nifty', AU: 'Albanese|Dutton', CA: 'Carney|Poilievre',
+  SI: 'Golob|Janša', KE: 'Ruto', ZA: 'Ramaphosa|ANC', PK: 'Shehbaz|PTI|Imran Khan',
+};
 
 // Extra names for countries (beyond Natural Earth / GeoNames names). These place a story.
 const COUNTRY_ALIASES = {
@@ -374,7 +387,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
   const [citiesZip, countryInfo, ne0Buf, ne1Buf] = await Promise.all(Object.values(SRC).map(download));
   const ne0 = JSON.parse(ne0Buf), ne1 = JSON.parse(ne1Buf);
 
-  const places = [];          // [key, name, kind, cc, lat, lon, pop?]
+  const places = [];          // [key, name, kind, cc, lat, lon, pop?, state?] (state: index of the city's state)
   const index = new Map();    // lower name -> Set(place index): names that place a story
   const actors = new Map();   // lower name -> country index: words that only point at a country
   // As the matcher keys names: lower case, straight apostrophes, hyphens as spaces (it splits words on hyphens).
@@ -411,7 +424,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     for (const n of new Set([name, ne.NAME, ne.NAME_LONG, ne.ADMIN, ne.NAME_EN, display].filter(Boolean))) if (!n.includes('.')) addName(n, idx);
     for (const n of `${COUNTRY_ALIASES[iso] || ''}|${COUNTRY_EXONYMS[iso] || ''}`.split('|').filter(Boolean)) addName(n, idx);
   }
-  for (const [iso, words] of Object.entries(ACTORS))
+  for (const [iso, words] of [...Object.entries(ACTORS), ...Object.entries(INSTITUTIONS)])
     if (countryIdx.has(iso)) for (const w of words.split('|')) addName(w, countryIdx.get(iso), actors);
 
   // Regions (skipped where a country of that name exists, e.g. Hong Kong, Greenland)
@@ -428,10 +441,11 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
   const cityNames = new Set();   // "lower name|cc", to skip states named after their capital (Delhi, Beijing)
   let nCities = 0;
   const rows = [], towns = [];
+  const placeA1 = new Map();     // city/town index -> GeoNames admin-1 code ("BR.27"), to find its state
   for (const line of cityTxt.split('\n')) {
     if (!line) continue;
     const c = line.split('\t');
-    const row = { gid: c[0], name: c[1], ascii: c[2], lat: +c[4], lon: +c[5], fcode: c[7], cc: c[8], pop: +c[14] };
+    const row = { gid: c[0], name: c[1], ascii: c[2], lat: +c[4], lon: +c[5], fcode: c[7], cc: c[8], a1: `${c[8]}.${c[10]}`, pop: +c[14] };
     const promoted = PROMOTE.delete(`${row.ascii}|${row.cc}`);
     if (row.fcode === 'PPLC' || row.pop >= CITY_MIN_POP || DENSE.has(row.cc) || promoted) rows.push(row);
     else if (row.fcode !== 'PPLX') towns.push(row);
@@ -453,6 +467,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     const capital = row.fcode === 'PPLC';
     const idx = addPlace(`g:${row.gid}`, row.ascii || row.name, capital ? 'capital' : 'city', row.cc, row.lat, row.lon);   // ASCII reads better in English UI
     places[idx].push(row.pop);
+    placeA1.set(idx, row.a1);
     cityByKey.set(`${row.ascii.toLowerCase()}|${row.cc}`, idx);
     nCities++;
     addCityNames(row, idx, capital);
@@ -500,6 +515,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
   const cityAnywhere = new Set([...cityNames].map(k => fold(k.split('|')[0])));
   const taken = new Set([...index.keys()].map(fold));   // countries, regions and cities, not other states
   const clash = n => cityAnywhere.has(fold(norm(n))) || taken.has(fold(norm(n)));
+  const stateByA1 = new Map();  // GeoNames admin-1 code -> state index
   const codes = {};             // cc -> postal code -> place index (Brazilian sources write "Campinas (SP)")
   const stateKeys = new Set();
   for (const f of ne1.features) {
@@ -521,6 +537,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
       for (const q of STATE_QUALIFIERS[cc]) if (!n.endsWith(q.replace('X ', ' '))) names.add(q.replace('X', n));
     }
     const idx = addPlace(`a:${p.iso_3166_2}`, display, 'state', cc, p.latitude, p.longitude);
+    if (p.gn_a1_code) stateByA1.set(p.gn_a1_code, idx);
     for (const n of names) if (!EXCLUDE.has(norm(n))) addName(n, idx);
     if (cc === 'BR' && /^[A-Z]{2}$/.test(p.postal ?? '')) (codes.BR ??= {})[p.postal] = idx;
   }
@@ -532,6 +549,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
       const [display, ...aliases] = list.split('|');
       const mean = k => parts.reduce((a, p) => a + p[k], 0) / parts.length;
       const idx = addPlace(`a:${cc}-${display.toLowerCase().replace(/\W+/g, '-')}`, display, 'state', cc, mean('latitude'), mean('longitude'));
+      for (const p of parts) if (p.gn_a1_code) stateByA1.set(p.gn_a1_code, idx);
       for (const n of new Set([display, ...aliases])) if (!clash(n)) addName(n, idx);
     }
   }
@@ -566,6 +584,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     if (!names.length) continue;
     const idx = addPlace(`g:${row.gid}`, row.ascii || row.name, 'town', row.cc, row.lat, row.lon);
     places[idx].push(row.pop);
+    placeA1.set(idx, row.a1);
     for (const k of names) townIdx.set(k, [...(townIdx.get(k) ?? []), idx]);
   }
   let nTowns = 0;
@@ -574,6 +593,14 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     for (const i of list) if (places[i][6] * NAME_SHARE_RATIO >= top) { addName(k, i); nTowns++; }
   }
   console.log(`  ${towns.length} towns, ${nTowns} town names`);
+
+  // Each city's and town's state, where it's one of ours (the matcher refines a state with places inside it)
+  let nInState = 0;
+  for (const [idx, a1] of placeA1) {
+    const st = stateByA1.get(a1);
+    if (st != null && places[st][3] === places[idx][3]) { places[idx][7] = st; nInState++; }
+  }
+  console.log(`  ${nInState} cities and towns placed in their state`);
 
   const out = map => Object.fromEntries([...map].filter(([, v]) => v.size).map(([k, v]) => [k, [...v]]));
   const gaz = {

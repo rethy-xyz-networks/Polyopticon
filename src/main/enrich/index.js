@@ -4,10 +4,12 @@
 // it with related stories and tag places.
 // On startup the grouping index is rebuilt from the database and anything
 // stored before these features existed is backfilled. When the place matcher
-// changes (GEOTAG_VERSION), every stored item is re-tagged in the background.
+// changes (GEOTAG_VERSION), every stored item is re-tagged in the background. A national outlet's
+// story that names no place is placed in its home country (home.js).
 
 const { Clusterer, WINDOW_MS } = require('./cluster');
-const { geotag, countryCode, GEOTAG_VERSION } = require('./geotag');
+const { geotag, countryCode, placeCc, countryPlace, GEOTAG_VERSION } = require('./geotag');
+const { HomeShare } = require('./home');
 const { detectLang } = require('./text');
 
 const RETAG_CHUNK = 500;
@@ -21,6 +23,9 @@ class Enricher {
     Object.assign(this, { store, log, emitUpdate });
     this.clusterer = new Clusterer();
     this.homes = new Map();            // source id -> ISO code of its group's country (or null)
+    let saved = {};
+    try { saved = JSON.parse(store.getMeta('homeShare') || '{}'); } catch { /* start afresh */ }
+    this.homeShare = new HomeShare(saved);
   }
 
   /** The source's home country, from its sidebar group ("USA", "India"); breaks ties between places. */
@@ -32,9 +37,22 @@ class Enricher {
   /** Sources were added or edited (their group may have changed). */
   sourcesChanged() { this.homes.clear(); }
 
-  places(it) {
-    return geotag({ title: it.title, summary: it.summary }, { cc: this.homeCc(it.sourceId) });
+  /** The matcher's places, counted towards the source's home share. */
+  found(it) {
+    const cc = this.homeCc(it.sourceId);
+    const places = geotag({ title: it.title, summary: it.summary }, { cc });
+    this.homeShare.record(it.sourceId, cc, places.map(p => placeCc(p[0])));
+    return places;
   }
+
+  /** Places for a story: what it names, else a national outlet's home country. */
+  places(it, found = this.found(it)) {
+    if (found.length || !this.homeShare.national(it.sourceId)) return found;
+    const home = countryPlace(this.homeCc(it.sourceId));
+    return home ? [home] : [];
+  }
+
+  saveHomeShare() { this.store.setMeta('homeShare', JSON.stringify(this.homeShare)); }
 
   /** Builds the grouping index from recent items and backfills older rows. */
   init() {
@@ -72,13 +90,17 @@ class Enricher {
   retag() {
     const started = Date.now();
     const rows = this.store.taggedItems();
+    // Counted afresh from every stored story first, so the home fallback below uses the full picture.
+    this.homeShare = new HomeShare();
+    const found = new Map(rows.map(r => [r.id, this.found(r)]));
+    this.saveHomeShare();
     const recent = Date.now() - WINDOW_MS * 1.5;
     let changed = 0, at = 0;
     const step = () => {
       const live = [];
       this.store.tx(() => {
         for (const r of rows.slice(at, at + RETAG_CHUNK)) {
-          const places = this.places(r);
+          const places = this.places(r, found.get(r.id));
           if (JSON.stringify(places) === r.places) continue;
           this.store.setPlaces(r.id, places);
           changed++;
@@ -99,20 +121,22 @@ class Enricher {
    * worker can post them immediately.
    */
   process(items, source) {
+    // The whole poll counts towards the source's home share before any of it falls back to it.
+    const found = new Map(items.map(it => { it.sourceId = source.id; return [it, this.found(it)]; }));
     this.store.tx(() => {                 // one commit for the whole poll, not two per item
       for (const it of items) {
-        it.sourceId = source.id;
         it.lang = detectLang(`${it.title} ${(it.summary || '').slice(0, 200)}`) || 'en';
         this.store.setLang(it.id, it.lang);
-        this.enrich(it);
+        this.enrich(it, found.get(it));
       }
+      if (items.length) this.saveHomeShare();
     });
     return items;
   }
 
-  enrich(it) {
+  enrich(it, found) {
     it.clusterId = this.clusterer.add(it.id, it.title, it.publishedAt);
-    it.places = this.places(it);
+    it.places = this.places(it, found);
     this.store.setEnrichment(it.id, { clusterId: it.clusterId, places: it.places });
     return it;
   }
