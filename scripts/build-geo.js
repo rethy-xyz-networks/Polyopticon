@@ -34,7 +34,7 @@ const CITY_MIN_POP = 300_000;
 // These smaller cities are well known abroad and are full cities instead.
 // (Not Oxford, Cambridge or Canterbury: in headlines they're mostly the universities and the archbishop.)
 const PROMOTE = new Set(['Geneva|CH', 'Venice|IT', 'Strasbourg|FR', 'Cannes|FR', 'Ceuta|ES', 'Melilla|ES', 'Salzburg|AT',
-  'Brugge|BE', 'Pisa|IT', 'Lausanne|CH', 'Fukushima|JP', 'Avignon|FR', 'Galway|IE', 'Kandy|LK']);
+  'Brugge|BE', 'Gasteiz / Vitoria|ES', 'Pisa|IT', 'Lausanne|CH', 'Fukushima|JP', 'Avignon|FR', 'Galway|IE', 'Kandy|LK']);
 // A city sharing its name with a city this many times larger is dropped from that name
 // (a Russian town of 47k called Donetsk never wins over the Ukrainian city).
 const NAME_SHARE_RATIO = 10;
@@ -51,7 +51,11 @@ const EXCLUDE = new Set(('mobile reading split nice bath orange university colle
 const WEAK = new Set(('vladimir anna sofia victoria austin alexandria orlando phoenix columbus kennedy douglas stanley ' +
   'lyon leon ariel farah florence lincoln jackson charlotte hamilton aurora marion clayton franklin salem santos sucre ' +
   'kirov adler murom sokol jordan chad kingston newcastle surrey wellington darwin nelson preston engels roma napoli torino kenia florencia londra ' +
-  'guerrero hidalgo morelos magdalena caldas bolívar cesar acre bahia').split(' '));
+  'guerrero hidalgo morelos magdalena caldas bolívar cesar acre bahia guadalupe').split(' '));
+
+// Places that are also common surnames or first names, mostly meaning the place: skipped only next to
+// another name (Letícia Lima, Santiago Abascal, Salvador Illa), without needing the evidence WEAK names do.
+const SURNAMES = new Set('lima santiago medina salvador pereira mendoza vitória viana'.split(' '));
 
 // Words that point at a country without placing the story there: demonyms, armed groups,
 // leaders, institutions. They only place a story when nothing more specific does.
@@ -138,7 +142,7 @@ const REGIONS = [
   ['South China Sea', '', 12.0, 114.0], ['Taiwan Strait', '', 24.5, 119.5], ['Gulf of Aden', '', 12.5, 48.0],
   ['Bab el-Mandeb', '', 12.6, 43.4, 'Bab al-Mandab|Bab al-Mandeb'], ['Darfur', 'SD', 13.5, 24.0], ['Sahel', '', 15.0, 2.0],
   ['Kurdistan', '', 36.4, 44.0, 'Kurdish'], ['Balochistan', 'PK', 28.5, 65.0, 'Baluchistan'], ['Siberia', 'RU', 60.0, 100.0],
-  ['Nagorno-Karabakh', 'AZ', 39.8, 46.75, 'Karabakh'], ['Transnistria', 'MD', 47.2, 29.4], ['Kursk Oblast', 'RU', 51.7, 36.2],
+  ['Niger Delta', 'NG', 5.0, 6.3], ['Nagorno-Karabakh', 'AZ', 39.8, 46.75, 'Karabakh'], ['Transnistria', 'MD', 47.2, 29.4], ['Kursk Oblast', 'RU', 51.7, 36.2],
   ['Arctic', '', 78.0, 15.0], ['Middle East', '', 29.0, 41.0, 'Mideast|West Asia'], ['Tigray', 'ET', 14.0, 39.0],
   ['Northern Ireland', 'GB', 54.6, -6.7], ['Scotland', 'GB', 56.5, -4.2, 'Scottish'], ['Wales', 'GB', 52.3, -3.7, 'Welsh'],
   ['England', 'GB', 52.6, -1.5], ['Khyber Pakhtunkhwa', 'PK', 34.5, 72.0],
@@ -305,7 +309,8 @@ const CITY_ALIASES = [
   ['Rostov-on-Don', 'Rostov-on-Don', 'RU'], ['Rostov', 'Rostov-on-Don', 'RU'], ['Nizhny Novgorod', 'Nizhniy Novgorod', 'RU'],
   ['Mexico City', 'Mexico City', 'MX'], ['CDMX', 'Mexico City', 'MX'], ['Rio de Janeiro', 'Rio de Janeiro', 'BR'], ['Rio', 'Rio de Janeiro', 'BR'],
   ['Kathmandu', 'Kathmandu', 'NP'], ['Katmandu', 'Kathmandu', 'NP'], ['The Bronx', 'The Bronx', 'US'], ['Bronx', 'The Bronx', 'US'],
-  ['Bruges', 'Brugge', 'BE'], ['Johannesburg', 'Johannesburg', 'ZA'], ['Joburg', 'Johannesburg', 'ZA'], ['Philadelphia', 'Philadelphia', 'US'], ['Philly', 'Philadelphia', 'US'],
+  ['Bruges', 'Brugge', 'BE'], ['Vitoria-Gasteiz', 'Gasteiz / Vitoria', 'ES'], ['Vitoria', 'Gasteiz / Vitoria', 'ES'],
+  ['Gasteiz', 'Gasteiz / Vitoria', 'ES'], ['Johannesburg', 'Johannesburg', 'ZA'], ['Joburg', 'Johannesburg', 'ZA'], ['Philadelphia', 'Philadelphia', 'US'], ['Philly', 'Philadelphia', 'US'],
 ];
 
 // Other languages' names for cities: "ascii name|country" -> names. Unlike CITY_ALIASES they don't rename the city.
@@ -573,7 +578,7 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
   const out = map => Object.fromEntries([...map].filter(([, v]) => v.size).map(([k, v]) => [k, [...v]]));
   const gaz = {
     built: new Date().toISOString().slice(0, 10), places, index: out(index), actors: out(actors),
-    weak: [...WEAK].filter(w => index.has(w)), codes,
+    weak: [...WEAK].filter(w => index.has(w)), surnames: [...SURNAMES].filter(w => index.has(w)), codes,
   };
   fs.writeFileSync(OUT_GAZ, JSON.stringify(gaz));
   console.log(`Gazetteer: ${places.length} places (${nCities} cities), ${index.size} names, ${actors.size} actor words -> ${(fs.statSync(OUT_GAZ).size / 1024).toFixed(0)} KB`);

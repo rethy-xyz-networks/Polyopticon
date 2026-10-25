@@ -22,7 +22,7 @@
 
 const gaz = require('./gazetteer.json');
 
-const VERSION = 6;                 // bump when results change, so stored items are re-tagged
+const VERSION = 7;                 // bump when results change, so stored items are re-tagged
 const MAX_WORDS = 4;
 const MAX_PLACES = 3;
 const SUMMARY_CHARS = 400;
@@ -56,6 +56,7 @@ const places  = gaz.places;        // [key, name, kind, cc, lat, lon, pop?]
 const index   = nameMap(gaz.index);
 const actors  = nameMap(gaz.actors);
 const weak    = new Set((gaz.weak ?? []).map(key));
+const surnames = new Set((gaz.surnames ?? []).map(key));   // places that are also surnames: only the name guards
 // State codes a country's own press writes after places ("Campinas (SP)", "chuvas no RS"): cc -> code -> place.
 // Only for that country's sources, since the codes are English abbreviations too (SC, AP, PR).
 const codes   = new Map(Object.entries(gaz.codes ?? {}).map(([cc, m]) => [cc, new Map(Object.entries(m))]));
@@ -69,6 +70,10 @@ const SOURCE_HOME   = 2;           // the source's own country
 // Publications and competitions: "<place> Post", "Europa Press", "Asia Cup", "Times of <place>".
 const ORG_NEXT = new Set(('Post Times Herald Tribune Guardian Gazette Journal Chronicle Telegraph Observer Independent ' +
   'Insider Examiner Inquirer Express Mail Star Standard Review Press League Cup').split(' '));
+const CITY_KINDS = new Set(['city', 'capital', 'town']);
+const ARTICLE_CITIES = new Set(['callao', 'cusco', 'cuzco', 'cairo']);   // cities Spanish gives an article: el Callao
+// A credit line before the name, with nothing ending it: "Reprodução/Redes Sociais", "Foto: Arquivo pessoal"
+const CREDIT = /(?:Reprodução|Reproducao|Divulgação|Divulgacao|Arquivo|Foto|Fotos|Imagem)\s*[/:][^.!?]*$/i;
 const TITLES = new Set('Prince Princess Príncipe Princesa Princes Duke Duchess Duque Duquesa Earl Count Countess Conde Condesa'.split(' '));
 // Companies, in any case: "Sapporo breweries".
 const COMPANY_NEXT = new Set('brewery breweries holdings corp corporation inc ltd'.split(' '));
@@ -78,7 +83,8 @@ const PLACE_NEXT = new Set(('City Province Region Oblast Governorate District Co
   'Prefecture Krai Republic Police Mayor Council').split(' '));
 // Capitalised words before a weak name that keep it a place (Northern Victoria, Greater Columbus).
 const PLACE_PREV = new Set(('North South East West Northern Southern Eastern Western Central Greater Upper Lower Old ' +
-  'New Downtown Occupied Coastal Rural Suburban Metro In At Near From To Outside Across Around').split(' '));
+  'New Downtown Occupied Coastal Rural Suburban Metro In At Near From To Outside Across Around ' +
+  'En Em Na No Desde Dans Nel Nella').split(' '));
 const LOCATIVE = new Set(('in at near from to into outside across around toward towards inside via off over through throughout within of ' +
   'en em no na à dans nel nella desde').split(' '));   // and in Spanish, Portuguese, French, Italian
 // Prepositions that say an event happened there (more than "to" or "of" do).
@@ -178,6 +184,15 @@ function mentions(text, seg, stateCodes) {
         if (prev && (norm(prev.w) === 'of' || norm(prev.w) === 'de') && TITLES.has(tokens[i - 2]?.w)) break;
 
         const prevWord = prev && /^\s+$/.test(t.gap) ? prev.w.toLowerCase() : null;
+        // A Spanish club: "el Valencia", "del Córdoba" (cities take no article)
+        if (cands && (prevWord === 'el' || prevWord === 'del') && !ARTICLE_CITIES.has(phrase) && cands.every(c => CITY_KINDS.has(places[c][2]))) break;
+        // A river: Rio Paraná, Rio Tietê (Rio Grande and Rio Branco, the places, are longer matches)
+        if (phrase === 'rio' && next && /^\s+$/.test(after) && isCap(next.w)) {
+          while (matched < 4 && tokens[i + matched] && isCap(tokens[i + matched].w) && /^\s+$/.test(tokens[i + matched].gap)) matched++;   // and its name
+          break;
+        }
+        // A photo credit: "Reprodução/Rede Amazônica Acre", "Foto: Letícia Lima"
+        if (CREDIT.test(text.slice(text.lastIndexOf('\n', t.start) + 1, t.start))) break;
         const m = { pos: t.start, n, phrase, seg, weak: weak.has(phrase) || weak.has(unaccent(phrase)), evidence: false, noCase,
           setting: SETTING.has(prevWord), locative: LOCATIVE.has(prevWord) };
         if (cands) m.cands = cands; else m.actor = actor;
@@ -186,7 +201,7 @@ function mentions(text, seg, stateCodes) {
           m.townNext = next && (/^\s*\(\s*$/.test(after) || /^\s*,\s*$/.test(after)) && (isPlace(next.w) || stateCodes?.has(next.w));
         }
 
-        if (m.weak) {
+        if (m.weak || surnames.has(phrase)) {
           // Next to another capitalised word that isn't a place: part of a person's or firm's name.
           const nextIsName = next && /^\s+$/.test(after) && isCap(next.w) && !PLACE_NEXT.has(next.w) && !isPlace(next.w);
           const prevIsName = prevWord && isCap(prev.w) && !PLACE_PREV.has(prev.w) && !isPlace(prev.w);

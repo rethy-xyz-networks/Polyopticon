@@ -83,6 +83,16 @@ test('towns need evidence of their country and of a place', () => {
   assert.deepEqual(names('Sorriso no rosto, festa na rua', '', 'BR'), []);                // a word
 });
 
+test('surnames, clubs, rivers and photo credits are not places', () => {
+  assert.deepEqual(names('A estudante Letícia Lima morreu em acidente', '', 'BR'), []);
+  assert.deepEqual(names('Santiago Abascal estará en Santander el miércoles'), []);
+  assert.deepEqual(names('Protestas en Lima por la crisis política'), ['Lima']);
+  assert.deepEqual(names('El Valencia busca volver a la senda del triunfo'), []);
+  assert.deepEqual(names('Polícia apreende redes no Rio Paraná', '', 'BR'), []);
+  assert.deepEqual(names('Avião é transportado em rio', 'Reprodução/Rede Amazônica Acre\nO avião fez um pouso de emergência', 'BR'), []);
+  assert.deepEqual(names('Desahucio de una familia en Vitoria-Gasteiz'), ['Vitoria-Gasteiz']);
+});
+
 test('continents, blocs and seas', () => {
   assert.deepEqual(names('EU ministers meet on migration'), ['European Union']);
   assert.deepEqual(names('Ola de calor en Europa'), ['Europe']);
