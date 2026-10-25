@@ -22,7 +22,7 @@
 
 const gaz = require('./gazetteer.json');
 
-const VERSION = 5;                 // bump when results change, so stored items are re-tagged
+const VERSION = 6;                 // bump when results change, so stored items are re-tagged
 const MAX_WORDS = 4;
 const MAX_PLACES = 3;
 const SUMMARY_CHARS = 400;
@@ -45,7 +45,10 @@ const find = (map, k) => map.get(k) ?? (map.has(unaccent(k)) ? map.get(unaccent(
 /** name -> candidates, with hyphenated names (Rostov-on-Don) under their spaced form. */
 function nameMap(obj) {
   const map = new Map();
-  for (const [k, v] of Object.entries(obj ?? {})) map.set(key(k), [...new Set([...(map.get(key(k)) ?? []), ...v])]);
+  for (const [k, v] of Object.entries(obj ?? {})) {
+    const kk = key(k), prev = map.get(kk);
+    map.set(kk, prev ? [...new Set([...prev, ...v])] : v);   // most keys are unique: no copy
+  }
   return map;
 }
 
@@ -90,7 +93,7 @@ const lookup = phrase => find(index, key(phrase)) ?? null;
 // The first word of every name in the gazetteer. A capitalised word that starts none of them can't begin a
 // place, so its 1-4 word phrases are not looked up at all (most capitalised words in a headline).
 const firstWords = new Set();
-for (const map of [index, actors]) for (const k of map.keys()) firstWords.add(k.split(' ')[0]);
+for (const map of [index, actors]) for (const k of map.keys()) { const sp = k.indexOf(' '); firstWords.add(sp < 0 ? k : k.slice(0, sp)); }
 const isFirstWord = k => firstWords.has(k) || firstWords.has(unaccent(k));
 
 // Tokens
@@ -126,6 +129,11 @@ function caseless(tokens) {
   return words.filter(t => isCap(t.w)).length / words.length >= 0.7 || words.every(t => isUpper(t.w));
 }
 
+// Towns (under 300k people) are often words or surnames too (Sorriso, Bonito, Oliveira). One counts only with
+// evidence of its country (another place there, or the source's home) and of a place: a preposition before it
+// ("em Avaré") or a place after it ("Avaré (SP)", "Itanhaém, SP"). Towns don't vouch for other places.
+const isTown = i => places[i][2] === 'town';
+
 // Mentions
 
 /**
@@ -137,7 +145,7 @@ function mentions(text, seg, stateCodes) {
   const tokens = tokenize(text);
   const noCase = caseless(tokens);
   const out = [];
-  const isPlace = w => find(index, key(w)) != null;
+  const isPlace = w => find(index, key(w))?.some(c => !isTown(c)) ?? false;   // a town name is as likely a surname (López)
   for (let i = 0; i < tokens.length;) {
     let matched = 0;
     const t = tokens[i];
@@ -170,8 +178,13 @@ function mentions(text, seg, stateCodes) {
         if (prev && (norm(prev.w) === 'of' || norm(prev.w) === 'de') && TITLES.has(tokens[i - 2]?.w)) break;
 
         const prevWord = prev && /^\s+$/.test(t.gap) ? prev.w.toLowerCase() : null;
-        const m = { pos: t.start, n, phrase, seg, weak: weak.has(phrase) || weak.has(unaccent(phrase)), evidence: false, noCase, setting: SETTING.has(prevWord) };
+        const m = { pos: t.start, n, phrase, seg, weak: weak.has(phrase) || weak.has(unaccent(phrase)), evidence: false, noCase,
+          setting: SETTING.has(prevWord), locative: LOCATIVE.has(prevWord) };
         if (cands) m.cands = cands; else m.actor = actor;
+        if (cands && cands.every(isTown)) {
+          m.weak = true;            // a town is often a surname too (Oliveira, Moreno): the name guards below apply
+          m.townNext = next && (/^\s*\(\s*$/.test(after) || /^\s*,\s*$/.test(after)) && (isPlace(next.w) || stateCodes?.has(next.w));
+        }
 
         if (m.weak) {
           // Next to another capitalised word that isn't a place: part of a person's or firm's name.
@@ -236,7 +249,7 @@ function resolve(all, homeCc) {
   const addStrong = cc => cc && strong.set(cc, (strong.get(cc) ?? 0) + 1);
   for (const m of all) {
     if (m.actor != null) actorCcs.add(places[m.actor][3]);
-    else if (m.cands.length === 1 && (!m.weak || m.evidence)) addStrong(places[m.cands[0]][3]);
+    else if (m.cands.length === 1 && (!m.weak || m.evidence) && !isTown(m.cands[0])) addStrong(places[m.cands[0]][3]);
   }
   const score = (i, cands) => {
     const [, , kind, cc, , , pop] = places[i];
@@ -248,6 +261,10 @@ function resolve(all, homeCc) {
     if (m.actor != null) continue;
     m.place = m.cands.length === 1 ? m.cands[0] : m.cands.reduce((a, b) => (score(b, m.cands) > score(a, m.cands) ? b : a));
     const cc = places[m.place][3];
+    if (isTown(m.place)) {
+      m.drop = m.noCase || !((strong.get(cc) > 0 || cc === homeCc) && (m.locative || m.townNext));
+      continue;
+    }
     if (m.weak && !m.evidence) {
       // Another mention (not this one) or the source's home country can vouch for a weak name, except
       // in a headline-case title, where any word may be capitalised ("Columbus Statue").

@@ -75,9 +75,18 @@ test('Brazilian state codes, only from Brazilian sources and not inside names', 
   assert.deepEqual(names('Deputado Nikolas (PL-MG) critica governo', '', 'BR'), []);
 });
 
+test('towns need evidence of their country and of a place', () => {
+  assert.deepEqual(names('Incêndio destrói casa em Avaré', '', 'BR'), ['Avare']);
+  assert.deepEqual(names('Incêndio destrói casa em Avaré'), []);                          // no sign it's Brazil
+  assert.deepEqual(names('Carro cai sobre veículos em Aparecida (SP)', '', 'BR'), ['Aparecida']);
+  assert.deepEqual(names('Pedro Oliveira é eleito presidente do clube', '', 'BR'), []);   // a surname
+  assert.deepEqual(names('Sorriso no rosto, festa na rua', '', 'BR'), []);                // a word
+});
+
 test('continents, blocs and seas', () => {
   assert.deepEqual(names('EU ministers meet on migration'), ['European Union']);
   assert.deepEqual(names('Ola de calor en Europa'), ['Europe']);
+  assert.deepEqual(names('Asia races to stockpile oil as Iran war drags on'), ['Iran']);   // a continent only when nothing else
   assert.deepEqual(names('Europa Press informa del acuerdo'), []);
   assert.deepEqual(names('Amazon layoffs hit Seattle'), ['Seattle']);
 });

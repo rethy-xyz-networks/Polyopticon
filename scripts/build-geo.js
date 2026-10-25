@@ -29,6 +29,12 @@ const SRC = {
 // Countries where every town ≥15k people is included (conflict/news-heavy regions).
 const DENSE = new Set(['IL', 'PS', 'LB', 'SY', 'YE', 'UA', 'IQ', 'IR', 'JO', 'SD', 'AF', 'LY', 'SO', 'RU']);
 const CITY_MIN_POP = 300_000;
+// Smaller towns (GeoNames' 15,000+) are places of kind "town": the matcher takes one only with evidence of its
+// country (another place there, or a source from there writing it mid-sentence), since many are also words.
+// These smaller cities are well known abroad and are full cities instead.
+// (Not Oxford, Cambridge or Canterbury: in headlines they're mostly the universities and the archbishop.)
+const PROMOTE = new Set(['Geneva|CH', 'Venice|IT', 'Strasbourg|FR', 'Cannes|FR', 'Ceuta|ES', 'Melilla|ES', 'Salzburg|AT',
+  'Brugge|BE', 'Pisa|IT', 'Lausanne|CH', 'Fukushima|JP', 'Avignon|FR', 'Galway|IE', 'Kandy|LK']);
 // A city sharing its name with a city this many times larger is dropped from that name
 // (a Russian town of 47k called Donetsk never wins over the Ukrainian city).
 const NAME_SHARE_RATIO = 10;
@@ -299,12 +305,13 @@ const CITY_ALIASES = [
   ['Rostov-on-Don', 'Rostov-on-Don', 'RU'], ['Rostov', 'Rostov-on-Don', 'RU'], ['Nizhny Novgorod', 'Nizhniy Novgorod', 'RU'],
   ['Mexico City', 'Mexico City', 'MX'], ['CDMX', 'Mexico City', 'MX'], ['Rio de Janeiro', 'Rio de Janeiro', 'BR'], ['Rio', 'Rio de Janeiro', 'BR'],
   ['Kathmandu', 'Kathmandu', 'NP'], ['Katmandu', 'Kathmandu', 'NP'], ['The Bronx', 'The Bronx', 'US'], ['Bronx', 'The Bronx', 'US'],
-  ['Johannesburg', 'Johannesburg', 'ZA'], ['Joburg', 'Johannesburg', 'ZA'], ['Philadelphia', 'Philadelphia', 'US'], ['Philly', 'Philadelphia', 'US'],
+  ['Bruges', 'Brugge', 'BE'], ['Johannesburg', 'Johannesburg', 'ZA'], ['Joburg', 'Johannesburg', 'ZA'], ['Philadelphia', 'Philadelphia', 'US'], ['Philly', 'Philadelphia', 'US'],
 ];
 
 // Other languages' names for cities: "ascii name|country" -> names. Unlike CITY_ALIASES they don't rename the city.
 const CITY_EXONYMS = {
-  'New York City|US': 'Nueva York|Nova York|Nova Iorque', 'London|GB': 'Londres|Londra',
+  'New York City|US': 'Nueva York|Nova York|Nova Iorque', 'Geneva|CH': 'Ginebra|Genebra|Genève|Ginevra|Genf',
+  'Venice|IT': 'Venecia|Veneza|Venise|Venedig|Venezia', 'Strasbourg|FR': 'Estrasburgo|Straßburg|Strasburgo', 'London|GB': 'Londres|Londra',
   'Moscow|RU': 'Moscú|Moscou|Mosca|Moskau|Moskou|Moskva|Москва|Москве|Москвы', 'Beijing|CN': 'Pekín|Pequim|Pékin|Pechino',
   'Tokyo|JP': 'Tokio|Tóquio', 'New Delhi|IN': 'Nueva Delhi|Nova Délhi|Nova Deli', 'Brussels|BE': 'Bruselas|Bruxelas|Bruxelles|Brüssel|Bruxelles-Capitale',
   'Vienna|AT': 'Viena|Wien', 'Athens|GR': 'Atenas|Athènes|Atene|Athen',
@@ -365,7 +372,8 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
   const places = [];          // [key, name, kind, cc, lat, lon, pop?]
   const index = new Map();    // lower name -> Set(place index): names that place a story
   const actors = new Map();   // lower name -> country index: words that only point at a country
-  const norm = name => name.trim().toLowerCase().replace(/’/g, "'");
+  // As the matcher keys names: lower case, straight apostrophes, hyphens as spaces (it splits words on hyphens).
+  const norm = name => name.trim().toLowerCase().replace(/’/g, "'").replace(/-/g, ' ');
   const addName = (name, idx, map = index) => {
     const k = norm(name);
     if (k.length < 2) return;
@@ -414,13 +422,16 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
   const cityByKey = new Map();   // "ascii|cc" -> idx
   const cityNames = new Set();   // "lower name|cc", to skip states named after their capital (Delhi, Beijing)
   let nCities = 0;
-  const rows = [];
+  const rows = [], towns = [];
   for (const line of cityTxt.split('\n')) {
     if (!line) continue;
     const c = line.split('\t');
     const row = { gid: c[0], name: c[1], ascii: c[2], lat: +c[4], lon: +c[5], fcode: c[7], cc: c[8], pop: +c[14] };
-    if (row.fcode === 'PPLC' || row.pop >= CITY_MIN_POP || DENSE.has(row.cc)) rows.push(row);
+    const promoted = PROMOTE.delete(`${row.ascii}|${row.cc}`);
+    if (row.fcode === 'PPLC' || row.pop >= CITY_MIN_POP || DENSE.has(row.cc) || promoted) rows.push(row);
+    else if (row.fcode !== 'PPLX') towns.push(row);
   }
+  for (const k of PROMOTE) console.warn(`  promote: no town "${k}"`);
   // Only the official and ASCII names. GeoNames' alternate names are mostly other languages'
   // spellings (Sam = Damascus, Part = Perth, Philadelphia = Amman); news spellings are in CITY_ALIASES.
   const addCityNames = (row, idx, capital) => {
@@ -540,6 +551,24 @@ const round = (x, d = 3) => Math.round(x * 10 ** d) / 10 ** d;
     index.delete(norm(mark));
     addName(mark, idx);
   }
+
+  // Towns, last: only names no other place, actor word or excluded word has, and of the towns sharing a
+  // name only those within NAME_SHARE_RATIO of the largest.
+  const used = new Set([...index.keys(), ...actors.keys()]);
+  const townIdx = new Map();     // lower name -> town indexes
+  for (const row of towns) {
+    const names = [...new Set([row.name, row.ascii])].map(norm).filter(k => k.length >= 4 && !used.has(k) && !EXCLUDE.has(k));
+    if (!names.length) continue;
+    const idx = addPlace(`g:${row.gid}`, row.ascii || row.name, 'town', row.cc, row.lat, row.lon);
+    places[idx].push(row.pop);
+    for (const k of names) townIdx.set(k, [...(townIdx.get(k) ?? []), idx]);
+  }
+  let nTowns = 0;
+  for (const [k, list] of townIdx) {
+    const top = Math.max(...list.map(i => places[i][6]));
+    for (const i of list) if (places[i][6] * NAME_SHARE_RATIO >= top) { addName(k, i); nTowns++; }
+  }
+  console.log(`  ${towns.length} towns, ${nTowns} town names`);
 
   const out = map => Object.fromEntries([...map].filter(([, v]) => v.size).map(([k, v]) => [k, [...v]]));
   const gaz = {

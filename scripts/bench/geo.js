@@ -37,7 +37,7 @@ const index = new Map();
 for (const [k, v] of Object.entries(gaz.index)) index.set(fold(k), [...new Set([...(index.get(fold(k)) ?? []), ...v])]);
 const byKey = new Map(gaz.places.map(p => [p[0], p]));
 // Labellers called the same places states or areas (Scotland, Crimea), so either matches either.
-const KINDS = { city: ['city', 'capital'], landmark: ['city', 'capital'], state: ['state', 'region', 'area'], country: ['country'], area: ['region', 'area', 'state'] };
+const KINDS = { city: ['city', 'capital', 'town'], landmark: ['city', 'capital', 'town'], state: ['state', 'region', 'area'], country: ['country'], area: ['region', 'area', 'state'] };
 const sameCc = (label, place) => !label.cc || !place[3] || label.cc.toUpperCase() === place[3];
 // City-states (Hong Kong, Singapore, Macau): the country and its capital share a name, and labels call them
 // either, so a label for one is also the other.
