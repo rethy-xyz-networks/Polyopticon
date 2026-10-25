@@ -55,3 +55,15 @@ test('remove and prune drop documents', () => {
   c.prune(T0 + 10 * WINDOW_MS);
   assert.equal(c.size, 0);
 });
+
+test('templated headlines about different places are not grouped', () => {
+  const c = seeded();
+  const at = (cc, ...spots) => ({ ccs: [cc], spots });
+  c.add('a', 'Clima hoy en Esquel, Chubut: el pronóstico del tiempo para este jueves', T0, null, at('AR', 'c:esquel'));
+  assert.equal(c.add('b', 'Clima hoy en Azul, Buenos Aires: el pronóstico del tiempo para este jueves', T0, null, at('AR', 'c:azul')), 'b');
+  c.add('d', 'Dólar hoy en Bolivia: cotización de cierre del 22 de octubre', T0, null, at('BO'));
+  assert.equal(c.add('e', 'Dólar hoy en Brasil: cotización de cierre del 22 de octubre', T0, null, at('BR')), 'e');
+  // The same place, or one headline naming none, still groups
+  assert.equal(c.add('f', 'Clima hoy en Esquel, Chubut: el pronóstico del tiempo para este jueves 22', T0, null, at('AR', 'c:esquel')), 'a');
+  assert.equal(c.add('g', 'Dólar hoy: cotización de cierre del 22 de octubre en Bolivia', T0), 'd');
+});

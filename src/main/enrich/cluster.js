@@ -4,6 +4,9 @@
 // are weighted by rarity (IDF over the recent window), and a new item joins the
 // group of its most similar recent item if their weighted overlap is high
 // enough. Groups are identified by the id of their first item.
+// Templated headlines share all their words but the place ("Clima hoy en Esquel…", "Dólar hoy en
+// Bolivia…"), so two items whose places disagree never join: no city or state in common when both
+// name one, else no country in common.
 
 const { tokens } = require('./text');
 
@@ -12,9 +15,15 @@ const THRESHOLD     = 0.42;          // weighted Jaccard needed to join a group
 const MIN_SHARED    = 2;             // …and at least this many shared stems
 const COMMON_RATIO  = 0.04;          // stems in more than 4% of items aren't used to find candidates
 
+const NOWHERE = { ccs: [], spots: [] };
+const meets = (a, b) => a.some(x => b.includes(x));
+/** Two items' places don't rule out one story. */
+const samePlace = (a, b) => a.spots.length && b.spots.length ? meets(a.spots, b.spots)
+  : !a.ccs.length || !b.ccs.length || meets(a.ccs, b.ccs);
+
 class Clusterer {
   constructor() {
-    this.docs = new Map();           // id -> { tokens, publishedAt, clusterId }
+    this.docs = new Map();           // id -> { tokens, publishedAt, clusterId, where }
     this.df = new Map();             // stem -> number of docs containing it
     this.postings = new Map();       // stem -> Set(id)
   }
@@ -27,7 +36,7 @@ class Clusterer {
   }
 
   /** Best matching existing doc for a token set, or null. */
-  match(toks, publishedAt, excludeId = null) {
+  match(toks, publishedAt, excludeId = null, where = NOWHERE) {
     const cap = Math.max(3, this.docs.size * COMMON_RATIO);
     const cand = new Map();          // id -> shared count
     for (const t of toks) {
@@ -46,6 +55,7 @@ class Clusterer {
       if (shared < MIN_SHARED) continue;
       const d = this.docs.get(id);
       if (Math.abs(d.publishedAt - publishedAt) > WINDOW_MS) continue;
+      if (!samePlace(where, d.where)) continue;
       let inter = 0, union = base;
       for (const t of toks) if (d.tokens.has(t)) inter += weigh(t);
       for (const t of d.tokens) if (!toks.has(t)) union += weigh(t);
@@ -58,16 +68,17 @@ class Clusterer {
   /**
    * Adds an item and returns its cluster id. A known clusterId (from the
    * database) is kept as-is so groups stay stable across restarts.
+   * @param where  { ccs, spots } of the item's places (see Enricher.where); unknown places agree with any
    */
-  add(id, title, publishedAt, clusterId = null) {
+  add(id, title, publishedAt, clusterId = null, where = NOWHERE) {
     const toks = tokens(title);
     if (clusterId == null) {
-      const m = toks.size >= MIN_SHARED ? this.match(toks, publishedAt, id) : null;
+      const m = toks.size >= MIN_SHARED ? this.match(toks, publishedAt, id, where) : null;
       clusterId = m ? m.doc.clusterId : id;
     }
     const prev = this.docs.get(id);
     if (prev) this.remove(id);
-    this.docs.set(id, { id, tokens: toks, publishedAt, clusterId });
+    this.docs.set(id, { id, tokens: toks, publishedAt, clusterId, where });
     for (const t of toks) {
       this.df.set(t, (this.df.get(t) ?? 0) + 1);
       if (!this.postings.has(t)) this.postings.set(t, new Set());

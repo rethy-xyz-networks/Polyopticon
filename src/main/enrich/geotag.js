@@ -399,10 +399,18 @@ const ccByKey = new Map(places.map(p => [p[0], p[3]]));
 /** Country code of a place returned by geotag, from its key. */
 const placeCc = key => ccByKey.get(key) || null;
 
+const indexByKey = new Map(places.map((p, i) => [p[0], i]));
+/** Keys a city, town or state returned by geotag stands for: its own and its state's (Nagqu: Nagqu, Tibet). */
+function placeSpots(key) {
+  const i = indexByKey.get(key);
+  if (i == null || !['city', 'capital', 'town', 'state'].includes(places[i][2])) return [];
+  return stateOf(i) == null ? [key] : [key, places[stateOf(i)][0]];
+}
+
 /** A country as geotag returns places, for a story placed in its source's home country. */
 function countryPlace(cc) {
   const p = places.find(q => q[2] === 'country' && q[3] === cc);
   return p ? [p[0], p[1], p[4], p[5]] : null;
 }
 
-module.exports = { geotag, countryCode, placeCc, countryPlace, GEOTAG_VERSION: VERSION };
+module.exports = { geotag, countryCode, placeCc, placeSpots, countryPlace, GEOTAG_VERSION: VERSION };

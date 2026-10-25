@@ -8,7 +8,7 @@
 // story that names no place is placed in its home country (home.js).
 
 const { Clusterer, WINDOW_MS } = require('./cluster');
-const { geotag, countryCode, placeCc, countryPlace, GEOTAG_VERSION } = require('./geotag');
+const { geotag, countryCode, placeCc, placeSpots, countryPlace, GEOTAG_VERSION } = require('./geotag');
 const { HomeShare } = require('./home');
 const { detectLang } = require('./text');
 
@@ -52,6 +52,12 @@ class Enricher {
     return home ? [home] : [];
   }
 
+  /** Where a headline says its story is, for grouping: templated headlines differ only there. */
+  where(it) {
+    const places = geotag({ title: it.title }, { cc: this.homeCc(it.sourceId) });
+    return { ccs: [...new Set(places.map(p => placeCc(p[0])).filter(Boolean))], spots: [...new Set(places.flatMap(p => placeSpots(p[0])))] };
+  }
+
   saveHomeShare() { this.store.setMeta('homeShare', JSON.stringify(this.homeShare)); }
 
   /** Builds the grouping index from recent items and backfills older rows. */
@@ -67,8 +73,8 @@ class Enricher {
             r.lang = detectLang(r.origTitle || r.title) || 'en';
             this.store.setLang(r.id, r.lang);
           }
-          if (r.clusterId != null && r.tagged) { this.clusterer.add(r.id, r.title, r.publishedAt, r.clusterId); continue; }
-          const clusterId = this.clusterer.add(r.id, r.title, r.publishedAt, r.clusterId);
+          if (r.clusterId != null && r.tagged) { this.clusterer.add(r.id, r.title, r.publishedAt, r.clusterId, this.where(r)); continue; }
+          const clusterId = this.clusterer.add(r.id, r.title, r.publishedAt, r.clusterId, this.where(r));
           this.store.setEnrichment(r.id, { clusterId, places: this.places(r) });
           backfilled.push(r.id);
         }
@@ -135,7 +141,7 @@ class Enricher {
   }
 
   enrich(it, found) {
-    it.clusterId = this.clusterer.add(it.id, it.title, it.publishedAt);
+    it.clusterId = this.clusterer.add(it.id, it.title, it.publishedAt, null, this.where(it));
     it.places = this.places(it, found);
     this.store.setEnrichment(it.id, { clusterId: it.clusterId, places: it.places });
     return it;
