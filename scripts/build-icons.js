@@ -62,6 +62,8 @@ const ICONS = {
   reader:           'book_open',
   keyboard:         'keyboard',
   enlarge:          'arrow_expand',
+  photo:            'image',
+  wikipedia:        'book_globe',
 };
 
 async function get(url) {

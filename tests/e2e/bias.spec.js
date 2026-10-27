@@ -26,29 +26,38 @@ const LEFT = outlet('left-paper', 'Left Paper', [['AllSides', 'left'], ['Ad Font
 const RIGHT = outlet('right-wire', 'Right Wire', [['AllSides', 'leanRight']], [['Ad Fontes Media', 'mixed']]);
 const UNRATED = outlet('mystery', 'Mystery', []);
 
-test('the map and bias buttons are in the header and open special views, not tabs', async ({ window }) => {
+test('the map and bias buttons are in the header and open their views as tabs, once each', async ({ window }) => {
   await expect(window.locator('#source-groups .source').first()).toBeVisible();
   for (const id of ['btn-map', 'btn-bias']) {
     await expect(window.locator(`.toolbar .tool-buttons #${id}`)).toBeVisible();
     await expect(window.locator(`.tabstrip #${id}`)).toHaveCount(0);
   }
-  await expect(window.locator('#map-view')).toBeVisible();              // the map is the start page
+  const labels = window.locator('#tabs .tab .label');
+  const active = window.locator('#tabs .tab.active .label');
+  await expect(window.locator('#map-view')).toBeVisible();              // the map is the start page, in a tab
+  await expect(labels).toHaveText(['Map']);
+  await expect(active).toHaveText('Map');
 
   await window.locator('#btn-bias').click();
   await expect(window.locator('#bias-view')).toBeVisible();
   await expect(window.locator('#map-view')).toBeHidden();
   await expect(window.locator('#btn-bias')).toHaveClass(/\bon\b/);
   await expect(window.locator('#btn-map')).not.toHaveClass(/\bon\b/);
-  await expect(window.locator('#tabs .tab')).toHaveCount(0);            // neither made a tab
+  await expect(labels).toHaveText(['Map', 'Political lean']);
+  await expect(active).toHaveText('Political lean');
 
-  await window.locator('#btn-map').click();
+  await window.locator('#btn-map').click();                             // selects the open tab, no second one
   await expect(window.locator('#map-view')).toBeVisible();
   await expect(window.locator('#bias-view')).toBeHidden();
+  await expect(active).toHaveText('Map');
   await window.keyboard.press('Control+b');
   await expect(window.locator('#bias-view')).toBeVisible();
-  await window.keyboard.press('Control+b');
+  await window.keyboard.press('Control+b');                             // already selected: stays
+  await expect(window.locator('#bias-view')).toBeVisible();
+  await window.locator('#tabs .tab', { hasText: 'Map' }).click();       // its tab works like any other
+  await expect(window.locator('#map-view')).toBeVisible();
   await expect(window.locator('#bias-view')).toBeHidden();
-  await expect(window.locator('#tabs .tab')).toHaveCount(0);
+  await expect(labels).toHaveText(['Map', 'Political lean']);
   expect(window.pageErrors).toEqual([]);
 });
 

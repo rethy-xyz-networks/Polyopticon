@@ -43,7 +43,7 @@ test('the 🍀 button sits left of the theme button and opens /pol/ as one tab',
   await expect(window.locator('#btn-chan').locator('svg')).toHaveAttribute('data-icon', 'chan');
 
   await window.locator('#btn-chan').click();
-  await expect(tabs(window)).toHaveCount(1);
+  await expect(tabs(window)).toHaveCount(2);                          // with the start page's map
   await expect(window.locator('#tabs .tab.active .tab-mode').locator('svg')).toHaveAttribute('data-icon', 'chan');
   await expect(activeView(window)).toHaveAttribute('src', 'https://boards.4chan.org/pol/');
   await expect(activeView(window)).toHaveAttribute('partition', 'chan');
@@ -54,25 +54,25 @@ test('the 🍀 button sits left of the theme button and opens /pol/ as one tab',
   await expect(window.locator('#btn-pin')).toBeVisible();
 
   await window.locator('#btn-chan').click();                        // same tab again, not a second one
-  await expect(tabs(window)).toHaveCount(1);
+  await expect(tabs(window)).toHaveCount(2);
 });
 
 test('middle-clicking any link in a 4chan tab opens it as a new background tab', async ({ app, window }) => {
   await openChan(window, `${base}/pol/`);
   await expect(activeLabel(window)).toHaveText('Page /pol/');        // named after the page title
 
-  await middleClick(app, window, 'thread');
-  await expect(tabs(window)).toHaveCount(2);
-  await expect(tabs(window).nth(1)).toContainText('/pol/ 123');
+  await middleClick(app, window, 'thread');                           // after the map and the board
+  await expect(tabs(window)).toHaveCount(3);
+  await expect(tabs(window).nth(2)).toContainText('/pol/ 123');
   await expect(activeLabel(window)).toHaveText('Page /pol/');        // stayed on the board
 
   await middleClick(app, window, 'other');
-  await expect(tabs(window)).toHaveCount(3);
+  await expect(tabs(window)).toHaveCount(4);
   await middleClick(app, window, 'thread');                           // already open: no duplicate
   await window.waitForTimeout(500);
-  await expect(tabs(window)).toHaveCount(3);
+  await expect(tabs(window)).toHaveCount(4);
 
-  await tabs(window).nth(1).click();
+  await tabs(window).nth(2).click();
   await expect(activeView(window)).toHaveAttribute('partition', 'chan');
   await expect(activeLabel(window)).toHaveText('Page /pol/thread/123/test-thread');
 });

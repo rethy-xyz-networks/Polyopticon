@@ -28,7 +28,10 @@ test.afterAll(() => server?.close());
 
 const activeLabel = window => window.locator('#tabs .tab.active .label');
 
+/** The stories' four tabs, and nothing else: the start page's map tab is closed first. */
 async function openAll(window) {
+  await window.locator('#tabs .tab', { hasText: 'Map' }).locator('.close').click();
+  await expect(window.locator('#tabs .tab')).toHaveCount(0);
   const saved = await window.evaluate(url => window.polyopticon.saveSource({
     type: 'rss', name: 'Local Feed', grp: 'Test', category: 'T', color: '#555555', enabled: true, config: { url },
   }), `${base}/feed`);
@@ -42,8 +45,10 @@ async function openAll(window) {
   await expect(window.locator('#tabs .tab')).toHaveCount(TITLES.length);
 }
 
-test('opens on the map, with no "Story" label in the tab strip', async ({ window }) => {
+test('opens on the map, in its own tab, with no "Story" label in the tab strip', async ({ window }) => {
   await expect(window.locator('#map-view')).toBeVisible();
+  await expect(window.locator('#tabs .tab .label')).toHaveText(['Map']);
+  await expect(activeLabel(window)).toHaveText('Map');
   await expect(window.locator('#btn-map')).toHaveClass(/\bon\b/);
   await expect(window.locator('.tabstrip')).not.toContainText('Story');
 });
@@ -113,10 +118,12 @@ test('Ctrl+B and Ctrl+M also work while an article page has focus', async ({ app
   };
   await press('B', ['control']);
   await expect(window.locator('#bias-view')).toBeVisible();
-  await press('B', ['control']);
-  await expect(window.locator('#bias-view')).toBeHidden();
+  await expect(activeLabel(window)).toHaveText('Political lean');
+  await window.locator('#tabs .tab', { hasText: 'Alpha story' }).click();
   await press('M', ['control']);
   await expect(window.locator('#map-view')).toBeVisible();
+  await expect(window.locator('#bias-view')).toBeHidden();
+  await expect(activeLabel(window)).toHaveText('Map');
 });
 
 // Keyboard shortcut list
@@ -134,7 +141,7 @@ test('Ctrl+? and the ? button open the shortcut list as one tab', async ({ windo
   await expect(window.locator('#btn-reload')).toBeHidden();
 
   await window.locator('#btn-help').click();                        // same tab, not a second one
-  await expect(window.locator('#tabs .tab')).toHaveCount(1);
+  await expect(window.locator('#tabs .tab')).toHaveCount(2);          // with the start page's map
 
   // Every registry entry is listed, with its description.
   const { SHORTCUTS } = await window.evaluate(() => import('./shortcuts.js').then(m => ({ SHORTCUTS: m.SHORTCUTS })));
@@ -161,7 +168,7 @@ test('Ctrl+? and the ? button open the shortcut list as one tab', async ({ windo
   await search.fill('zoom');
 
   await window.keyboard.press('Control+w');
-  await expect(window.locator('#tabs .tab')).toHaveCount(0);
+  await expect(window.locator('#tabs .tab .label')).toHaveText(['Map']);
   await expect(window.locator('#help-view')).toBeHidden();
 });
 
@@ -367,9 +374,13 @@ test('Shift+X reopens closed tabs, newest first and in their old place', async (
   await expect(labels).toHaveText(['Alpha story', 'Bravo story', 'Charlie story', 'Delta story']);
   await expect(activeLabel(window)).toHaveText('Bravo story');
 
+  await window.keyboard.press('Shift+X');                            // the start page's map, closed by openAll
+  await expect(labels).toHaveText(['Map', 'Alpha story', 'Bravo story', 'Charlie story', 'Delta story']);
+  await expect(activeLabel(window)).toHaveText('Map');
+
   await window.keyboard.press('Shift+X');                            // nothing left to reopen
-  await expect(labels).toHaveCount(4);
-  await expect(activeLabel(window)).toHaveText('Bravo story');
+  await expect(labels).toHaveCount(5);
+  await expect(activeLabel(window)).toHaveText('Map');
 });
 
 test('Shift+X is ignored while typing in a text box', async ({ window }) => {

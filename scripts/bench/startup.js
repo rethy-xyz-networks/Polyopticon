@@ -27,6 +27,7 @@ const HERE = path.resolve(__dirname, '..', '..');
 
 const dbm = require(path.join(HERE, 'src', 'main', 'db'));
 const { SEED_REVISION } = require(path.join(HERE, 'src', 'main', 'config'));
+const { GEOTAG_VERSION } = require(path.join(HERE, 'src', 'main', 'enrich', 'geotag'));
 const corpus = require(path.join(HERE, 'tests', 'unit', 'geotag-corpus.json'));
 
 function seed(dir) {
@@ -43,7 +44,7 @@ function seed(dir) {
   }
   if (!COLD) db.raw.exec(`UPDATE items SET cluster_id = id, places = '[]', lang = 'en'`);
   db.setMeta('seed_revision', SEED_REVISION);        // keep the app from adding its default sources
-  db.setMeta('geotagVersion', COLD ? 1 : 2);
+  db.setMeta('geotagVersion', COLD ? 1 : GEOTAG_VERSION);   // warm: current, or the app would re-tag everything
   db.close();
 }
 

@@ -1,5 +1,5 @@
 // Bias view: where each news feed's outlet sits politically (across) and how reliable it is (up).
-// A special view like the map, not a tab: it replaces the article area while open.
+// An app tab like the map (tabs.js): it fills the article area while its tab is selected.
 //
 // Positions come from the lookup in the main process (src/main/bias.js): x is the mean of the
 // raters' verdicts (-2 left … 2 right), y the mean of their factuality ratings (1 low … 4 very high).
@@ -37,24 +37,20 @@ let measure = null;                               // canvas context, for the wid
 // Lifecycle
 
 export function initBias() {
-  $('btn-bias').addEventListener('click', () => (open ? closeBias() : openBias()));
-  document.addEventListener('story:activate', () => closeBias());
-  document.addEventListener('special-view', e => { if (e.detail !== 'bias') closeBias(); });   // the map opened
+  document.addEventListener('story:view', e => (e.detail === 'bias' ? openBias() : closeBias()));   // its tab was selected, or another
   new ResizeObserver(() => { if (open) drawSoon(); }).observe($('bias-chart'));
   $('bias-chart').addEventListener('pointerleave', hideTip);
 }
 
-export function toggleBias() { return open ? closeBias() : openBias(); }
-
-export function openBias() {
+function openBias() {
+  if (open) return;
   open = true;
-  document.dispatchEvent(new CustomEvent('special-view', { detail: 'bias' }));
   document.querySelector('.story').classList.add('bias-open');
   $('btn-bias').classList.add('on');
   requestAnimationFrame(draw);
 }
 
-export function closeBias() {
+function closeBias() {
   if (!open) return;
   open = false;
   document.querySelector('.story').classList.remove('bias-open');

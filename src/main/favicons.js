@@ -11,9 +11,9 @@
 const fs   = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { net, nativeImage } = require('electron');
+const { nativeImage } = require('electron');
 const log  = require('./logger');
-const { BROWSER_UA } = require('./adapters/util');
+const { request } = require('./adapters/util');
 
 const SIZE = 32;
 const MISS_RETRY_MS = 3 * 86400e3;
@@ -55,14 +55,11 @@ async function limited(fn) {
 }
 
 async function get(url, accept = '*/*') {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await net.fetch(url, { signal: ctrl.signal, redirect: 'follow', headers: { 'User-Agent': BROWSER_UA, Accept: accept } });
+    const res = await request(url, { timeout: FETCH_TIMEOUT_MS, browser: true, headers: { Accept: accept } });
     if (!res.ok) return null;
     return { url: res.url || url, type: (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase(), body: Buffer.from(await res.arrayBuffer()) };
   } catch { return null; }
-  finally { clearTimeout(timer); }
 }
 
 const attr = (tag, name) => tag.match(new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'))?.slice(2).find(v => v != null) ?? null;

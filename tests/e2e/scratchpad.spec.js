@@ -22,7 +22,7 @@ test('the 📜 button opens one Scratchpad tab with highlighted Markdown', async
   await expect(window.locator('#btn-pin')).toBeVisible();
 
   await window.locator('#btn-scratch').click();                     // same tab, not a second one
-  await expect(window.locator('#tabs .tab')).toHaveCount(1);
+  await expect(window.locator('#tabs .tab')).toHaveCount(2);          // and the start page's map
 
   const area = window.locator('.scratch-text');
   await expect(area).toBeEnabled();
@@ -40,7 +40,7 @@ test('closing the tab saves the note, and encrypts it', async ({ app, window, da
   await expect(area).toBeEnabled();
   await area.fill('secret plans ![image](scratch-img:abc123)');
   await window.keyboard.press('Control+w');                          // leaving the tab flushes the save
-  await expect(window.locator('#tabs .tab')).toHaveCount(0);
+  await expect(window.locator('#tabs .tab .label')).toHaveText(['Map']);
 
   const file = path.join(dataDir, 'scratchpad.bin');
   await expect.poll(() => fs.existsSync(file)).toBe(true);
@@ -150,12 +150,12 @@ test('the Scratchpad and the shortcut list can be pinned like any tab', async ({
   await expect(window.locator('.ctx-menu button', { hasText: 'Open in browser' })).toHaveCount(0);   // no link to open
   await window.locator('.ctx-menu button', { hasText: 'Pin tab' }).click();
   await expect(window.locator('#tabs .tab.pinned')).toHaveCount(2);
-  await expect.poll(() => pinned().map(p => p.app).sort()).toEqual(['help', 'scratch']);
+  await expect.poll(() => pinned().filter(p => p.pinned).map(p => p.app).sort()).toEqual(['help', 'scratch']);
 
   // Pinned: no ✕, and Ctrl+W leaves it open.
   await expect(window.locator('#tabs .tab.pinned .close')).toHaveCount(0);
   await window.keyboard.press('Control+w');
-  await expect(window.locator('#tabs .tab')).toHaveCount(2);
+  await expect(window.locator('#tabs .tab')).toHaveCount(3);          // with the start page's map
 
   await window.locator('#btn-pin').click();                          // the pin button toggles it back
   await expect(window.locator('#tabs .tab.pinned')).toHaveCount(1);
@@ -236,7 +236,7 @@ test('dragging a tab to a new place does not select it', async ({ window }) => {
   await window.locator('#btn-scratch').click();
   await window.locator('#btn-help').click();                         // shortcut list is now the selected tab
   const tabs = window.locator('#tabs .tab .label');
-  await expect(tabs).toHaveText(['Scratchpad', 'Keyboard shortcuts']);
+  await expect(tabs).toHaveText(['Map', 'Scratchpad', 'Keyboard shortcuts']);   // the map is the start page
   await expect(window.locator('#tabs .tab.active .label')).toHaveText('Keyboard shortcuts');
 
   const from = await window.locator('#tabs .tab', { hasText: 'Scratchpad' }).boundingBox();
@@ -246,7 +246,7 @@ test('dragging a tab to a new place does not select it', async ({ window }) => {
   await window.mouse.move(to.x + to.width - 10, to.y + to.height / 2, { steps: 10 });
   await window.mouse.up();
 
-  await expect(tabs).toHaveText(['Keyboard shortcuts', 'Scratchpad']);                 // moved...
+  await expect(tabs).toHaveText(['Map', 'Keyboard shortcuts', 'Scratchpad']);          // moved...
   await expect(window.locator('#tabs .tab.active .label')).toHaveText('Keyboard shortcuts');   // ...not selected
   await expect(window.locator('#scratch-view')).toBeHidden();
 

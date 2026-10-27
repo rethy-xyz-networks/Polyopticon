@@ -32,7 +32,7 @@ appTest('✈️ opens a tab with a channel field where the title goes; connectin
 
   // A second press reuses the same new tab.
   await window.locator('#btn-telegram').click();
-  await appExpect(window.locator('#tabs .tab')).toHaveCount(1);
+  await appExpect(window.locator('#tabs .tab')).toHaveCount(2);                    // with the start page's map
 
   await field.fill('not a channel!');
   await field.press('Enter');
@@ -60,10 +60,10 @@ appTest('✈️ opens a tab with a channel field where the title goes; connectin
 
   // Connecting a second new tab to the same channel switches to the open one instead of duplicating it.
   await window.locator('#btn-telegram').click();
-  await appExpect(window.locator('#tabs .tab')).toHaveCount(2);
+  await appExpect(window.locator('#tabs .tab')).toHaveCount(3);                    // with the start page's map
   await window.locator('#tg-channel').fill('@durov');
   await window.locator('#tg-channel').press('Enter');
-  await appExpect(window.locator('#tabs .tab')).toHaveCount(1);
+  await appExpect(window.locator('#tabs .tab')).toHaveCount(2);
   await appExpect(window.locator('#tabs .tab.active')).toContainText(/durov/i);
 });
 

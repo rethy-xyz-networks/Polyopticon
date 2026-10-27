@@ -58,12 +58,14 @@ test('feature timings', async ({ window }) => {
     const repeat = async (n, fn) => { const ts = []; for (let i = 0; i < n; i++) ts.push(await time(() => fn(i))); return stats(ts); };
     const R = {};
 
-    // Feed
-    R.ingest5000 = Math.round(await time(() => feed.ingest(items, { fresh: false })));
+    // Feed. Arriving stories render at most every 350 ms (BATCH_RENDER_GAP_MS), so a timing could end before its
+    // render; asking for one (as a user action does) puts the render inside the timing.
+    const ingest = (list, fresh) => { feed.ingest(list, { fresh }); feed.scheduleRender(); };
+    R.ingest5000 = Math.round(await time(() => ingest(items, false)));
     R.rows = document.querySelectorAll('#feed-list .item').length;
 
     const arrivals = n => Array.from({ length: n }, (_, i) => ({ ...items[0], id: 9e8 + Math.floor(rnd() * 1e8) + i, url: `https://n.example.com/${rnd()}`, title: `Breaking ${sentence(8)}`, publishedAt: Date.now() }));
-    R.newArrivals25 = await repeat(10, () => feed.ingest(arrivals(25), { fresh: true }));
+    R.newArrivals25 = await repeat(10, () => ingest(arrivals(25), true));
 
     const search = document.getElementById('search');
     const type = text => { search.value = text; search.dispatchEvent(new Event('input')); };
@@ -85,7 +87,7 @@ test('feature timings', async ({ window }) => {
 
     R.descriptionLengthChange = await repeat(4, i => { state.settings.DescriptionLength = i % 2 ? 300 : 120; feed.refreshRows(); });
 
-    R.workerUpdate50 = await repeat(8, () => feed.updateItems(items.slice(100, 150).map(it => ({ ...it, origTitle: null, places: it.places }))));
+    R.workerUpdate50 = await repeat(8, () => { feed.updateItems(items.slice(100, 150).map(it => ({ ...it, origTitle: null, places: it.places }))); feed.scheduleRender(); });
 
     // Scrolling through the whole list
     const list = document.getElementById('feed-list');

@@ -2,9 +2,11 @@
 //   live   — the real page (captured for offline use once it finishes loading)
 //   page   — the saved MHTML copy (works offline)
 //   reader — clean text extracted at save time (works offline)
-// plus two app pages: the keyboard shortcut list (Ctrl+? or the ? button) and the Scratchpad (📜),
-// and 'chan' tabs, live only: 4chan (the 🍀 button: /pol/ and threads opened from it) and
-// public Telegram channels (the ✈️ button: t.me/s/<channel>).
+// plus the app's own pages: the keyboard shortcut list (Ctrl+? or the ? button), the Scratchpad (📜),
+// and the Map, Political lean and Global Markets views,
+// and 'chan' tabs, live only: 4chan (the 🍀 button: /pol/ and threads opened from it),
+// public Telegram channels (the ✈️ button: t.me/s/<channel>), and a map place card's Wikipedia article
+// and the Wikimedia Commons page of its photo.
 
 import { api, $, h, flash, relTime, showMenu } from './dom.js';
 import { icon } from './icons.js';
@@ -52,38 +54,36 @@ export async function openTab(it, { preferSaved = false } = {}) {
   activateTab(tab);
 }
 
-// The app's own pages are tabs like any other (reorder, pin, close): the shortcut list, and the
-// Scratchpad (scratchpad.js), one permanent note. No web page, nothing saved with the tab.
-const HELP_TAB_ID = -1;
-const SCRATCH_TAB_ID = -999999;
+// The app's own pages are tabs like any other (reorder, pin, close): the shortcut list, the
+// Scratchpad (scratchpad.js), one permanent note, and the views that fill the whole article area
+// (map.js, bias.js, markets.js; they show while their tab is selected). No web page, nothing saved
+// with the tab. Each opens at most once: its button or shortcut selects the tab if it's already open.
 const APP_TABS = {
-  help:    { id: HELP_TAB_ID,    title: 'Keyboard shortcuts' },
-  scratch: { id: SCRATCH_TAB_ID, title: 'Scratchpad' },
+  help:    { id: -1,      title: 'Keyboard shortcuts', icon: 'keyboard' },
+  scratch: { id: -999999, title: 'Scratchpad',         icon: 'scratchpad' },
+  map:     { id: -999998, title: 'Map',                icon: 'map' },
+  bias:    { id: -999997, title: 'Political lean',     icon: 'bias' },
+  markets: { id: -999996, title: 'Global Markets',     icon: 'markets' },
 };
-const isApp = tab => tab?.kind === 'help' || tab?.kind === 'scratch';
+const VIEW_KINDS = new Set(['map', 'bias', 'markets']);
+const isApp = tab => !!APP_TABS[tab?.kind];
 const appTab = kind => ({ ...newTab({ id: APP_TABS[kind].id, title: APP_TABS[kind].title, sourceName: 'Polyopticon' }), kind });
 
-export function openHelpTab() {
-  let tab = state.tabs.find(t => t.id === HELP_TAB_ID);
+/** Select the app page's tab, opening it first if it isn't open. */
+export function openAppTab(kind) {
+  let tab = state.tabs.find(t => t.id === APP_TABS[kind].id);
   if (!tab) {
-    tab = appTab('help');
-    state.tabs.push(tab);
-    saveTabs();
-  }
-  activateTab(tab);
-}
-
-export function openScratchTab() {
-  let tab = state.tabs.find(t => t.id === SCRATCH_TAB_ID);
-  if (!tab) {
-    tab = appTab('scratch');
+    tab = appTab(kind);
     state.tabs.push(tab);
     api.setState('app.story_tabs', state.tabs.length);
     saveTabs();
   }
   activateTab(tab);
-  focusScratch();
+  if (kind === 'scratch') focusScratch();
 }
+
+export const openHelpTab = () => openAppTab('help');
+export const openScratchTab = () => openAppTab('scratch');
 
 // 4chan and Telegram channels
 // Not stories: no item in the database, never saved. They run on their own
@@ -93,16 +93,24 @@ export function openScratchTab() {
 // moved with Back / Forward / Reload.
 
 const CHAN_HOME = 'https://boards.4chan.org/pol/';
-let nextChanId = -2;                                           // -1 is the shortcut list
+let nextChanId = -2;                                           // -1 is the shortcut list; the other app pages are far below
 
-const siteOf = url => (telegramChannelOf(url) ? 'telegram' : '4chan');
-const SITE_LABEL = { '4chan': '4chan', telegram: 'Telegram' };
-const SITE_ICON  = { '4chan': 'chan', telegram: 'telegram' };
+const COMMONS = /^https:\/\/commons\.wikimedia\.org\//;
+const WIKIPEDIA = /^https:\/\/[a-z-]+\.(?:m\.)?wikipedia\.org\//;
+const siteOf = url => (telegramChannelOf(url) ? 'telegram' : COMMONS.test(url) ? 'commons' : WIKIPEDIA.test(url) ? 'wikipedia' : '4chan');
+const SITE_LABEL = { '4chan': '4chan', telegram: 'Telegram', commons: 'Wikimedia Commons', wikipedia: 'Wikipedia' };
+const SITE_ICON  = { '4chan': 'chan', telegram: 'telegram', commons: 'photo', wikipedia: 'wikipedia' };
 
-/** A readable name until the page sends its title: "/pol/", "/pol/ 123456" or "@durov". */
+/** A readable name until the page sends its title: "/pol/", "/pol/ 123456", "@durov", a photo's file name or an article's. */
 function chanTitle(url) {
   const tg = telegramChannelOf(url);
   if (tg) return `@${tg}`;
+  if (COMMONS.test(url)) {
+    try { return decodeURIComponent(new URL(url).pathname.split('/').pop()).replace(/^File:/, '').replace(/_/g, ' '); } catch { return 'Wikimedia Commons'; }
+  }
+  if (WIKIPEDIA.test(url)) {
+    try { return decodeURIComponent(new URL(url).pathname.split('/').pop()).replace(/_/g, ' '); } catch { return 'Wikipedia'; }
+  }
   try {
     const [board, kind, no] = new URL(url).pathname.split('/').filter(Boolean);
     if (!board) return '4chan';
@@ -151,7 +159,7 @@ function connectDraft(tab, name) {
   renderStory();                                                     // the field goes away; the page loads
 }
 
-/** A tab for this page (4chan or Telegram); in the background it's only added to the strip. */
+/** A tab for this page (4chan, Telegram, Wikimedia Commons or Wikipedia); in the background it's only added to the strip. */
 export function openChanTab(url, { background = false, home = false } = {}) {
   const existing = state.tabs.find(t => t.kind === 'chan' && t.item.url === url);
   if (existing) return background ? undefined : activateTab(existing);
@@ -263,7 +271,7 @@ function writeTabs(sync = false) {
 
 window.addEventListener('beforeunload', () => { if (tabsReady) writeTabs(true); });   // the window is closing: write now
 
-/** Reopen last session's tabs, in order, and select the one that was selected (the map stays if none was). */
+/** Reopen last session's tabs, in order, and select the one that was selected. */
 export async function restoreTabs(saved) {
   try { await restoreSaved(saved ?? []); }
   finally { tabsReady = true; }
@@ -278,8 +286,8 @@ async function restoreSaved(saved) {
   let selected = null;                                      // the tab that was selected when the app closed
   const mark = (p, tab) => { if (p.active) selected = tab; };
   for (const p of saved) {
-    if (p.app) {                                             // the shortcut list or the Scratchpad
-      if (state.tabs.some(t => t.id === APP_TABS[p.app].id) || restored.some(t => t.kind === p.app)) continue;
+    if (p.app) {                                             // the shortcut list, the Scratchpad, a view
+      if (!APP_TABS[p.app] || state.tabs.some(t => t.id === APP_TABS[p.app].id) || restored.some(t => t.kind === p.app)) continue;
       const tab = appTab(p.app);
       tab.pinned = p.pinned;
       mark(p, tab);
@@ -326,7 +334,6 @@ async function restoreSaved(saved) {
 
 export function activateTab(tab) {
   if (tab.id !== state.activeTabId) flushScratch();          // leaving the Scratchpad saves it
-  document.dispatchEvent(new Event('story:activate'));       // e.g. leaves the map view
   state.activeTabId = tab.id;
   saveTabs();
   tab.lastUsed = Date.now();
@@ -356,11 +363,10 @@ export function moveTab(step) {
 /** The tabs for tab search (Ctrl+Shift+A): the current one, then the most recently used. */
 export function storyTabList() {
   const host = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
-  const detail = tab => tab.kind === 'help' ? 'Keyboard shortcuts' : tab.kind === 'scratch' ? 'Scratchpad'
+  const detail = tab => isApp(tab) ? APP_TABS[tab.kind].title
     : [tab.item.sourceName, host(tab.item.url)].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' · ');
   const tabIcon = tab => tab.kind === 'chan' ? h('span', { class: 'tab-mode' }, icon(SITE_ICON[tab.site]))
-    : tab.kind === 'scratch' ? h('span', { class: 'tab-mode' }, icon('scratchpad'))
-    : tab.kind === 'help' ? h('span', { class: 'tab-mode' }, icon('keyboard'))
+    : isApp(tab) ? h('span', { class: 'tab-mode' }, icon(APP_TABS[tab.kind].icon))
     : siteIcon(tab.item);
   const rank = t => (t.id === state.activeTabId ? Infinity : t.lastUsed ?? 0);
   return [...state.tabs].sort((a, b) => rank(b) - rank(a)).map(tab => ({
@@ -462,7 +468,7 @@ export function renderTabs() {
     lead: [
       tab.mode !== 'live' && h('span', { class: 'tab-mode', title: MODE_LABEL[tab.mode] }, icon(tab.mode === 'page' ? 'saved-page' : 'reader')),
       tab.kind === 'chan' && h('span', { class: 'tab-mode', title: SITE_LABEL[tab.site] }, icon(SITE_ICON[tab.site])),
-      tab.kind === 'scratch' && h('span', { class: 'tab-mode', title: 'Scratchpad' }, icon('scratchpad')),
+      (tab.kind === 'scratch' || VIEW_KINDS.has(tab.kind)) && h('span', { class: 'tab-mode', title: APP_TABS[tab.kind].title }, icon(APP_TABS[tab.kind].icon)),
       !tab.kind && siteIcon(tab.item),                          // the source's icon, as in the feed
     ],
     closeTitle: 'Close tab (Ctrl+W)',
@@ -760,6 +766,8 @@ function reloadView(tab) {
 
 export function renderStory() {
   const tab = activeTab();
+  // The map, bias chart and markets show while their tab is selected (they listen for this).
+  document.dispatchEvent(new CustomEvent('story:view', { detail: VIEW_KINDS.has(tab?.kind) ? tab.kind : null }));
   for (const t of state.tabs) {
     t.view?.classList.toggle('inactive', t !== tab);
     if (t.ready) t.view.setAudioMuted(t !== tab);
@@ -774,6 +782,14 @@ export function renderStory() {
     $('story-empty').hidden = false;
     $('infobar').hidden = true;
     setLoading(false);
+    return;
+  }
+
+  if (VIEW_KINDS.has(tab.kind)) {                           // the view covers the article area, infobar included
+    $('story-empty').hidden = true;
+    $('infobar').hidden = true;
+    setLoading(false);
+    renderTabs();
     return;
   }
 

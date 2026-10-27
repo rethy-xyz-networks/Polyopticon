@@ -112,7 +112,8 @@ test('chat pane toggles from the toolbar button', async ({ window }) => {
 });
 
 test('buttons follow the design system: square and borderless', async ({ window }) => {
-  const styles = await window.locator('.icon-btn, .toggle-btn, .primary-btn, .segmented button').evaluateAll(els =>
+  // Not a tab's ✕: round, like Chrome's.
+  const styles = await window.locator('.icon-btn:not(.tab .close), .toggle-btn, .primary-btn, .segmented button').evaluateAll(els =>
     els.map(el => {
       const cs = getComputedStyle(el);
       return { id: el.id || el.className, radius: cs.borderTopLeftRadius, border: cs.borderTopWidth };
@@ -121,17 +122,18 @@ test('buttons follow the design system: square and borderless', async ({ window 
   for (const s of styles) expect(s, s.id).toMatchObject({ radius: '0px', border: '0px' });
 });
 
-test('map is fully offline: draws the built-in world map, no tile server or tiles setting', async ({ window }) => {
+test('map draws its own outlines: no tile server or tiles setting', async ({ window }) => {
+  // The page itself fetches nothing online; place photos and Canada's divisions come through the app (polyopticon-map:).
   const external = [];
   window.on('request', r => { if (/^https?:/.test(r.url())) external.push(r.url()); });
 
   await expect(window.locator('#map-view')).toBeVisible();                    // open from the start
-  await expect(window.locator('#map-canvas canvas').first()).toBeVisible();   // Leaflet canvas renderer
-  await expect(window.locator('.leaflet-tile')).toHaveCount(0);
+  await expect(window.locator('#map-canvas canvas').first()).toBeVisible();   // outlines drawn into canvas tiles
+  await expect(window.locator('#map-canvas img')).toHaveCount(0);             // no image tiles
   await expect(window.locator('[data-setting="MapOnlineTiles"]')).toHaveCount(0);
 
   await window.locator('#btn-theme').click();   // restyles the outlines without errors
-  await window.locator('#btn-map').click();
+  await window.keyboard.press('Control+w');                                   // closing its tab hides it
   await expect(window.locator('#map-view')).toBeHidden();
   expect(external).toEqual([]);
   expect(window.pageErrors).toEqual([]);

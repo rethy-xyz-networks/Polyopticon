@@ -7,6 +7,7 @@
 //   node scripts/bench/main.js                    # run everything, print a table
 //   node scripts/bench/main.js --json=out.json    # also write the numbers (compare runs with compare.js)
 //   node scripts/bench/main.js --only=geotag,db   # names containing any of these
+//   node scripts/bench/main.js --root=<app folder> # another checkout's src/main (e.g. a worktree of an older commit), same cases
 //
 // Every case reports the median and p95 of its timed runs, in ms per call of `fn` (a "call" may be a
 // batch: the label says how many items it handles, and `per` is the cost per item).
@@ -21,11 +22,12 @@ const only = (flag('only') || '').split(',').filter(Boolean);
 const jsonOut = flag('json');
 const verbose = args.includes('--verbose');       // every timed run, in order
 
-const root = path.join(__dirname, '..', '..', 'src', 'main');
+const root = path.join(path.resolve(flag('root') || path.join(__dirname, '..', '..')), 'src', 'main');
 const { detectLang, tokens } = require(path.join(root, 'enrich', 'text'));
 const { Clusterer } = require(path.join(root, 'enrich', 'cluster'));
 const { geotag } = require(path.join(root, 'enrich', 'geotag'));
 const { Enricher } = require(path.join(root, 'enrich'));
+const { GEOTAG_VERSION } = require(path.join(root, 'enrich', 'geotag'));
 const { parseFeed, itemTitle } = require(path.join(root, 'adapters', 'rss'));
 const { cleanHtml, cleanText, parseDate } = require(path.join(root, 'adapters', 'util'));
 const dbm = require(path.join(root, 'db'));
@@ -187,6 +189,7 @@ function freshDb(n = 0) {
 }
 
 // 6. enricher (what the worker does for every arriving item and at startup)
+// The stored geotagVersion is the current one: otherwise init() also starts a full retag, timed with it.
 function enricherOver(db) {
   const log = { info() {}, warn() {}, debug() {}, error() {} };
   return new Enricher({ store: db, log, emitUpdate() {} });
@@ -196,9 +199,11 @@ function enricherOver(db) {
   run('enrich', 'process 50 new items (lang+group+geotag+2 writes) into 10000-item index', ({ e, db, src }) => {
     const added = db.insertItems(src.id, batch.map(b => ({ ...b, extId: `${b.extId}-${rnd()}` })));
     e.process(added, src);
-  }, { items: 50, iters: 8, setup: () => { const f = freshDb(10_000); const e = enricherOver(f.db); f.db.raw.exec('UPDATE items SET places = NULL'); f.db.setMeta('geotagVersion', 2); e.init(); return { ...f, e }; } });
+  }, { items: 50, iters: 8, setup: () => { const f = freshDb(10_000); const e = enricherOver(f.db); f.db.raw.exec('UPDATE items SET places = NULL'); f.db.setMeta('geotagVersion', GEOTAG_VERSION); e.init(); return { ...f, e }; } });
   run('enrich', 'init(): index + backfill 10000 stored items (cold start)', ({ e }) => e.init(),
-    { items: 10_000, iters: 3, warmup: 0, setup: () => { const f = freshDb(10_000); f.db.raw.exec('UPDATE items SET places = NULL, cluster_id = NULL, lang = NULL'); f.db.setMeta('geotagVersion', 2); return { e: enricherOver(f.db), db: f.db }; } });
+    { items: 10_000, iters: 3, warmup: 0, setup: () => { const f = freshDb(10_000); f.db.raw.exec('UPDATE items SET places = NULL, cluster_id = NULL, lang = NULL'); f.db.setMeta('geotagVersion', GEOTAG_VERSION); return { e: enricherOver(f.db), db: f.db }; } });
+  run('enrich', 'init(): index 20000 stored, already grouped and tagged (warm start)', ({ e }) => e.init(),
+    { items: 20_000, iters: 3, warmup: 1, setup: () => { const f = freshDb(20_000); f.db.setMeta('geotagVersion', GEOTAG_VERSION); return { e: enricherOver(f.db), db: f.db }; } });
   run('enrich', 'retag(): first chunk of 500 items', ({ e }) => { const real = global.setImmediate; global.setImmediate = () => {}; try { e.retag(); } finally { global.setImmediate = real; } },
     { items: 500, iters: 2, warmup: 0, setup: () => { const f = freshDb(10_000); f.db.raw.exec(`UPDATE items SET places = '[]'`); f.db.setMeta('geotagVersion', 1); return { e: enricherOver(f.db), db: f.db }; } });
 }

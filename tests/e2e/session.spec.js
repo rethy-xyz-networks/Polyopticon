@@ -54,13 +54,13 @@ test('open tabs are saved on close and resumed on open, with the selected one se
     await window.locator('#btn-help').click();
     await window.locator('#btn-pin').click();                              // pins the shortcut list
     await window.locator('#tabs .tab', { hasText: 'Scratchpad' }).click();  // the selected tab at close
-    await expect(labels(window)).toHaveText(['Keyboard shortcuts', 'Alpha story', /durov/i, 'Scratchpad']);
+    await expect(labels(window)).toHaveText(['Keyboard shortcuts', 'Map', 'Alpha story', /durov/i, 'Scratchpad']);   // the map: the start page
     await app.close();
 
     // Second session: all of them are back
     app = await launch(dir);
     window = await app.firstWindow();
-    await expect(labels(window)).toHaveText(['Keyboard shortcuts', 'Alpha story', /durov/i, 'Scratchpad'], { timeout: 30_000 });
+    await expect(labels(window)).toHaveText(['Keyboard shortcuts', 'Map', 'Alpha story', /durov/i, 'Scratchpad'], { timeout: 30_000 });
     await expect(window.locator('#tabs .tab.pinned')).toHaveCount(1);
     await expect(window.locator('#tabs .tab.pinned .label')).toHaveText('Keyboard shortcuts');
     await expect(window.locator('#tabs .tab.active .label')).toHaveText('Scratchpad');
@@ -69,12 +69,12 @@ test('open tabs are saved on close and resumed on open, with the selected one se
     // Closing a tab is remembered too.
     await window.locator('#tabs .tab', { hasText: 'Alpha story' }).click();
     await window.keyboard.press('Control+w');
-    await expect(labels(window)).toHaveCount(3);
+    await expect(labels(window)).toHaveCount(4);
     await app.close();
 
     app = await launch(dir);
     window = await app.firstWindow();
-    await expect(labels(window)).toHaveText(['Keyboard shortcuts', /durov/i, 'Scratchpad'], { timeout: 30_000 });
+    await expect(labels(window)).toHaveText(['Keyboard shortcuts', 'Map', /durov/i, 'Scratchpad'], { timeout: 30_000 });
     await app.close();
   } finally {
     fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });

@@ -65,18 +65,105 @@ test('stories are pins in their site\'s colour; nearby places share a cluster th
   expect(window.pageErrors).toEqual([]);
 });
 
-test('a country\'s stories shade it; hovering names it and clicking lists them', async ({ window }) => {
+test('a country\'s stories shade it; hovering names it, clicking opens its card, and the card lists its stories', async ({ window }) => {
   await expect(window.locator('#source-groups .source').first()).toBeVisible();
   await addStories(window);
   await window.locator('#search').fill('mapsynth');
   await expect(window.locator('.map-cluster')).toHaveCount(1);
   const at = await window.evaluate(async ([, , lat, lon]) => (await import('./map.js')).placePoint(lat, lon), FRANCE);
-  await window.mouse.move(at.x, at.y);
-  await expect(window.locator('.leaflet-tooltip')).toContainText('France · 1 story');
-  await window.mouse.click(at.x, at.y);
+  const peek = window.locator('.map-peek');
+  await expect(async () => {                                   // the outlines load in the background
+    await window.mouse.move(at.x - 1, at.y); await window.mouse.move(at.x, at.y);
+    await expect(peek).toContainText('France', { timeout: 500 });
+  }).toPass();
+  await expect(peek).toContainText('· 1 story');
+  const card = window.locator('.map-card');
+  await expect(async () => {                                   // France, and the region of France it's in once the states are in
+    if (await card.isVisible()) await card.locator('.mc-x').click();   // an open card may cover the spot (Esc would clear the search)
+    await window.mouse.click(at.x, at.y);
+    await expect(card.locator('.mc-crumb')).toContainText('France ›', { timeout: 1000 });
+  }).toPass({ timeout: 60_000 });
+  await expect(card.locator('.mc-pane').first().locator('.mc-name')).toContainText('France');
+  await card.locator('.mc-stories', { hasText: 'Show 1 story' }).click();
+  await expect(card).toBeHidden();
   await expect(window.locator('.map-pop-head')).toContainText('France');
   await expect(window.locator('.map-pop-list li')).toHaveCount(1);
   await expect(window.locator('.map-pop-search')).toBeFocused();
+  expect(window.pageErrors).toEqual([]);
+});
+
+test('clicking a place opens its card with a pane per tier, and Esc or the sea closes it', async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await window.evaluate(async () => (await import('./map.js')).showPlace(44.75, -63.3, 8));      // Nova Scotia, east of Halifax
+  const card = window.locator('.map-card');
+  await expect(async () => {                                   // counties and Canada's divisions load in the background
+    const at = await window.evaluate(async () => (await import('./map.js')).placePoint(44.95, -63.2));
+    if (await card.isVisible()) await card.locator('.mc-x').click();   // an open card may cover the spot (Esc would clear the search)
+    await window.mouse.click(at.x, at.y);
+    await expect(card.locator('.mc-crumb')).toHaveText('Canada › Nova Scotia › Halifax County', { timeout: 1000 });
+  }).toPass({ timeout: 60_000 });
+  await expect(card.locator('.mc-pane')).toHaveCount(3);
+  await expect(card.locator('.mc-eyebrow').nth(2)).toContainText('Census division');
+  await window.locator('.map-card .mc-name').first().click();  // focus in the card, not a text box
+  await window.keyboard.press('Escape');
+  await expect(card).toBeHidden();
+  const at = await window.evaluate(async () => (await import('./map.js')).placePoint(44.95, -63.2));
+  await window.mouse.click(at.x, at.y);
+  await expect(card).toBeVisible();
+  const sea = await window.evaluate(async () => {                // open sea in the map that nothing covers
+    const { isPlaceAt } = await import('./map.js'), m = document.getElementById('map-canvas').getBoundingClientRect();
+    for (let y = m.top + 60; y < m.bottom - 60; y += 20) for (let x = m.left + 60; x < m.right - 20; x += 20)
+      if (document.elementFromPoint(x, y)?.closest('#map-canvas') && !document.elementFromPoint(x, y).closest('.leaflet-control, .leaflet-marker-icon') && !isPlaceAt(x, y)) return { x, y };
+  });
+  await window.mouse.click(sea.x, sea.y);
+  await expect(card).toBeHidden();
+  expect(window.pageErrors).toEqual([]);
+});
+
+test('clicking a card\'s photo opens its Wikimedia Commons page as a tab', async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await window.evaluate(async () => (await import('./map.js')).showPlace(44.75, -63.3, 8));
+  const card = window.locator('.map-card');
+  await expect(async () => {
+    const at = await window.evaluate(async () => (await import('./map.js')).placePoint(44.95, -63.2));
+    if (await card.isVisible()) await card.locator('.mc-x').click();
+    await window.mouse.click(at.x, at.y);
+    await expect(card.locator('.mc-crumb')).toContainText('Nova Scotia', { timeout: 1000 });
+  }).toPass({ timeout: 60_000 });
+  const photo = card.locator('.mc-photo img').first();       // Canada's: downloaded from Commons by the app
+  await expect(photo).toBeVisible({ timeout: 30_000 });
+  const page = await card.locator('.mc-credit a').first().getAttribute('href');
+  expect(page).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+  await photo.click();
+  await expect(window.locator('#map-view')).toBeHidden();                         // the Article View, with the new tab
+  const tab = await window.evaluate(async () => {
+    const { state } = await import('./state.js'), t = state.tabs.find(x => x.id === state.activeTabId);
+    return { kind: t.kind, site: t.site, url: t.item.url, sourceName: t.item.sourceName };
+  });
+  expect(tab).toEqual({ kind: 'chan', site: 'commons', url: page, sourceName: 'Wikimedia Commons' });
+  expect(window.pageErrors).toEqual([]);
+});
+
+test('clicking a card\'s Wikipedia link opens the article as a tab', async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await window.evaluate(async () => (await import('./map.js')).showPlace(44.75, -63.3, 8));
+  const card = window.locator('.map-card');
+  await expect(async () => {
+    const at = await window.evaluate(async () => (await import('./map.js')).placePoint(44.95, -63.2));
+    if (await card.isVisible()) await card.locator('.mc-x').click();
+    await window.mouse.click(at.x, at.y);
+    await expect(card.locator('.mc-crumb')).toContainText('Nova Scotia', { timeout: 1000 });
+  }).toPass({ timeout: 60_000 });
+  const link = card.locator('.mc-wiki').first();
+  const href = await link.getAttribute('href');
+  expect(href).toMatch(/^https:\/\/en\.wikipedia\.org\/wiki\//);
+  await link.click();
+  await expect(window.locator('#map-view')).toBeHidden();                         // the Article View, with the new tab
+  const tab = await window.evaluate(async () => {
+    const { state } = await import('./state.js'), t = state.tabs.find(x => x.id === state.activeTabId);
+    return { kind: t.kind, site: t.site, url: t.item.url, sourceName: t.item.sourceName };
+  });
+  expect(tab).toEqual({ kind: 'chan', site: 'wikipedia', url: href, sourceName: 'Wikipedia' });
   expect(window.pageErrors).toEqual([]);
 });
 

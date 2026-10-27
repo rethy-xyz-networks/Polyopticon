@@ -46,6 +46,11 @@ const MIGRATIONS = [
      WHERE lang IS NOT NULL AND lang != 'en' AND orig_title IS NULL;`,
   // v8: headline translation was removed, so nothing reads the v7 index any more.
   `DROP INDEX IF EXISTS items_untranslated;`,
+  // v9–v11: a topic web was tried and removed. Its two tables were created at v9 and v10 on databases that ran it;
+  // the version numbers stay taken, and v11 drops the tables wherever they are.
+  `DROP TABLE IF EXISTS item_vectors;`,
+  `DROP TABLE IF EXISTS topic_images;`,
+  `DROP TABLE IF EXISTS item_vectors; DROP TABLE IF EXISTS topic_images;`,
 ];
 const SCHEMA_VERSION = 1 + MIGRATIONS.length;
 
@@ -139,12 +144,14 @@ function open(file) {
 
 const parseSource = r => r && ({ ...r, enabled: !!r.enabled, config: JSON.parse(r.config || '{}') });
 
-const ITEM_COLS = `i.id, i.source_id AS sourceId, s.name AS sourceName, i.kind, i.title, i.summary, i.url,
+// The source's name is a subquery, not a JOIN: node:sqlite reads a joined row ~4x slower (getItem: ~50 µs
+// joined, ~6 µs this way). Items can't outlive their source (ON DELETE CASCADE), so both give the same rows.
+const ITEM_COLS = `i.id, i.source_id AS sourceId, (SELECT name FROM sources WHERE id = i.source_id) AS sourceName, i.kind, i.title, i.summary, i.url,
                    i.author, i.published_at AS publishedAt, i.cluster_id AS clusterId, i.places, i.lang,
                    i.orig_title AS origTitle, json_extract(i.extra, '$.site') AS site`;
 
-/** Row -> renderer item (places JSON parsed). */
-const itemRow = r => r && ({ ...r, places: r.places ? JSON.parse(r.places) : [] });
+/** Row -> renderer item (places JSON parsed). Set in place: copying a row (null prototype) costs more than reading it. */
+const itemRow = r => { if (r) r.places = r.places ? JSON.parse(r.places) : []; return r; };
 
 /** FTS5 query from free text: every word must match (prefix match on the last). */
 function ftsQuery(text) {
@@ -240,7 +247,7 @@ function wrap(db) {
      *  `perSource` (so slow sources aren't crowded out — see trimToMax in feed.js). */
     recentItems: (since, limit, perSource = 10) =>
       q(`SELECT ${ITEM_COLS}, (SELECT 1 FROM snapshots WHERE item_id = i.id) AS saved
-         FROM items i JOIN sources s ON s.id = i.source_id
+         FROM items i
          WHERE i.id IN (
            SELECT id FROM (SELECT id FROM items WHERE published_at >= $since ORDER BY published_at DESC LIMIT $limit)
            UNION
@@ -251,7 +258,7 @@ function wrap(db) {
          ORDER BY i.published_at DESC`).all({ $since: since, $limit: limit, $perSource: perSource }).map(itemRow),
 
     getItem: id =>
-      itemRow(q(`SELECT ${ITEM_COLS} FROM items i JOIN sources s ON s.id = i.source_id WHERE i.id = ?`).get(id)),
+      itemRow(q(`SELECT ${ITEM_COLS} FROM items i WHERE i.id = ?`).get(id)),
 
     // Enrichment (worker): grouping, places, language
     /** Items for the clustering index: newest first within the window. */
@@ -296,12 +303,12 @@ function wrap(db) {
       if (scope === 'opened') {
         return run(`SELECT ${ITEM_COLS}, o.lastOpened, o.opens, ${snapCols}
                   FROM (SELECT item_id, max(opened_at) AS lastOpened, count(*) AS opens FROM opens GROUP BY item_id) o
-                  JOIN items i ON i.id = o.item_id JOIN sources s ON s.id = i.source_id ${ftsJoin}
+                  JOIN items i ON i.id = o.item_id ${ftsJoin}
                   LEFT JOIN snapshots sn ON sn.item_id = i.id ${where}
                   ORDER BY o.lastOpened DESC LIMIT $limit OFFSET $offset`).all(params).map(itemRow);
       }
       return run(`SELECT ${ITEM_COLS}, NULL AS lastOpened, 0 AS opens, ${snapCols}
-                FROM items i JOIN sources s ON s.id = i.source_id ${ftsJoin}
+                FROM items i ${ftsJoin}
                 LEFT JOIN snapshots sn ON sn.item_id = i.id ${where}
                 ORDER BY i.published_at DESC LIMIT $limit OFFSET $offset`).all(params).map(itemRow);
     },

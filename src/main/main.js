@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, session, utilityProcess, protocol, nativeTheme, screen, webContents, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, session, utilityProcess, protocol, nativeTheme, screen, webContents } = require('electron');
 const fs        = require('fs');
 const path      = require('path');
 const log       = require('./logger');
@@ -11,6 +11,7 @@ const scratchpad = require('./scratchpad');
 const snapshots = require('./snapshots');
 const screenshot = require('./screenshot');
 const favicons  = require('./favicons');
+const mapdata   = require('./mapdata');
 const chat      = require('./chat');
 const irc       = require('./irc');
 const fourchan  = require('./fourchan');
@@ -20,6 +21,7 @@ const biasLookup = require('./bias');
 const markets   = require('./markets');
 const { SEED_GROUPS, SEED_REVISION, RETIRED, RENAMED } = require('./config');
 const { TYPES, validateSource } = require('./adapters/types');
+const { request } = require('./adapters/util');
 
 // POLYOPTICON_DATA_DIR runs a separate copy (own database, settings, logins), e.g. for testing.
 // POLYOPTICON_OFFSCREEN=1 (set by the tests) opens the window off-screen, unfocused and
@@ -59,10 +61,12 @@ const DIRECT_PARTITION  = 'direct-video';
 let directSession = null;
 const READER_SCHEME     = 'polyopticon-reader';
 const ICON_SCHEME       = 'polyopticon-icon';
+const MAP_SCHEME        = 'polyopticon-map';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: READER_SCHEME, privileges: { standard: true, secure: true } },
   { scheme: ICON_SCHEME,   privileges: { standard: true, secure: true } },
+  { scheme: MAP_SCHEME,    privileges: { standard: true, secure: true } },
 ]);
 
 let win      = null;
@@ -125,12 +129,8 @@ let biasChecker = null;
 let biasTimer = null;
 
 function setupBias() {
-  const get = async url => {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 15_000);
-    try { return await net.fetch(url, { signal: ctrl.signal, headers: { Accept: 'application/json' } }); }
-    finally { clearTimeout(timer); }
-  };
+  // Not Electron's net.fetch, which a non-Latin-1 response header breaks (see mapdata.js)
+  const get = url => request(url, { timeout: 15_000, headers: { Accept: 'application/json' } });
   biasChecker = biasLookup.createChecker({
     db, log, getJson: biasLookup.httpJson(get, { log }),
     onChange: () => send('bias:changed', db.listBias()),
@@ -507,9 +507,14 @@ function registerIpc() {
   ipcMain.handle('scratch:save', (_e, note) => scratchpad.save(note));
   ipcMain.on('scratch:save-sync', (e, note) => { e.returnValue = scratchpad.save(note); });
 
+  // Map: downloads the app can't ship (mapdata.js)
+  ipcMain.handle('map:canada', () => mapdata.canadaDivisions());
+  ipcMain.on('map:prefetch', (_e, files) => mapdata.prefetch(files));
+
   // Storage
   ipcMain.handle('storage:stats', () => ({
     ...db.stats(),
+    map: mapdata.stats(),
     dbBytes: ['', '-wal'].reduce((n, sfx) => { try { return n + fs.statSync(DB_PATH + sfx).size; } catch { return n; } }, 0),
     pagesOnDisk: dirSize(snapshots.dir),
     dataDir: DATA_DIR,
@@ -759,6 +764,9 @@ app.whenReady().then(() => {
   // Site icons for feed rows (main window, default session).
   favicons.init(path.join(DATA_DIR, 'icons'));
   protocol.handle(ICON_SCHEME, req => favicons.handle(req));
+  // Place-card photos and Canada's census divisions for the map, downloaded when the map first needs them.
+  mapdata.init(path.join(DATA_DIR, 'map'));
+  protocol.handle(MAP_SCHEME, req => mapdata.handle(req));
 
   articles.protocol.handle(READER_SCHEME, req => {
     const u = new URL(req.url);

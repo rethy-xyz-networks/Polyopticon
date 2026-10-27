@@ -3,11 +3,11 @@
 import { api, $, maxAgeLabel } from './dom.js';
 import { state, setSources, setBias } from './state.js';
 import { ingest, refreshRows, scheduleRender, bindFeedScroll, trimToMax, rebuildTagCache, bindList, pruneSources, setCountsListener, updateItems, setVisibleListener } from './feed.js';
-import { initMap, openMap, closeMap, onVisibleItems, applyMapAppearance, refreshMapFilter } from './map.js';
-import { initBias, toggleBias, refreshBias } from './bias.js';
-import { initMarkets, toggleMarkets } from './markets.js';
+import { initMap, onVisibleItems, applyMapAppearance, refreshMapFilter } from './map.js';
+import { initBias, refreshBias } from './bias.js';
+import { initMarkets } from './markets.js';
 import { renderSources, renderTags, bindTagForms, bindSourceFilter, setStatus, repaintCounts } from './sidebar.js';
-import { renderStory, renderTabs, activeTab, closeTab, reopenClosedTab, setPinned, cycleTab, moveTab, selectUnpinnedTab, openHelpTab, openScratchTab, openChanHome, openChanTab, openTelegramDraft, navigate, reload as reloadTab, showMode, onSnapshotSaved, applyZoom, bindStoryButtons, bindTabDrag, restoreTabs, storyTabList, selectTabById, closeTabById, onArticleTranslateProgress, takeScreenshot } from './tabs.js';
+import { renderStory, renderTabs, activeTab, closeTab, reopenClosedTab, setPinned, cycleTab, moveTab, selectUnpinnedTab, openAppTab, openHelpTab, openScratchTab, openChanHome, openChanTab, openTelegramDraft, navigate, reload as reloadTab, showMode, onSnapshotSaved, applyZoom, bindStoryButtons, bindTabDrag, restoreTabs, storyTabList, selectTabById, closeTabById, onArticleTranslateProgress, takeScreenshot } from './tabs.js';
 import { initHistory, reload as reloadHistory, setHistoryQuery } from './history.js';
 import { ui, loadUi, saveUi } from './ui.js';
 import { initChat, renderChat, toggleChat, toggleVideo, applyChatTheme, chatOpen, cycleChatTab, moveChatTab, selectChatTab, closeChatTab, reloadChatTab, pinChatTab, chatTabList } from './chat.js';
@@ -222,11 +222,14 @@ function bindShortcuts() {
   registerShortcuts({
     help:     () => openHelpTab(),
     refresh:  () => manualRefresh(),
-    search:   () => { const search = $('search'); search.focus(); search.select(); },
+    search:   () => {                                                  // the Global Markets view has its own search bar
+      const search = $(document.querySelector('.story').classList.contains('markets-open') ? 'markets-search' : 'search');
+      search.focus(); search.select();
+    },
     mode:     () => setMode(state.mode === 'live' ? 'history' : 'live'),
-    map:      () => (document.querySelector('.story.map-open') ? closeMap() : openMap()),
-    bias:     () => toggleBias(),
-    markets:  () => toggleMarkets(),
+    map:      () => openAppTab('map'),
+    bias:     () => openAppTab('bias'),
+    markets:  () => openAppTab('markets'),
     chat:     () => toggleChat(),
     video:    () => toggleVideo(),
     settings: () => toggleSettings(),
@@ -287,6 +290,7 @@ function bindToolbar() {
     paintFullScreen();
   });
   $('btn-scratch').addEventListener('click', () => openScratchTab());
+  for (const kind of ['map', 'bias', 'markets']) $(`btn-${kind}`).addEventListener('click', () => openAppTab(kind));
   $('btn-chan').addEventListener('click', () => openChanHome());
   $('btn-telegram').addEventListener('click', () => openTelegramDraft());
   $('btn-settings').addEventListener('click', () => toggleSettings());
@@ -476,9 +480,9 @@ window.addEventListener('unhandledrejection', e => api.log('error', `Renderer: u
   bindTabScroll($('tabs'));
   renderTabs();
   renderStory();
-  restoreTabs(init.pinned);
+  // The map is the start page when no tab was selected last time.
+  restoreTabs(init.pinned).then(() => { if (state.activeTabId == null) openAppTab('map'); });
   if (ui.mode === 'history') setMode('history');
-  openMap();                            // the map is the start page
 
   api.onItems(items => ingest(items));
   api.onItemsUpdated(updateItems);

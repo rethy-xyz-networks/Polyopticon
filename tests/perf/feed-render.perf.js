@@ -25,6 +25,7 @@ test('render 1000 stories and scroll through them', async ({ window }) => {
     await frame();
     const t0 = performance.now();
     feed.ingest(items, { fresh: false });
+    feed.scheduleRender();                                         // now, not after the 350 ms batching gap
     await frame(); await frame();                                  // render + layout/paint
     const renderMs = performance.now() - t0;
 
@@ -32,10 +33,13 @@ test('render 1000 stories and scroll through them', async ({ window }) => {
     const list = document.getElementById('feed-list');
     const frames = [];
     let last = performance.now();
-    for (let y = 0; y < list.scrollHeight; y += 600) {
+    // The list adds rows as it nears its end, so keep going until a pass to the bottom adds none.
+    for (let y = 0, stalled = 0; stalled < 3; y += 600) {
+      const before = list.querySelectorAll('.item').length;
       list.scrollTop = y;
       await frame();
       const now = performance.now(); frames.push(now - last); last = now;
+      stalled = y >= list.scrollHeight - list.clientHeight && list.querySelectorAll('.item').length === before ? stalled + 1 : 0;
     }
     frames.sort((a, b) => a - b);
     return {

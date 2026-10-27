@@ -73,7 +73,13 @@ class Enricher {
             r.lang = detectLang(r.origTitle || r.title) || 'en';
             this.store.setLang(r.id, r.lang);
           }
-          if (r.clusterId != null && r.tagged) { this.clusterer.add(r.id, r.title, r.publishedAt, r.clusterId, this.where(r)); continue; }
+          // Its places (a geotag of the title) only matter if a new item is compared with it: worked out then.
+          // The function keeps the title and source, not the whole row (its summary).
+          if (r.clusterId != null && r.tagged) {
+            const { title, sourceId } = r;
+            this.clusterer.add(r.id, title, r.publishedAt, r.clusterId, () => this.where({ title, sourceId }));
+            continue;
+          }
           const clusterId = this.clusterer.add(r.id, r.title, r.publishedAt, r.clusterId, this.where(r));
           this.store.setEnrichment(r.id, { clusterId, places: this.places(r) });
           backfilled.push(r.id);

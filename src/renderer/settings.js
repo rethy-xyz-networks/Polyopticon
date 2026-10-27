@@ -317,9 +317,19 @@ async function renderStorage() {
   $('storage-stats').replaceChildren(
     ...[['Stored items', s.items.toLocaleString()], ['Article opens', s.opens.toLocaleString()],
         ['Saved articles', s.snapshots.toLocaleString()], ['Database', bytes(s.dbBytes)],
-        ['Saved pages on disk', bytes(s.pagesOnDisk)], ['Translation models', bytes(t.modelsBytes)]]
+        ['Saved pages on disk', bytes(s.pagesOnDisk)], ['Translation models', bytes(t.modelsBytes)],
+        ['Map photos', `${s.map.photos.toLocaleString()} (${bytes(s.map.photoBytes)})${mapStatus(s.map)}`],
+        ['Canada\'s census divisions (map)', s.map.canada]]
       .map(([k, v]) => h('div', { class: 'stat-row' }, h('span', {}, k), h('b', {}, v))),
     h('p', { class: 'log-path' }, s.dataDir));
+}
+
+/** How the map's photo downloads are going, for information only: they look after themselves. */
+function mapStatus(m) {
+  const at = m.pausedUntil && new Date(m.pausedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (m.blocked) return ` · Wikimedia is refusing requests; trying again at ${at}`;
+  if (at) return ` · paused by Wikimedia, resuming at ${at}`;
+  return m.photosQueued ? ` · ${m.photosQueued.toLocaleString()} downloading in the background` : '';
 }
 
 /** A delete button: the first click asks "Sure?", a second within 4 s runs `action`. */

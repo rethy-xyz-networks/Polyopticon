@@ -21,11 +21,11 @@ export const SHORTCUTS = [
   { group: 'General', items: [
     { id: 'help',    combos: ['ctrl+?', 'ctrl+/'], keys: [['Ctrl', '?']], does: 'Show this list of shortcuts' },
     { id: 'refresh', combos: ['shift+r'], keys: [['Shift', 'R']], does: 'Refresh all sources', typing: false, inPages: false },
-    { id: 'search',  combos: ['ctrl+f'], keys: [['Ctrl', 'F']], does: 'Search the stories' },
+    { id: 'search',  combos: ['ctrl+f'], keys: [['Ctrl', 'F']], does: 'Search the stories (in Global Markets: its tickers)' },
     { id: 'mode',    combos: ['ctrl+h'], keys: [['Ctrl', 'H']], does: 'Switch between Live and History' },
-    { id: 'map',     combos: ['ctrl+m'], keys: [['Ctrl', 'M']], does: 'Show or hide the map' },
-    { id: 'bias',    combos: ['ctrl+b'], keys: [['Ctrl', 'B']], does: 'Show or hide the bias chart (political lean of the news feeds)' },
-    { id: 'markets', combos: ['ctrl+g'], keys: [['Ctrl', 'G']], does: 'Show or hide Global Markets (live indices, energy, metals, currencies, crypto)' },
+    { id: 'map',     combos: ['ctrl+m'], keys: [['Ctrl', 'M']], does: 'The map: opens its tab, or selects it if it’s open' },
+    { id: 'bias',    combos: ['ctrl+b'], keys: [['Ctrl', 'B']], does: 'The bias chart (political lean of the news feeds): opens its tab, or selects it' },
+    { id: 'markets', combos: ['ctrl+g'], keys: [['Ctrl', 'G']], does: 'Global Markets (live indices, energy, metals, currencies, crypto): opens its tab, or selects it' },
     { id: 'chat',    combos: ['ctrl+j'], keys: [['Ctrl', 'J']], does: 'Show or hide the live chat' },
     // Ctrl+V is paste: ignored in text boxes and pages, so pasting still works there.
     { id: 'video',   combos: ['ctrl+v'], keys: [['Ctrl', 'V']], does: 'Show or hide the video player (not while typing or in a page)', typing: false, inPages: false },
@@ -70,6 +70,7 @@ export const SHORTCUTS = [
     { keys: [['Middle-click']], does: 'On a tab: close it (pinned tabs stay open)' },
     { keys: [['Right-click']], does: 'On a tab: pin, open in browser, close others / to the right' },
     { keys: [['Drag']], does: 'A tab: reorder it' },
+    { keys: [['Drag']], does: 'A Global Markets tile: move it, within its group or to another' },
   ] },
 ];
 

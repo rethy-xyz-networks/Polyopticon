@@ -64,6 +64,10 @@ contextBridge.exposeInMainWorld('polyopticon', {
   saveScratch:   note            => ipcRenderer.invoke('scratch:save', note),
   saveScratchSync: note          => ipcRenderer.sendSync('scratch:save-sync', note),
 
+  // Map place cards
+  mapCanada:     ()              => ipcRenderer.invoke('map:canada'),
+  mapPrefetch:   files           => ipcRenderer.send('map:prefetch', files),
+
   // Storage
   storageStats:  ()              => ipcRenderer.invoke('storage:stats'),
   openDataDir:   ()              => ipcRenderer.send('storage:open'),

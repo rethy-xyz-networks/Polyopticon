@@ -3,16 +3,24 @@
 // shades the country, darker with more stories. Every other story is a pin in its
 // site's colour, faded with age. A place's pins, and those of places that would
 // overlap at the current zoom, gather in one cluster that stops growing at
-// CLUSTER_PINS pins; its number is the count of stories. Clicking a cluster or a
-// shaded country lists all its stories, with a search box. Fully offline: Natural
-// Earth country outlines, no tile server.
+// CLUSTER_PINS pins; its number is the count of stories. Clicking a cluster lists
+// all its stories, with a search box.
+//
+// Under the pins: countries, states and provinces, the UK's nations, US counties,
+// Canada's census divisions and cities, drawn by map-draw.js. Hovering names the
+// place under the pointer; clicking opens its card (map-card.js), whose "Show N
+// stories" lists a place's stories like a cluster does. No tile server: the
+// outlines and facts ship with the app, except Canada's divisions and the photos,
+// which the app downloads when the map first needs them (main/mapdata.js).
 
 import * as L from '../../node_modules/leaflet/dist/leaflet-src.esm.js';
-import { $, h, relTime, formatTime } from './dom.js';
+import { $, h, api, relTime, formatTime } from './dom.js';
 import { state, sourceColor } from './state.js';
-import { openTab } from './tabs.js';
+import { openTab, openChanTab } from './tabs.js';
 import { ui, saveUi } from './ui.js';
 import { measure } from './perfwatch.js';
+import { geo, createDrawing, readColors, addLands, addNations, addStates, addSubs, setCities, countrySpan } from './map-draw.js';
+import { createCard, facts, cityName, keysOf } from './map-card.js';
 
 const WINDOWS = [['1h', 3600e3], ['6h', 6 * 3600e3], ['24h', 24 * 3600e3], ['All', Infinity]];
 
@@ -25,13 +33,15 @@ const LIST_ROWS = 200;           // rows in a cluster's list before "narrow the 
 const PLACES_LISTED = 10;        // places named in a merged cluster's header
 // A country this small (degrees across) can't be seen shaded at world zoom: it gets a pin (Singapore, Bahrain).
 const SMALL_COUNTRY = 1.5;
-const SHADES = [[15, 0.8], [5, 0.6], [2, 0.42], [1, 0.22]];   // [stories at least, fill opacity]
+const SHADES = [[15, 4], [5, 3], [2, 2], [1, 1]];   // [stories at least, shade class: --map-shade-N]
 
 let map = null;
-let world = null;            // GeoJSON country layer
-let shadeLayer = null;       // shaded countries, rebuilt when their stories change
+let drawing = null;          // outlines, cities and marks (map-draw.js)
+let card = null;             // hover label and place card (map-card.js)
 let shadeSig = '';
-const countryShapes = new Map();   // ISO code -> GeoJSON features (only countries big enough to shade)
+const shaded = new Map();    // ISO code -> shade class (1-4), for countries with stories about them
+const shadable = new Set();  // countries big enough to see shaded at world zoom
+let places = new Map();      // the last aggregate(): place key -> { key, name, lat, lon, items }
 let markers = new Map();     // cluster anchor place key -> marker
 let markerLayer = null;
 let windowMs = 24 * 3600e3;
@@ -40,15 +50,12 @@ let open = false;
 let popupOpen = false;       // clusters stay put while their list is open
 let onPlaceFilter = () => {};
 
-const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 // Lifecycle
 
 export function initMap({ onFilter }) {
   onPlaceFilter = onFilter;
-  $('btn-map').addEventListener('click', () => (open ? closeMap() : openMap()));
-  document.addEventListener('story:activate', () => closeMap());
-  document.addEventListener('special-view', e => { if (e.detail !== 'map') closeMap(); });   // the bias chart opened
+  document.addEventListener('story:view', e => (e.detail === 'map' ? openMap() : closeMap()));   // its tab was selected, or another
   const setWindow = name => {
     const w = WINDOWS.find(x => x[0] === name);
     if (!w) return false;
@@ -65,8 +72,8 @@ export function initMap({ onFilter }) {
 }
 
 export function openMap() {
+  if (open) return;
   open = true;
-  document.dispatchEvent(new CustomEvent('special-view', { detail: 'map' }));
   document.querySelector('.story').classList.add('map-open');
   $('btn-map').classList.add('on');
   if (!map) createMap();
@@ -125,64 +132,113 @@ async function createMap() {
     popupOpen = true;
     e.popup.getElement()?.querySelector('input')?.focus();
   });
-  map.on('popupclose', () => { popupOpen = false; if (dirty) refresh(true); });
-  map.on('tooltipopen', e => { if (!e.tooltip.options.sticky) fitTooltip(e.tooltip); });   // a country's follows the mouse
+  map.on('popupclose', () => { popupOpen = false; popupClosedAt = performance.now(); if (dirty) refresh(true); });
+  map.on('tooltipopen', e => fitTooltip(e.tooltip));
 
-  const geo = await (await fetch('assets/world.geojson')).json();
-  world = L.geoJSON(geo, { style: worldStyle, interactive: false }).addTo(map);
-  world.bringToBack();
-  map.attributionControl.addAttribution('Natural Earth · GeoNames');
-  const spans = new Map();
-  for (const f of geo.features) {
-    const iso = f.properties.iso;
-    if (!iso) continue;
-    if (!countryShapes.has(iso)) countryShapes.set(iso, []);
-    countryShapes.get(iso).push(f);
-    const b = L.geoJSON(f).getBounds(), [w, h0] = spans.get(iso) ?? [0, 0];
-    spans.set(iso, [Math.max(w, b.getEast() - b.getWest()), Math.max(h0, b.getNorth() - b.getSouth())]);
-  }
-  for (const [iso, [w, h0]] of spans) if (Math.max(w, h0) < SMALL_COUNTRY) countryShapes.delete(iso);
-  shadeLayer = L.layerGroup().addTo(map);
-  refresh(true);                               // countries drawn as pins until the outlines loaded
+  drawing = createDrawing(map, { shadeOf: iso => shaded.get(iso) ?? 0, marks, cityName });
+  card = createCard({
+    map, stage: $('map-view'), drawing,
+    count: key => places.get(key)?.items.length ?? 0,
+    onStories: (key, name, latlng) => {
+      const p = places.get(key);
+      if (p) L.popup(POPUP).setLatLng(latlng ?? [p.lat, p.lon]).setContent(popupFor(single(p, name))).openOn(map);
+    },
+    onPage: url => openChanTab(url),
+    onChange: () => drawing.redrawMarks(),
+  });
+  // A click on a pin or a list is theirs; on the map it opens the card for the place under it, and on the sea
+  // closes it. The click that closes a list only closes it.
+  map.on('click', e => {
+    if (performance.now() - popupClosedAt < 300) return;
+    const t = drawing.targetAt(e.containerPoint);
+    if (t) card.open(t, e.originalEvent, e.latlng); else card.close();
+  });
+  map.attributionControl.addAttribution('Natural Earth · US Census · GADM · GeoNames · Wikidata · Wikipedia · Wikimedia Commons');
+  await loadPlaces();
 }
 
-function worldStyle() {
-  return { color: css('--map-border'), weight: 0.6, fillColor: css('--map-land'), fillOpacity: 1 };
+const POPUP = { maxWidth: 440, minWidth: 360, className: 'map-popup', autoPanPadding: [20, 20] };
+let popupClosedAt = -Infinity;
+const load = name => fetch(`assets/map/${name}`).then(r => r.json());
+
+/**
+ * The map draws as soon as the country outlines are in; states and facts, then counties and cities, then
+ * Canada's divisions (downloaded once) and the photos fill in behind it. Nothing later is needed for the map to work.
+ */
+async function loadPlaces() {
+  const later = Promise.all([load('admin1.geojson'), load('nations.geojson'), load('info.json')]);
+  const depth = later.then(() => Promise.all([load('counties-us.geojson'), load('cities.json'), load('info2.json'), load('photos.json'), load('ca-divisions.json')]));
+  await addLands((await (await fetch('assets/world.geojson')).json()).features);
+  for (const iso of geo.landsOf.keys()) if (Math.max(...countrySpan(iso)) >= SMALL_COUNTRY) shadable.add(iso);
+  shadeSig = '';
+  refresh(true);                               // countries were pins until their outlines were in
+  drawing.prebuild(geo.lands);
+
+  const [admin1, nations, info] = await later;
+  facts.info = info;
+  addNations(nations.features);
+  await addStates(admin1.features);
+  drawing.redraw(); drawing.prebuild(geo.states);
+
+  const [counties, cities, info2, photos, caCodes] = await depth;
+  Object.assign(facts, { info2, photos });
+  await addSubs(counties.features);
+  setCities(cities);
+  drawing.redraw(); drawing.prebuild(counties.features);
+  prefetchPhotos();
+
+  const canada = JSON.parse(await api.mapCanada());
+  for (const f of canada.features) f.properties.wd = caCodes[f.properties.code] ?? null;
+  await addSubs(canada.features);
+  drawing.redraw(); drawing.prebuild(canada.features);
+}
+
+/** Photos to download in the background: places in the news first, then every country and state. */
+function prefetchPhotos() {
+  const { countries, states } = facts.info, files = [];
+  const add = rec => { if (rec?.img) files.push(rec.img); };
+  for (const p of [...places.values()].sort((a, b) => b.items.length - a.items.length)) {
+    const [kind, id] = [p.key.slice(0, 1), p.key.slice(2)];
+    if (kind === 'c') add(countries[id]);
+    else if (kind === 'a') add(states[geo.stateByCode.get(id)?.properties.wd]);
+    else if (kind === 'g') add(facts.info2[geo.cities.find(c => c.gid === id)?.wd]);
+  }
+  for (const rec of Object.values(countries)) add(rec);
+  for (const rec of Object.values(states)) add(rec);
+  api.mapPrefetch([...new Set(files)]);
+}
+
+/** Outlines drawn over the map: the hovered place, the open card's, and the countries the feed is filtered to. */
+function marks() {
+  const out = [];
+  for (const k of state.placeFilter?.keys ?? []) if (k.startsWith('c:') && shaded.has(k.slice(2))) out.push({ t: { iso: k.slice(2) }, color: 'accent', px: 2 });
+  if (card?.hovered) out.push({ t: card.hovered, color: 'hover', px: 2.2 });
+  if (card?.opened) out.push({ t: card.opened, color: 'accent', px: 3 });
+  return out;
 }
 
 /** Theme changed. */
 export function applyMapAppearance() {
-  world?.setStyle(worldStyle());
-  shadeSig = '';
+  if (!drawing) return;
+  readColors();
+  drawing.redraw();
   if (open) refresh(true);
 }
 
-/** A shaded country's style: darker with more stories, outlined when it's the feed's place filter. */
-function shadeStyle(n, on) {
-  return {
-    fillColor: css('--map-shade'), fillOpacity: SHADES.find(([min]) => n >= min)[1],
-    color: on ? css('--accent') : css('--map-border'), weight: on ? 2 : 0.6,
-  };
-}
-
-const isShaded = p => p.key.startsWith('c:') && countryShapes.has(p.key.slice(2));
+const SHADE_OF = n => SHADES.find(([min]) => n >= min)[1];
+const isShaded = p => p.key.startsWith('c:') && shadable.has(p.key.slice(2));
 
 /** One list of stories, as a cluster's popup shows them, for a place on its own. */
-const single = p => ({ places: [p], keys: [p.key], name: p.name, anchor: p, stories: p.items.map(it => ({ it, place: p.name })) });
+const single = (p, name = p.name) => ({ places: [p], keys: [p.key], name, anchor: p, stories: p.items.map(it => ({ it, place: p.name })) });
 
-function drawShades(countries, filtered) {
-  const sig = [...countries].map(p => `${p.key}:${p.items.length}:${filtered.has(p.key) ? 1 : 0}:${p.items.slice(0, 1).map(it => it.id)}`).join();
+/** Countries with stories about them are tinted in the outline tiles, which are redrawn when that changes. */
+function drawShades(countries) {
+  const sig = countries.map(p => `${p.key}:${SHADE_OF(p.items.length)}`).join();
   if (sig === shadeSig) return;
   shadeSig = sig;
-  shadeLayer.clearLayers();
-  for (const p of countries) {
-    const n = p.items.length;
-    const layer = L.geoJSON(countryShapes.get(p.key.slice(2)), { style: () => shadeStyle(n, filtered.has(p.key)) });
-    layer.bindTooltip(`${p.name} · ${n} stor${n === 1 ? 'y' : 'ies'}`, { sticky: true, direction: 'top' });
-    layer.on('click', e => L.popup({ maxWidth: 440, minWidth: 360, className: 'map-popup', autoPanPadding: [20, 20] })
-      .setLatLng(e.latlng).setContent(popupFor(single(p))).openOn(map));
-    shadeLayer.addLayer(layer);
-  }
+  shaded.clear();
+  for (const p of countries) shaded.set(p.key.slice(2), SHADE_OF(p.items.length));
+  drawing.redraw();
 }
 
 /** Where a place is drawn, in page pixels (for the tests, which can't see into the canvas). */
@@ -190,6 +246,15 @@ export function placePoint(lat, lon) {
   const pt = map.latLngToContainerPoint([lat, lon]), box = map.getContainer().getBoundingClientRect();
   return { x: box.left + pt.x, y: box.top + pt.y };
 }
+
+/** Whether a page point is over a place (land), as a click there would see it (for the tests). */
+export function isPlaceAt(x, y) {
+  const box = map.getContainer().getBoundingClientRect();
+  return !!drawing.targetAt(L.point(x - box.left, y - box.top));
+}
+
+/** Centres the map on a place (for the tests). */
+export function showPlace(lat, lon, zoom) { map.setView([lat, lon], zoom, { animate: false }); }
 
 // Data
 
@@ -273,16 +338,19 @@ function clusterIcon(c, highlighted) {
   });
 }
 
+let lastCardSig = '';
 const refresh = (force = false) => measure(() => `map update (${markers.size} clusters)`, () => refreshNow(force));
 
 function refreshNow(force) {
   if (!map || (!dirty && !force)) return;
   if (popupOpen) { dirty = true; return; }   // redrawn when the list closes
   dirty = false;
-  const places = aggregate();
+  places = aggregate();
   const filtered = new Set(state.placeFilter?.keys ?? []);
-  const countries = [...places.values()].filter(isShaded);
-  if (shadeLayer) drawShades(countries, filtered);
+  drawShades([...places.values()].filter(isShaded));
+  drawing.redrawMarks();                     // the place filter's outline
+  const cardSig = card.opened ? keysOf(card.opened).map(k => places.get(k)?.items.length ?? 0).join() : '';
+  if (cardSig !== lastCardSig) { lastCardSig = cardSig; card.refresh(); }   // its story counts changed
   const clusters = clusterPlaces(new Map([...places].filter(([, p]) => !isShaded(p))));
   const live = new Set();
   for (const c of clusters) {
@@ -292,7 +360,7 @@ function refreshNow(force) {
     let m = markers.get(c.anchor.key);
     if (!m) {
       m = L.marker([c.anchor.lat, c.anchor.lon], { keyboard: true, riseOnHover: true }).addTo(markerLayer);
-      m.bindPopup(layer => popupFor(layer._cluster), { maxWidth: 440, minWidth: 360, className: 'map-popup', autoPanPadding: [20, 20] });
+      m.bindPopup(layer => popupFor(layer._cluster), POPUP);
       markers.set(c.anchor.key, m);
     }
     if (m._sig !== sig) {

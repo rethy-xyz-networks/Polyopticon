@@ -16,6 +16,9 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const LISTS = 'adblock-lists.bin';
 const SHARED_LISTS = path.join(os.tmpdir(), `polyopticon-test-${LISTS}`);
 const mtime = f => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
+// Likewise Canada's census divisions for the map, which the app downloads from GADM.
+const CANADA = path.join('map', 'ca-divisions.geojson');
+const SHARED_CANADA = path.join(os.tmpdir(), 'polyopticon-test-ca-divisions.geojson');
 
 // Pre-seeded settings: keep runs quick and quiet. The large translation model is
 // ~1 GB to download if a test translates an article,
@@ -41,15 +44,18 @@ const test = base.extend({
     fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({ ...TEST_SETTINGS, ...settings }, null, 2));
     const lists = path.join(dataDir, LISTS);
     if (mtime(SHARED_LISTS)) fs.copyFileSync(SHARED_LISTS, lists);
+    const canada = path.join(dataDir, CANADA);
+    if (mtime(SHARED_CANADA)) { fs.mkdirSync(path.dirname(canada), { recursive: true }); fs.copyFileSync(SHARED_CANADA, canada); }
     const app = await electron.launch({
       args: [ROOT],
       cwd: ROOT,
-      // Off-screen and unfocused, so the computer stays usable during a run.
-      env: { ...process.env, POLYOPTICON_DATA_DIR: dataDir, POLYOPTICON_OFFSCREEN: '1' },
+      // Off-screen and unfocused, so the computer stays usable during a run. The map fetches only the photos a test opens.
+      env: { ...process.env, POLYOPTICON_DATA_DIR: dataDir, POLYOPTICON_OFFSCREEN: '1', POLYOPTICON_NO_PREFETCH: '1' },
     });
     await use(app);
     await app.close();
     if (mtime(lists) > mtime(SHARED_LISTS)) fs.copyFileSync(lists, SHARED_LISTS);
+    if (mtime(canada) > mtime(SHARED_CANADA)) fs.copyFileSync(canada, SHARED_CANADA);
   },
 
   // The main window, loaded and initialised, with uncaught page errors collected.

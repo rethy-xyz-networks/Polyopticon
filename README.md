@@ -62,6 +62,7 @@ Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, 
   - [Data Folder](#data-folder)
   - [Ad Blocking](#ad-blocking)
 - [Project Structure](#project-structure)
+- [API Usage](#api-usage)
 - [Credits](#credits)
 
 ## Getting Started
@@ -93,7 +94,7 @@ Polyopticon has five main areas, known as views, with the [toolbar](#toolbar) ac
 
 - **[Sources & Filters View](#sources--filters-view)**: The sidebar on the left. It picks which outlets and wires (grouped by country) populate the **Article List View** feed, and holds the include / exclude keywords (bottom of the list).
 - **[Article List View](#article-list-view)**: The article list to the right of the **Sources & Filters View**. It displays incoming articles by newest first (Live), or the articles you opened previously (History).
-- **[Article View](#article-view)**: The centre area, where articles and sites open as separate tabs. An article opens by default as a live page, and supports a saved copy or a clean reader view. The map, Scratchpad, 4chan, Telegram pages and the shortcut list also open within this view as separate tabs. The [bias chart](#bias-chart), [Global Markets](#global-markets) and the map are not tabs: each replaces the article area while open.
+- **[Article View](#article-view)**: The centre area, where articles and sites open as separate tabs. An article opens by default as a live page, and supports a saved copy or a clean reader view. The map, Scratchpad, 4chan, Telegram pages, a map card's Wikipedia articles and photos, and the shortcut list also open within this view as separate tabs. The [bias chart](#bias-chart), [Global Markets](#global-markets) and the map are not tabs: each replaces the article area while open.
 - **[Live Chat View](#live-chat-view)**: Twitch, Kick, destiny.gg and IRC chats, in a column on the right (Ctrl+J).
 - **[Video Player View](#video-player-view)**: Twitch, Kick, YouTube or direct-link streams below the chat, several at once, each with its own volume and mute (Ctrl+V).
 
@@ -347,6 +348,8 @@ The **Map** button (Ctrl+M) at the top right of the header shows where the stori
 
 - **1h / 6h / 24h / All:** shows only stories published within that window.
 - **Click a cluster** for the list of its stories, with a search box (title, site or place. Enter opens the first match), or **Show … in the feed** to filter the list to its places (shown as a [place chip](#search-bar)).
+- **Hover** anywhere for the name of the place under the pointer, with the places it's in (Canada › Nova Scotia › Halifax County).
+- **Click a place** (a country, a UK nation, a state or province, a US county or Canadian census division, or a city) for its card: a pane for it and for each place it's in, with facts, a summary and a photo, and **Show N stories** for the stories about it. Click a photo (or its credit) to open its Wikimedia Commons page, with the full-size image, author and licence, as a tab. Its **Wikipedia** link opens the article as a tab too. Drag the card by its title bar; Esc, × or a click on the sea closes it.
 
 Places come from an offline gazetteer: countries, ~4,200 cities, US states, Canadian,
 Australian and Indian states, Chinese provinces, conflict-zone towns, seas and regions. The
@@ -357,7 +360,7 @@ need a place context, and a source's sidebar group (its country) breaks ties suc
 Hyderabad, India vs Pakistan. See [docs/map-audit.md](docs/map-audit.md) for how this was
 measured. `tests/unit/geotag-corpus.json` holds the hand-labelled articles it is tested on.
 
-The base map is fully offline (Natural Earth outlines). No tile server or API key. Rebuild the gazetteer after editing its lists with `node scripts/build-geo.js`. Bump `GEOTAG_VERSION` in `src/main/enrich/geotag.js` when results change, so stored stories are re-tagged at the next start. Data: GeoNames (CC BY 4.0) and Natural Earth (public domain).
+The base map works offline: no tile server or API key. Outlines, facts and summaries ship with the app. Two things are downloaded when the map first needs them, and saved: place photos (Wikimedia Commons thumbnails, places in the news first) and Canada's census divisions (GADM, whose licence allows non-commercial use but not redistribution, so each copy of the app fetches its own). Until they arrive the map works without them. Rebuild the gazetteer after editing its lists with `node scripts/build-geo.js`. Bump `GEOTAG_VERSION` in `src/main/enrich/geotag.js` when results change, so stored stories are re-tagged at the next start. Data: GeoNames (CC BY 4.0) and Natural Earth (public domain).
 
 ### Other Tabs
 
@@ -575,9 +578,19 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
         └── assets/         logo, offline world map, icon licence
 ```
 
+## API Usage
+
+Polyopticon follows the usage policies of the services it requests data from. When it fetches the map's place photos from Wikimedia Commons, it:
+
+- identifies itself with a descriptive User-Agent that links back to this repository, as the [User-Agent policy](https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy) asks;
+- keeps under 200 requests a minute, the limit for clients that identify themselves, and waits as told when a server answers that it's busy (`429` / `Retry-After`), slowing down until it recovers;
+- downloads in the background, saves every photo it gets, and never fetches a saved photo again.
+
+The facts and summaries (Wikidata, Wikipedia) are fetched when the map data is built, not by the app.
+
 ## Credits
 
-Place data from [GeoNames](https://www.geonames.org/) (CC BY 4.0) and [Natural Earth](https://www.naturalearthdata.com/) (public domain).
+Place data from [GeoNames](https://www.geonames.org/) (CC BY 4.0) and [Natural Earth](https://www.naturalearthdata.com/) (public domain). US county outlines: [US Census Bureau](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html) (public domain). Canada's census divisions: [GADM](https://gadm.org/) (free for non-commercial use; downloaded by the app, not distributed with it). Place facts: [Wikidata](https://www.wikidata.org/) (CC0). Summaries: [Wikipedia](https://en.wikipedia.org/) (CC BY-SA 4.0). Photos: [Wikimedia Commons](https://commons.wikimedia.org/), each under its own licence, credited on its card.
 
 Political-lean ratings: [MediaBias News](https://mediabias.news), republishing AllSides, Ad Fontes Media and Media Bias/Fact Check. Market prices: Yahoo Finance.
 

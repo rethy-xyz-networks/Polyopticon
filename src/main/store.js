@@ -9,6 +9,9 @@ const fs   = require('fs');
 const path = require('path');
 const log  = require('./logger');
 
+// The app's own pages that can be open as tabs (src/renderer/tabs.js APP_TABS).
+const APP_PAGES = new Set(['help', 'scratch', 'map', 'bias', 'markets']);
+
 const DEFAULT_SETTINGS = Object.freeze({
   FontFamily: 'Segoe UI',
   FontSize: 13.0,
@@ -110,7 +113,7 @@ module.exports = {
 
   /** The open tabs in strip order (pinned.json; it held only the pinned ones before tabs were restored in full):
    *  [{ id, mode, pinned, active? }], plus { chan, url, title } for 4chan / Telegram pages
-   *  ({ draft } for a new Telegram tab not yet connected) and { app: 'help' | 'scratch' } for the app's own pages.
+   *  ({ draft } for a new Telegram tab not yet connected) and { app } for the app's own pages (APP_PAGES).
    *  Entries from the old pinned-only file have no `pinned` flag and count as pinned. */
   loadPinned() {
     try {
@@ -118,7 +121,7 @@ module.exports = {
       return (Array.isArray(raw) ? raw : []).filter(p => Number.isInteger(p?.id)).map(p => ({
         id: p.id, mode: String(p.mode || 'live'), pinned: p.pinned !== false, ...(p.active ? { active: true } : {}),
         ...(p.chan && typeof p.url === 'string' ? { chan: true, url: p.url, title: String(p.title || ''), ...(p.draft ? { draft: true } : {}) } : {}),   // 4chan / Telegram page
-        ...(p.app === 'help' || p.app === 'scratch' ? { app: p.app } : {}),
+        ...(APP_PAGES.has(p.app) ? { app: p.app } : {}),
       }));
     } catch (e) {
       log.warn(`Pinned tabs load failed: ${e.message}`);

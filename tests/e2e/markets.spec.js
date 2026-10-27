@@ -3,6 +3,8 @@
 // Global Markets: a special view (like the map and the bias chart, not a tab) of live price tiles.
 // Tests never go online, so the quotes are fed in the way main's poller would.
 
+const fs = require('fs');
+const path = require('path');
 const { test, expect } = require('./fixtures');
 
 const quote = (symbol, price, pct, state = 'open', extra = {}) =>
@@ -10,23 +12,25 @@ const quote = (symbol, price, pct, state = 'open', extra = {}) =>
 
 const feed = (window, list) => window.evaluate(async list => (await import('./markets.js')).applyQuotes({ quotes: list, at: Date.now() }), list);
 
-test('the Global Markets button opens a special view beside the map and bias chart, not a tab', async ({ window }) => {
+test('the Global Markets button opens its view as a tab beside the map and bias chart, once', async ({ window }) => {
   await expect(window.locator('#source-groups .source').first()).toBeVisible();
   await expect(window.locator('.toolbar .tool-buttons #btn-markets')).toBeVisible();
   await window.locator('#btn-markets').click();
   await expect(window.locator('#markets-view')).toBeVisible();
   await expect(window.locator('#map-view')).toBeHidden();
   await expect(window.locator('#btn-markets')).toHaveClass(/\bon\b/);
-  await expect(window.locator('#tabs .tab')).toHaveCount(0);
+  await expect(window.locator('#tabs .tab .label')).toHaveText(['Map', 'Global Markets']);
 
-  await window.locator('#btn-bias').click();                             // another special view replaces it
+  await window.locator('#btn-bias').click();                             // another view's tab is selected
   await expect(window.locator('#markets-view')).toBeHidden();
   await expect(window.locator('#bias-view')).toBeVisible();
-  await window.keyboard.press('Control+g');
+  await window.keyboard.press('Control+g');                              // back to the open tab
   await expect(window.locator('#markets-view')).toBeVisible();
   await expect(window.locator('#bias-view')).toBeHidden();
-  await window.keyboard.press('Control+g');
+  await expect(window.locator('#tabs .tab')).toHaveCount(3);
+  await window.keyboard.press('Control+w');                              // closing the tab hides it
   await expect(window.locator('#markets-view')).toBeHidden();
+  await expect(window.locator('#btn-markets')).not.toHaveClass(/\bon\b/);
   expect(window.pageErrors).toEqual([]);
 });
 
@@ -113,6 +117,10 @@ test('the search bar filters by group, country and ticker name, and says when no
   await search.fill('canada');
   expect(await visibleGroups()).toEqual(['ca']);
 
+  await window.locator('#source-groups .source').first().click();      // Ctrl+F goes to this search, not the stories'
+  await window.keyboard.press('Control+f');
+  await expect(search).toBeFocused();
+  await expect(window.locator('#search')).not.toBeFocused();
   await search.fill('zzzz');
   await expect(window.locator('#markets-empty')).toBeVisible();
   await search.press('Escape');                                          // clears, and keeps the view open
@@ -121,5 +129,54 @@ test('the search bar filters by group, country and ticker name, and says when no
   await expect(window.locator('#markets-view')).toBeVisible();
   expect((await visibleGroups()).length).toBe(7);
   await expect(window.locator('.mk-add:not([hidden])')).toHaveCount(7);
+  expect(window.pageErrors).toEqual([]);
+});
+
+test('tiles can be dragged into a new place or another group, and the layout is remembered', async ({ window, dataDir }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await window.locator('#btn-markets').click();
+  const symbols = group => window.locator(`.mk-group[data-group="${group}"] .mk-tile`).evaluateAll(els => els.map(e => e.dataset.symbol));
+  const drag = async (from, to, side = 'left') => {
+    const a = await window.locator(`.mk-tile[data-symbol="${from}"]`).boundingBox();
+    const b = await window.locator(to).boundingBox();
+    await window.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await window.mouse.down();
+    await window.mouse.move(a.x + a.width / 2 + 10, a.y + a.height / 2, { steps: 2 });
+    await window.mouse.move(b.x + b.width * (side === 'left' ? 0.2 : 0.8), b.y + b.height / 2, { steps: 8 });
+    await window.mouse.up();
+  };
+
+  await drag('^VIX', '.mk-tile[data-symbol="^GSPC"]');                   // within a group: to the front
+  expect(await symbols('us')).toEqual(['^VIX', '^GSPC', '^IXIC', '^DJI', '^RUT']);
+  await drag('^GSPC', '.mk-tile[data-symbol="^DJI"]', 'right');          // to the right half: after it
+  expect(await symbols('us')).toEqual(['^VIX', '^IXIC', '^DJI', '^GSPC', '^RUT']);
+  await drag('^N225', '.mk-tile[data-symbol="^GSPTSE"]');               // into another group
+  expect(await symbols('ca')).toEqual(['^N225', '^GSPTSE']);
+  expect(await symbols('apac')).not.toContain('^N225');
+  await drag('^GSPTSE', '.mk-group[data-group="us"] .mk-add');           // onto + Add: the end of that group
+  expect(await symbols('us')).toEqual(['^VIX', '^IXIC', '^DJI', '^GSPC', '^RUT', '^GSPTSE']);
+  await expect(window.locator('.mk-tile.dragging')).toHaveCount(0);
+
+  // Held against the bottom edge, the list scrolls to the groups further down.
+  const vix = await window.locator('.mk-tile[data-symbol="^VIX"]').boundingBox();
+  const list = await window.locator('#markets-groups').boundingBox();
+  await window.mouse.move(vix.x + 40, vix.y + 40);
+  await window.mouse.down();
+  await window.mouse.move(vix.x + 60, list.y + list.height - 8, { steps: 6 });
+  await expect.poll(() => window.locator('#markets-groups').evaluate(el => el.scrollTop + el.clientHeight >= el.scrollHeight - 1)).toBe(true);   // and stops there
+  const add = await window.locator('.mk-group[data-group="crypto"] .mk-add').boundingBox();
+  await window.mouse.move(add.x + add.width / 2, add.y + add.height / 2);   // straight there: a path across the tiles would place it on the way
+  await window.mouse.up();
+  expect(await symbols('crypto')).toEqual(['BTC-USD', 'ETH-USD', 'XRP-USD', '^VIX']);
+
+  // A removed default comes back where it was moved to.
+  const nikkei = window.locator('.mk-tile[data-symbol="^N225"]');
+  await nikkei.hover();
+  await nikkei.locator('.mk-remove').click();
+  await window.locator('#markets-restore').click();
+  expect(await symbols('ca')).toEqual(['^N225']);
+
+  const saved = () => { try { return JSON.parse(fs.readFileSync(path.join(dataDir, 'ui.json'), 'utf8')).marketsOrder; } catch { return null; } };
+  await expect.poll(saved).toMatchObject({ us: ['^IXIC', '^DJI', '^GSPC', '^RUT', '^GSPTSE'], ca: ['^N225'], crypto: ['BTC-USD', 'ETH-USD', 'XRP-USD', '^VIX'] });
   expect(window.pageErrors).toEqual([]);
 });

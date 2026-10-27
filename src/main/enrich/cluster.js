@@ -16,6 +16,8 @@ const MIN_SHARED    = 2;             // …and at least this many shared stems
 const COMMON_RATIO  = 0.04;          // stems in more than 4% of items aren't used to find candidates
 
 const NOWHERE = { ccs: [], spots: [] };
+/** A doc's places, worked out on first use when they were given as a function. */
+const whereOf = d => (typeof d.where === 'function' ? (d.where = d.where()) : d.where);
 const meets = (a, b) => a.some(x => b.includes(x));
 /** Two items' places don't rule out one story. */
 const samePlace = (a, b) => a.spots.length && b.spots.length ? meets(a.spots, b.spots)
@@ -55,7 +57,7 @@ class Clusterer {
       if (shared < MIN_SHARED) continue;
       const d = this.docs.get(id);
       if (Math.abs(d.publishedAt - publishedAt) > WINDOW_MS) continue;
-      if (!samePlace(where, d.where)) continue;
+      if (!samePlace(where, whereOf(d))) continue;
       let inter = 0, union = base;
       for (const t of toks) if (d.tokens.has(t)) inter += weigh(t);
       for (const t of d.tokens) if (!toks.has(t)) union += weigh(t);
@@ -68,12 +70,14 @@ class Clusterer {
   /**
    * Adds an item and returns its cluster id. A known clusterId (from the
    * database) is kept as-is so groups stay stable across restarts.
-   * @param where  { ccs, spots } of the item's places (see Enricher.where); unknown places agree with any
+   * @param where  { ccs, spots } of the item's places (see Enricher.where); unknown places agree with any.
+   *               A function returning them is called only if another item is compared with this one
+   *               (at startup, most stored items never are).
    */
   add(id, title, publishedAt, clusterId = null, where = NOWHERE) {
     const toks = tokens(title);
     if (clusterId == null) {
-      const m = toks.size >= MIN_SHARED ? this.match(toks, publishedAt, id, where) : null;
+      const m = toks.size >= MIN_SHARED ? this.match(toks, publishedAt, id, typeof where === 'function' ? (where = where()) : where) : null;
       clusterId = m ? m.doc.clusterId : id;
     }
     const prev = this.docs.get(id);

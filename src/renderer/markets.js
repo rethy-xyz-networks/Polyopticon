@@ -6,8 +6,9 @@
 // latest price and the change since the previous close, nothing historical.
 //
 // The tiles are built once and updated in place on each quote, so a one-second feed costs a few text
-// writes. The user's changes are kept in ui.json: marketsAdded [{ symbol, name, group }] and
-// marketsRemoved [symbol] (a default tile they hid).
+// writes. The user's changes are kept in ui.json: marketsAdded [{ symbol, name, group }],
+// marketsRemoved [symbol] (a default tile they hid) and marketsOrder { group id: [symbol] } (tiles
+// dragged into another place or group; a tile not listed keeps its default group, after the listed ones).
 
 import { api, $, h } from './dom.js';
 import { ui, saveUi } from './ui.js';
@@ -41,13 +42,20 @@ let lastAt = 0, status = { state: 'ok' };
 const removed = () => new Set(ui.marketsRemoved ?? []);
 const added   = () => (Array.isArray(ui.marketsAdded) ? ui.marketsAdded : []);
 
-/** The tiles of one group, in order: defaults the user hasn't hidden, then what they added. */
+const orders = () => (ui.marketsOrder && typeof ui.marketsOrder === 'object' ? ui.marketsOrder : {});
+
+/** The tiles of one group, in order: those the user placed there, then defaults they haven't hidden or moved, then what they added. */
 function itemsOf(group) {
-  const gone = removed();
-  return [
-    ...group.items.filter(([s]) => !gone.has(s)).map(([symbol, name]) => ({ symbol, name, custom: false })),
-    ...added().filter(a => a.group === group.id).map(a => ({ symbol: a.symbol, name: a.name, custom: true })),
+  const gone = removed(), order = orders();
+  const placed = new Map();                        // symbol -> group id the user dragged it to
+  for (const [gid, list] of Object.entries(order)) if (GROUPS.some(g => g.id === gid) && Array.isArray(list)) for (const s of list) if (!placed.has(s)) placed.set(s, gid);
+  const all = [
+    ...GROUPS.flatMap(g => g.items.filter(([s]) => !gone.has(s)).map(([symbol, name]) => ({ symbol, name, custom: false, home: g.id }))),
+    ...added().map(a => ({ symbol: a.symbol, name: a.name, custom: true, home: a.group })),
   ];
+  const rank = new Map((order[group.id] ?? []).map((s, i) => [s, i]));
+  return all.filter(i => (placed.get(i.symbol) ?? i.home) === group.id)
+    .sort((a, b) => (rank.get(a.symbol) ?? 1e6) - (rank.get(b.symbol) ?? 1e6));   // stable: unplaced tiles keep their natural order
 }
 
 export const allSymbols = () => GROUPS.flatMap(g => itemsOf(g).map(i => i.symbol));
@@ -58,28 +66,24 @@ const isShown = symbol => allSymbols().includes(symbol);
 
 export function initMarkets() {
   reduceMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  $('btn-markets').addEventListener('click', () => (open ? closeMarkets() : openMarkets()));
   $('markets-search').addEventListener('input', e => { query = e.target.value; applyFilter(); });
   $('markets-search').addEventListener('keydown', e => { if (e.key === 'Escape' && query) { e.stopPropagation(); e.target.value = ''; query = ''; applyFilter(); } });
   $('markets-refresh').addEventListener('click', () => { if (open) { api.stopMarkets(); api.startMarkets(allSymbols()); } });
   $('markets-restore').addEventListener('click', () => { saveUi({ marketsRemoved: [] }); rebuild(); });
-  document.addEventListener('story:activate', () => closeMarkets());
-  document.addEventListener('special-view', e => { if (e.detail !== 'markets') closeMarkets(); });   // the map or the bias chart opened
+  document.addEventListener('story:view', e => (e.detail === 'markets' ? openMarkets() : closeMarkets()));   // its tab was selected, or another
   // A hidden or minimised window stops polling; it picks up again on return.
   document.addEventListener('visibilitychange', () => {
     if (!open) return;
     if (document.hidden) api.stopMarkets(); else api.startMarkets(allSymbols());
   });
+  makeTilesMovable($('markets-groups'));
   api.onMarketQuotes(applyQuotes);
   api.onMarketStatus(s => { status = s; paintStatus(); });
 }
 
-export function toggleMarkets() { return open ? closeMarkets() : openMarkets(); }
-
-export function openMarkets() {
+function openMarkets() {
   if (open) return;
   open = true;
-  document.dispatchEvent(new CustomEvent('special-view', { detail: 'markets' }));
   document.querySelector('.story').classList.add('markets-open');
   $('btn-markets').classList.add('on');
   if (!built) rebuild();
@@ -87,7 +91,7 @@ export function openMarkets() {
   if (!document.hidden) api.startMarkets(allSymbols());
 }
 
-export function closeMarkets() {
+function closeMarkets() {
   if (!open) return;
   open = false;
   document.querySelector('.story').classList.remove('markets-open');
@@ -159,6 +163,7 @@ function buildAddTile(group) {
     saveUi({
       marketsAdded: [...added(), { symbol, name, group: group.id }],
       marketsRemoved: (ui.marketsRemoved ?? []).filter(s => s !== symbol),
+      marketsOrder: withoutSymbol(symbol),
     });
     quotes.set(symbol, res.quote);
     rebuild();
@@ -167,8 +172,111 @@ function buildAddTile(group) {
 }
 
 function removeSymbol(symbol, custom) {
-  if (custom) saveUi({ marketsAdded: added().filter(a => a.symbol !== symbol) });
-  else saveUi({ marketsRemoved: [...removed(), symbol] });
+  if (custom) saveUi({ marketsAdded: added().filter(a => a.symbol !== symbol), marketsOrder: withoutSymbol(symbol) });
+  else saveUi({ marketsRemoved: [...removed(), symbol] });   // a restored default comes back where it was
+  rebuild();
+}
+
+/** marketsOrder with a symbol taken out, so an added symbol starts in the group it was added to. */
+const withoutSymbol = symbol => Object.fromEntries(Object.entries(orders()).map(([gid, list]) => [gid, (list ?? []).filter(s => s !== symbol)]));
+
+// Moving tiles
+
+/**
+ * Drag a tile to move it within its group or into another. A copy follows the pointer while the tile itself,
+ * dimmed, moves through the list to show where it will land; the others make room as it passes over them:
+ * over a tile's left half it goes before it, over the right half after, over a group's + Add tile to the end
+ * of that group. Every group's order is saved on release. The copy is position: fixed because a moved
+ * (transformed) tile would stretch the list, and scrolling at its bottom edge would then never end.
+ */
+function makeTilesMovable(root) {
+  let drag = null;
+
+  root.addEventListener('pointerdown', e => {
+    const el = e.target.closest('.mk-tile');
+    if (!el || e.button !== 0 || e.target.closest('button, input')) return;
+    drag = { el, pointerId: e.pointerId, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, moving: false };
+  });
+  window.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    drag.x = e.clientX; drag.y = e.clientY;
+    if (!drag.moving) {
+      if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 6) return;
+      const r = drag.el.getBoundingClientRect();
+      drag.grabX = drag.startX - r.left; drag.grabY = drag.startY - r.top;
+      drag.moving = true;
+      drag.ghost = drag.el.cloneNode(true);
+      drag.ghost.classList.add('mk-ghost');
+      delete drag.ghost.dataset.symbol;
+      drag.ghost.querySelector('.mk-remove')?.remove();
+      drag.ghost.style.width = `${r.width}px`; drag.ghost.style.height = `${r.height}px`;
+      root.after(drag.ghost);                        // inside the view, for its colours
+      drag.el.classList.add('dragging');
+      root.classList.add('moving');
+      drag.raf = requestAnimationFrame(edgeScroll);
+    }
+    e.preventDefault();
+    dragTo();
+  });
+  const end = e => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const d = drag;
+    drag = null;
+    if (!d.moving) return;
+    cancelAnimationFrame(d.raf);
+    d.ghost.remove();
+    d.el.classList.remove('dragging');
+    root.classList.remove('moving');
+    if (d.el.isConnected) saveOrder(root);
+  };
+  window.addEventListener('pointerup', end);
+  window.addEventListener('pointercancel', end);
+
+  // Holding the tile near the top or bottom edge scrolls the list, even while the pointer is still.
+  function edgeScroll() {
+    if (!drag) return;
+    const r = root.getBoundingClientRect();
+    const dy = drag.y < r.top + 32 ? -10 : drag.y > r.bottom - 32 ? 10 : 0;
+    if (dy) { root.scrollTop += dy; dragTo(); }
+    drag.raf = requestAnimationFrame(edgeScroll);
+  }
+
+  function dragTo() {
+    const { el, x, y } = drag;
+    const where = placeAt(el, x, y);
+    if (where && (where.before ? el.nextElementSibling !== where.before : el.parentNode !== where.grid || el.nextElementSibling !== where.grid.lastElementChild)) {
+      // Slide the tiles that make room into their new places instead of jumping.
+      const grids = new Set([el.parentNode, where.grid]);
+      const others = [...grids].flatMap(g => [...g.children].filter(n => n !== el));
+      const was = new Map(others.map(n => [n, n.getBoundingClientRect()]));
+      if (where.before) where.before.before(el); else where.grid.lastElementChild.before(el);   // before the + Add tile
+      if (!reduceMotion) for (const n of others) {
+        const a = was.get(n), b = n.getBoundingClientRect();
+        if (a.left !== b.left || a.top !== b.top)
+          n.animate([{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px)` }, { transform: 'none' }], { duration: 140, easing: 'ease-out' });
+      }
+    }
+    drag.ghost.style.transform = `translate(${x - drag.grabX}px, ${y - drag.grabY}px)`;
+  }
+}
+
+/** Where a tile dropped at (x, y) goes: { grid, before } (before null = the end of grid), or null to stay put. */
+function placeAt(el, x, y) {
+  const under = document.elementFromPoint(x, y);   // the copy and the dragged tile ignore the pointer
+  const tile = under?.closest('.mk-tile');
+  if (tile && tile !== el) {
+    const r = tile.getBoundingClientRect(), next = tile.nextElementSibling;
+    if (x < r.left + r.width / 2) return { grid: tile.parentNode, before: tile };
+    return next === el ? null : { grid: tile.parentNode, before: next?.classList.contains('mk-tile') ? next : null };
+  }
+  const add = under?.closest('.mk-add');
+  return add ? { grid: add.parentNode, before: null } : null;
+}
+
+function saveOrder(root) {
+  const order = Object.fromEntries([...root.querySelectorAll('.mk-group')].map(g => [g.dataset.group, [...g.querySelectorAll('.mk-tile')].map(t => t.dataset.symbol)]));
+  const groupOf = new Map(Object.entries(order).flatMap(([gid, list]) => list.map(s => [s, gid])));
+  saveUi({ marketsOrder: order, marketsAdded: added().map(a => ({ ...a, group: groupOf.get(a.symbol) ?? a.group })) });
   rebuild();
 }
 

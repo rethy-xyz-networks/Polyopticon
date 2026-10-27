@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; img-src 'self' data: polyopticon-icon:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+        content="default-src 'self'; img-src 'self' data: polyopticon-icon: polyopticon-map:; style-src 'self' 'unsafe-inline'; script-src 'self'">
   <title>Polyopticon</title>
   <link rel="stylesheet" href="../../node_modules/leaflet/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
@@ -165,7 +165,7 @@
             </div>
             <span id="map-summary" class="muted"></span>
           </div>
-          <div class="map-legend"><div><svg width="12" height="17" viewBox="-6 -16 12 17"><path d="M0 0C-1.2-3.6-5-6.2-5-10a5 5 0 0 1 10 0c0 3.8-3.8 6.4-5 10z" fill="var(--accent)"/><circle cy="-10" r="1.8"/></svg>A story, represented by its site's colour</div><div><span class="map-legend-shade"></span>Shaded country = stories about the whole country</div><div>Faded = older</div><div>Number = how many stories</div><div>Click a cluster or a shaded country to list its articles</div></div>
+          <div class="map-legend"><div><svg width="12" height="17" viewBox="-6 -16 12 17"><path d="M0 0C-1.2-3.6-5-6.2-5-10a5 5 0 0 1 10 0c0 3.8-3.8 6.4-5 10z" fill="var(--accent)"/><circle cy="-10" r="1.8"/></svg>A story, represented by its site's colour</div><div>Shaded country = stories about the whole country: <span class="map-legend-ramp"><span>1</span><span>2–4</span><span>5–14</span><span>15+</span></span></div><div>Faded = older</div><div>Number = how many stories</div><div>Click a cluster to list its articles, or any place for its details</div></div>
         </div>
         <div id="bias-view" class="bias-view">
           <div class="bias-head">
@@ -182,7 +182,7 @@
           <div class="markets-head">
             <b>Global Markets</b>
             <span id="markets-status" class="muted" role="status" aria-live="off"></span>
-            <input id="markets-search" type="search" class="markets-search" placeholder="Search groups, countries, tickers…" aria-label="Search Global Markets" spellcheck="false" autocomplete="off">
+            <input id="markets-search" type="search" class="markets-search" placeholder="Search groups, countries, tickers…  (Ctrl+F)" aria-label="Search Global Markets" spellcheck="false" autocomplete="off">
             <span class="markets-tools">
               <button id="markets-restore" class="toggle-btn" hidden title="Bring back the tiles you removed">Restore removed</button>
               <button id="markets-refresh" class="toggle-btn" title="Reconnect and fetch the prices now">Refresh</button>
