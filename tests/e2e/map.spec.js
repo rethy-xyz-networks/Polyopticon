@@ -120,6 +120,28 @@ test('clicking a place opens its card with a pane per tier, and Esc or the sea c
   expect(window.pageErrors).toEqual([]);
 });
 
+test('an open card stays where it was after switching to another tab and back', async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await window.evaluate(async () => (await import('./map.js')).showPlace(44.75, -63.3, 8));
+  const card = window.locator('.map-card');
+  await expect(async () => {
+    const at = await window.evaluate(async () => (await import('./map.js')).placePoint(44.95, -63.2));
+    if (await card.isVisible()) await card.locator('.mc-x').click();
+    await window.mouse.click(at.x, at.y);
+    await expect(card.locator('.mc-crumb')).toContainText('Nova Scotia', { timeout: 1000 });
+  }).toPass({ timeout: 60_000 });
+  const where = () => card.evaluate(c => [c.style.left, c.style.top]);
+  const before = await where();
+  expect(before).not.toEqual(['0px', '0px']);
+  await window.evaluate(async () => (await import('./tabs.js')).openAppTab('bias'));
+  await expect(window.locator('#map-view')).toBeHidden();
+  await window.evaluate(async () => (await import('./tabs.js')).openAppTab('map'));
+  await expect(window.locator('#map-view')).toBeVisible();
+  await expect(card).toBeVisible();
+  expect(await where()).toEqual(before);
+  expect(window.pageErrors).toEqual([]);
+});
+
 test('clicking a card\'s photo opens its Wikimedia Commons page as a tab', async ({ window }) => {
   await expect(window.locator('#source-groups .source').first()).toBeVisible();
   await window.evaluate(async () => (await import('./map.js')).showPlace(44.75, -63.3, 8));

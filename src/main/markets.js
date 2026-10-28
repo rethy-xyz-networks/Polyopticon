@@ -116,7 +116,7 @@ function createPoller({ client, onQuotes, onStatus, log = { info() {}, warn() {}
     let failures = 0;
     while (running && id === run) {
       const began = Date.now();
-      let delay = intervalMs;
+      let delay = intervalMs, paced = true;   // the normal pace counts the request's own time; a back-off starts from the failure
       try {
         const map = await client.quotes(symbols);
         if (id !== run) return;
@@ -126,11 +126,12 @@ function createPoller({ client, onQuotes, onStatus, log = { info() {}, warn() {}
       } catch (e) {
         if (id !== run) return;
         delay = Math.max(BACKOFF_MS[Math.min(failures, BACKOFF_MS.length - 1)], (e.retryAfter || 0) * 1000);
+        paced = false;
         failures++;
         if (failures === 1) log.warn(`Markets: ${e.message}; backing off`);
         setStatus({ state: e.status === 429 ? 'limited' : 'error', retryIn: Math.round(delay / 1000), error: e.message });
       }
-      await wait(Math.max(0, delay - (Date.now() - began)));
+      await wait(paced ? Math.max(0, delay - (Date.now() - began)) : delay);
     }
   }
 

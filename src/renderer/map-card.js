@@ -178,6 +178,7 @@ export function createCard({ map, stage, drawing, count, onStories, onPage, onCh
   function close() { if (!opened) return; opened = null; moved = false; card.hidden = true; onChange(); }
   function clamp() {
     const box = stage.getBoundingClientRect(), r = card.getBoundingClientRect();
+    if (!box.width || !box.height) return;     // the map is hidden (another tab): there's nothing to fit inside
     card.style.left = `${Math.min(Math.max(0, r.left - box.left), box.width - Math.min(r.width, box.width))}px`;
     card.style.top = `${Math.min(Math.max(0, r.top - box.top), Math.max(0, box.height - 40))}px`;
   }
