@@ -881,6 +881,12 @@ body.resizing-corner webview { pointer-events: none; }
 /* All players stay visible so the sites keep them playing; the active one is simply on top. */
 .video-view webview { z-index: 1; background: #000; }
 .video-view webview.inactive { z-index: 0; pointer-events: none; }
+/* A disabled stream: its tab is dimmed and the pane says so instead of loading it. */
+#video-tabs .tab.disabled .label, #video-tabs .tab.disabled .dot { opacity: .45; }
+#video-tabs .tab.disabled .label { text-decoration: line-through; }
+.video-disabled { position: absolute; inset: 0; z-index: 2; background: #000; }
+.video-disabled[hidden] { display: none; }
+.video-disabled p { margin: 0 0 8px; }
 
 /* Keyboard shortcut list (a tab; content from shortcuts.js) */
 .help-view { position: absolute; inset: 0; overflow-y: auto; background: var(--panel-bg); user-select: text; }

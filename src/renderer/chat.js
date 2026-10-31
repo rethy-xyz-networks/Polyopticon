@@ -230,8 +230,9 @@ let addType = null;                // which type's fields are showing: 'twitch' 
 // site's field), drag to reorder, pin, right-click for close others / to the right, ✕ or
 // middle-click to close. Every stream keeps playing in the background while you switch
 // between tabs — only the tab shown has sound. The list is ui.streams = [{ site, name,
-// pinned? }] and the tab shown is ui.streamTab. The players only exist while the area is
-// visible, so a hidden column never keeps playing sound.
+// pinned?, disabled? }] and the tab shown is ui.streamTab. The players only exist while the area is
+// visible, so a hidden column never keeps playing sound. A disabled stream keeps its tab but
+// gets no player at all (nothing loads) until it is enabled again.
 
 const streamViews = new Map();     // stream key -> { wv, ready, muted }
 let addingStream = false;
@@ -254,15 +255,15 @@ function streams() {
     : [ui.video ?? (ui.videoChannel ? { site: 'twitch', name: ui.videoChannel } : null)].filter(Boolean);
   const seen = new Set();
   const list = saved.filter(v => validStream(v) && !seen.has(streamKey(v)) && seen.add(streamKey(v)))
-    .map(v => ({ site: v.site, name: v.name, pinned: !!v.pinned, volume: v.volume, muted: v.muted }));
+    .map(v => ({ site: v.site, name: v.name, pinned: !!v.pinned, disabled: !!v.disabled, volume: v.volume, muted: v.muted }));
   return list.sort((a, b) => b.pinned - a.pinned);              // stable
 }
 
 /** Save the list (pinned first) and drop the older single-stream settings. */
 function saveStreams(list, patch = {}) {
   saveUi({
-    streams: list.map(({ site, name, pinned, volume, muted }) => ({
-      site, name, ...(pinned && { pinned }), ...(Number.isFinite(volume) && { volume }), ...(typeof muted === 'boolean' && { muted }),
+    streams: list.map(({ site, name, pinned, disabled, volume, muted }) => ({
+      site, name, ...(pinned && { pinned }), ...(disabled && { disabled }), ...(Number.isFinite(volume) && { volume }), ...(typeof muted === 'boolean' && { muted }),
     })),
     video: undefined, videoChannel: undefined, videoVolume: undefined, videoMuted: undefined, ...patch,
   });
@@ -300,6 +301,8 @@ function initVideo() {
   // Players rebuild their <video> now and then (ads, reconnects); keep the chosen volume on them.
   setInterval(applyVolumes, 3000);
   $('video-reload').addEventListener('click', () => streamViews.get(currentStream)?.wv.reload());
+  $('video-disable').addEventListener('click', () => { const s = currentStreamObj(); if (s) setStreamDisabled(s, !s.disabled); });
+  $('video-enable').addEventListener('click', () => { const s = currentStreamObj(); if (s) setStreamDisabled(s, false); });
   bindTabScroll($('video-tabs'), { always: true });
   streamReorder = makeReorderable($('video-tabs'), {
     selector: '.tab', ignore: '.close, .snd',
@@ -379,6 +382,13 @@ function setStreamPinned(s, on) {
   paintVideo();
 }
 
+/** Disabled: the stream's player goes away and isn't made again (no page, no video) until it's enabled. */
+function setStreamDisabled(s, on) {
+  saveStreams(streams().map(t => (streamKey(t) === streamKey(s) ? { ...t, disabled: on } : t)));
+  api.log('info', `Stream: ${on ? 'disabled' : 'enabled'} ${s.site} ${s.name}`);
+  paintVideo();
+}
+
 function removeStreams(gone) {
   const keys = new Set(gone.map(streamKey));
   saveStreams(streams().filter(s => !keys.has(streamKey(s))));
@@ -392,6 +402,7 @@ function streamMenu(s, x, y) {
   const right = list.slice(idx + 1).filter(t => !t.pinned);
   showMenu(x, y, [
     { label: s.pinned ? 'Unpin tab' : 'Pin tab', onClick: () => setStreamPinned(s, !s.pinned) },
+    { label: s.disabled ? 'Enable stream' : 'Disable stream', onClick: () => setStreamDisabled(s, !s.disabled) },
     'sep',
     { label: 'Close tab', onClick: () => removeStreams([s]) },
     { label: 'Close other tabs', disabled: !others.length, onClick: () => removeStreams(others) },
@@ -410,14 +421,20 @@ function paintVideo() {
 
   currentStream = keys.has(ui.streamTab) ? ui.streamTab : list[0] ? streamKey(list[0]) : null;
   $('video-empty').hidden = list.length > 0;
-  $('video-reload').disabled = !list.length;
+  const cur = list.find(s => streamKey(s) === currentStream);
+  $('video-reload').disabled = !cur || cur.disabled;
+  $('video-disable').disabled = !cur;
+  $('video-disable').classList.toggle('on', !!cur?.disabled);
+  $('video-disable').title = cur?.disabled ? 'Enable this stream (load it again)' : 'Disable this stream: unload it and keep it unloaded until enabled again';
+  $('video-disabled').hidden = !cur?.disabled;
+  if (cur?.disabled) $('video-disabled-name').textContent = streamLabel(cur.site, cur.name);
   paintVolume();
   if (!streamReorder?.dragging) $('video-tabs').replaceChildren(...list.map(s => {
     const key = streamKey(s);
     const label = streamLabel(s.site, s.name);
     const where = s.site === 'direct' ? s.name : label;           // a direct link's tab shows the file name; the tooltip the whole link
-    return tabEl({
-      id: key, kind: s.site, label, title: where,
+    const tab = tabEl({
+      id: key, kind: s.site, label, title: s.disabled ? `${where}\n(disabled: not loaded)` : where,
       active: key === currentStream, pinned: s.pinned,
       lead: [h('span', { class: 'dot' })],
       trail: [h('span', { class: `snd${silent(s) ? ' off' : ''}${mutedOf(s) ? ' on' : ''}`, title: silent(s) ? 'Silent: click for sound' : 'Click to mute this stream',
@@ -427,10 +444,13 @@ function paintVideo() {
       onClose: () => removeStreams([s]),
       onMenu: (x, y) => streamMenu(s, x, y),
     });
+    tab.classList.toggle('disabled', s.disabled);
+    return tab;
   }));
 
-  // Hidden area, or a stream that was closed: its player goes away (which stops playback).
-  for (const [key, v] of streamViews) if (!show || !keys.has(key)) { v.wv.remove(); streamViews.delete(key); }
+  // Hidden area, or a stream that was closed or disabled: its player goes away (which stops playback).
+  const live = new Set(list.filter(s => !s.disabled).map(streamKey));
+  for (const [key, v] of streamViews) if (!show || !live.has(key)) { v.wv.remove(); streamViews.delete(key); }
   if (!show) return;
   document.querySelector('#video-tabs .tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 
@@ -438,6 +458,7 @@ function paintVideo() {
   // on top; the others stay behind it (never hidden, which would let the sites pause them).
   for (const s of list) {
     const key = streamKey(s);
+    if (s.disabled) continue;
     if (!streamViews.has(key)) createStreamView(s, key);
     const v = streamViews.get(key);
     v.wv.classList.toggle('inactive', key !== currentStream);
@@ -455,7 +476,7 @@ function muteStream(v, muted) {
 function paintVolume() {
   const s = currentStreamObj();
   const vol = s ? volumeOf(s) : 1, muted = !!s && mutedOf(s), off = muted || vol === 0;
-  $('video-volume').disabled = $('video-mute').disabled = !s;
+  $('video-volume').disabled = $('video-mute').disabled = !s || s.disabled;
   $('video-volume').value = Math.round(vol * 100);
   setIcon($('video-mute'), off ? 'muted' : vol < 0.34 ? 'volume-0' : vol < 0.67 ? 'volume-1' : 'volume-2');
   $('video-mute').classList.toggle('on', muted);

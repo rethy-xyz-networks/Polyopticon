@@ -64,6 +64,7 @@ const ICONS = {
   enlarge:          'arrow_expand',
   photo:            'image',
   wikipedia:        'book_globe',
+  power:            'power',
 };
 
 async function get(url) {

@@ -245,6 +245,7 @@
           </span>
           <button type="button" id="video-add-btn" class="icon-btn small" title="Watch a stream" data-icon="add"></button>
           <button type="button" id="video-reload" class="icon-btn small" title="Reload this stream" data-icon="reload"></button>
+          <button type="button" id="video-disable" class="icon-btn small" title="Disable this stream: unload it and keep it unloaded until enabled again" data-icon="power"></button>
         </div>
         <!-- Same as the chat's plus: row 1 is the site, row 2 the channel -->
         <div id="video-add" class="chat-add" hidden>
@@ -261,6 +262,10 @@
         </div>
         <div id="video-view" class="video-view">
           <p id="video-empty" class="chat-empty">Press <span class="inline-icon" data-icon="add"></span> to pick a Twitch, Kick or YouTube stream to watch here.</p>
+          <div id="video-disabled" class="chat-empty video-disabled" hidden>
+            <p><span id="video-disabled-name"></span> is disabled: nothing is loaded until you enable it.</p>
+            <button type="button" id="video-enable" class="toggle-btn small">Enable</button>
+          </div>
         </div>
       </section>
     </aside>
