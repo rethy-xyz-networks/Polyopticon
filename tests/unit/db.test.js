@@ -108,3 +108,21 @@ test('enrichment in one transaction per batch writes every item', () => {
     assert.ok(rows[2].places.some(p => /Paris/.test(p[1])));
   } finally { done(); }
 });
+
+test('fillImages: stories stored without a picture get the one their feed names later; others are left alone', () => {
+  const { db, add, done } = setup();
+  try {
+    const s = add('pics');
+    const now = Date.now();
+    const pic = n => ({ extra: { image: `https://img.example/${n}.jpg` } });
+    db.insertItems(s.id, [item(1, now), item(2, now, { extra: { site: 'https://x.example', image: 'https://img.example/old.jpg' } }), item(3, now)]);
+    const filled = db.fillImages(s.id, [item(1, now, pic(1)), item(2, now, pic(2)), item(3, now)]);
+    const ids = Object.fromEntries(db.recentItems(now - HOUR, 10).map(r => [r.title, r]));
+    assert.deepEqual(filled, [{ id: ids['Story 1'].id, image: 'https://img.example/1.jpg' }]);
+    assert.equal(ids['Story 1'].image, 'https://img.example/1.jpg');
+    assert.equal(ids['Story 2'].image, 'https://img.example/old.jpg');                 // already had one
+    assert.equal(ids['Story 2'].site, 'https://x.example');                            // other extras kept
+    assert.equal(ids['Story 3'].image, null);
+    assert.deepEqual(db.fillImages(s.id, [item(1, now, pic(1))]), []);                // nothing to do a second time
+  } finally { done(); }
+});

@@ -372,6 +372,13 @@
         <label class="field range">Zoom <output data-for="WebViewZoom"></output>
           <input type="range" data-setting="WebViewZoom" min="0.5" max="2" step="0.05">
         </label>
+        <div class="field">Reader text width
+          <small>Reader view keeps its text in a column of comfortable line length, or fills the whole width of the tab.</small>
+          <div class="segmented" data-setting="ReaderWidth">
+            <button data-value="0">Column</button>
+            <button data-value="1">Full width</button>
+          </div>
+        </div>
         <div class="field">Screenshot folder
           <small>Where <span class="inline-icon" data-icon="screenshot"></span> (Ctrl+Shift+S) saves its pictures of whole pages. Each one is also copied to the clipboard.</small>
           <span class="folder-pick">

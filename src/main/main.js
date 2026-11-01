@@ -11,6 +11,7 @@ const scratchpad = require('./scratchpad');
 const snapshots = require('./snapshots');
 const screenshot = require('./screenshot');
 const favicons  = require('./favicons');
+const thumbs    = require('./thumbs');
 const mapdata   = require('./mapdata');
 const chat      = require('./chat');
 const irc       = require('./irc');
@@ -266,6 +267,7 @@ function onWorkerMessage(msg) {
       break;
     }
     case 'items-updated': send('feed:updated', msg.items); break;
+    case 'item-images': send('feed:images', msg.items); break;
     case 'refreshed':
       pendingRefreshes.get(msg.id)?.();
       pendingRefreshes.delete(msg.id);
@@ -763,7 +765,9 @@ app.whenReady().then(() => {
 
   // Site icons for feed rows (main window, default session).
   favicons.init(path.join(DATA_DIR, 'icons'));
-  protocol.handle(ICON_SCHEME, req => favicons.handle(req));
+  // Story pictures from feeds share the scheme: polyopticon-icon://thumb/<item id>.
+  thumbs.init(path.join(DATA_DIR, 'thumbs'), id => db.getItem(id)?.image ?? null);
+  protocol.handle(ICON_SCHEME, req => new URL(req.url).hostname === 'thumb' ? thumbs.handle(req) : favicons.handle(req));
   // Place-card photos and Canada's census divisions for the map, downloaded when the map first needs them.
   mapdata.init(path.join(DATA_DIR, 'map'));
   protocol.handle(MAP_SCHEME, req => mapdata.handle(req));
@@ -771,7 +775,7 @@ app.whenReady().then(() => {
   articles.protocol.handle(READER_SCHEME, req => {
     const u = new URL(req.url);
     const id = Number(u.pathname.split('/').filter(Boolean)[0]);   // polyopticon-reader://item/<id>[?lang=en]
-    const html = id ? snapshots.readerHtml(id, { translated: u.searchParams.get('lang') === 'en' }) : null;
+    const html = id ? snapshots.readerHtml(id, { translated: u.searchParams.get('lang') === 'en', fullWidth: settings.ReaderWidth === 1 }) : null;
     return new Response(html ?? '<p style="font-family:sans-serif">No saved text for this article.</p>', {
       status: html ? 200 : 404,
       headers: {

@@ -237,6 +237,8 @@ Each story shows its source badge, its publisher's icon, its title and when it w
 
 Site icons are fetched once from the site (falling back to Google's favicon service when a site blocks it), shrunk to 32 px and cached in `%LocalAppData%\Polyopticon\icons` (`src/main/favicons.js`, served as `polyopticon-icon://`).
 
+When a feed gives a story a picture (Media RSS `media:content`/`media:thumbnail`, an image enclosure, or the first picture in its description), the row shows it on the left (smaller when the story list is at its narrowest); stories without one show text only. Hovering a picture shows it larger beside the list, at most 360 px wide and 60% of the window's height. The app fetches the picture itself (the window never contacts the publisher's image servers), shrinks it to 192 px wide (720 px for the hover preview) and keeps it for a week in `%LocalAppData%\Polyopticon\thumbs` (`src/main/thumbs.js`, served as `polyopticon-icon://thumb/<story id>`).
+
 Non-English headlines show their language as a tag (e.g. "AR"). To read one in English, open it and use **Translate** (see [Translation](#translation)).
 
 ## Article View
@@ -257,7 +259,7 @@ The bar above an open article, from left to right:
 
 - **Back / Reload / Forward** (Alt+Left, Ctrl+R, Alt+Right): page navigation.
 - **Source and title** of the story.
-- **Live / Saved page / Reader:** switches between the real page, the saved full-page copy and the clean text. When the site can't be reached (or you're offline), the saved copy opens automatically.
+- **Live / Saved page / Reader:** switches between the real page, the saved full-page copy and the clean text. Reader keeps the text in a readable column, or fills the tab if *Reader text width* is set to Full width in Settings. When the site can't be reached (or you're offline), the saved copy opens automatically.
 - **Translate / Stop:** see [Translation](#translation).
 - **Save state:** "Saving…", "Saved 2m ago" (with "· partial" when the site only sent part of the article), or "Not saved". In Live view, click it to save the page again, for example after logging in.
 - **Screenshot** (Ctrl+Shift+S): captures the whole page, copies it to the clipboard and saves it as a picture (folder set in Settings -> General -> Article viewer).
@@ -508,7 +510,7 @@ The **Settings** button (Ctrl+,) opens the panel. Esc or the close button closes
   - *Feed behaviour:* refresh interval, max article age, max items in the live feed, always open in browser, and grouping.
   - *Translation:* the large NLLB model, and Stop all translation.
   - *Live chat:* Twitch and Kick channels, destiny.gg, and IRC rooms (also set from the chat's **+**).
-  - *Article viewer:* default page zoom and the screenshot folder.
+  - *Article viewer:* default page zoom, Reader text width (a readable column, or the full width of the tab) and the screenshot folder.
   - *Polling:* the delay between sources at start (takes effect on restart).
   - *Media bias:* how far the [bias lookups](#bias-chart) have got, and **Recheck**.
   - *Logs:* how many session logs to keep, and debug logging.
@@ -522,7 +524,7 @@ The **Settings** button (Ctrl+,) opens the panel. Esc or the close button closes
 
 Everything the app stores lives outside the repository, in `%LocalAppData%\Polyopticon\`:
 `polyopticon.db` (items, history, saved text, and each feed's bias lookup), `snapshots/` (saved pages), `models/` (translation models),
-`icons/`, `logs/`, `accounts.bin` (encrypted keys and sessions), `scratchpad.bin` (the encrypted Scratchpad note), and `settings.json`, `tags.json`,
+`icons/`, `thumbs/`, `logs/`, `accounts.bin` (encrypted keys and sessions), `scratchpad.bin` (the encrypted Scratchpad note), and `settings.json`, `tags.json`,
 `ui.json`, `pinned.json` (the open tabs).
 
 The app reopens the way you left it: window size, position and maximised state, pane widths,
@@ -556,6 +558,7 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
     │   ├── bias.js         political-lean lookups (MediaBias News), one per feed, kept in the database
     │   ├── markets.js      live quotes for Global Markets (Yahoo Finance, batched, with back-off)
     │   ├── favicons.js     site icons, fetched once and cached
+    │   ├── thumbs.js       story pictures from feeds, shrunk and cached for a week
     │   ├── chat.js         chat-panel session and webview lock-down
     │   ├── irc.js          anonymous, read-only IRC connections for the chat column
     │   ├── fourchan.js     4chan tabs: in-memory session, middle-click -> new tab

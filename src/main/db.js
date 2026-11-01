@@ -148,7 +148,7 @@ const parseSource = r => r && ({ ...r, enabled: !!r.enabled, config: JSON.parse(
 // joined, ~6 µs this way). Items can't outlive their source (ON DELETE CASCADE), so both give the same rows.
 const ITEM_COLS = `i.id, i.source_id AS sourceId, (SELECT name FROM sources WHERE id = i.source_id) AS sourceName, i.kind, i.title, i.summary, i.url,
                    i.author, i.published_at AS publishedAt, i.cluster_id AS clusterId, i.places, i.lang,
-                   i.orig_title AS origTitle, json_extract(i.extra, '$.site') AS site`;
+                   i.orig_title AS origTitle, json_extract(i.extra, '$.site') AS site, json_extract(i.extra, '$.image') AS image`;
 
 /** Row -> renderer item (places JSON parsed). Set in place: copying a row (null prototype) costs more than reading it. */
 const itemRow = r => { if (r) r.places = r.places ? JSON.parse(r.places) : []; return r; };
@@ -241,6 +241,24 @@ function wrap(db) {
         }
       });
       return added;
+    },
+
+    /**
+     * Gives stories already stored the picture their feed now names, if they had none (stories
+     * saved before pictures were read, or whose feed added one later). Returns [{ id, image }].
+     */
+    fillImages(sourceId, items) {
+      const out = [];
+      const st = q(`UPDATE items SET extra = json_set(coalesce(extra, '{}'), '$.image', ?)
+                    WHERE source_id = ? AND ext_id = ? AND json_extract(extra, '$.image') IS NULL RETURNING id`);
+      api.tx(() => {
+        for (const it of items) {
+          if (!it.extra?.image) continue;
+          const r = st.get(it.extra.image, sourceId, it.extId);
+          if (r) out.push({ id: r.id, image: it.extra.image });
+        }
+      });
+      return out;
     },
 
     /** The live list at startup: the newest `limit` items, plus each source's newest

@@ -78,6 +78,7 @@ contextBridge.exposeInMainWorld('polyopticon', {
   onItems:          on('feed:items'),
   onIrcEvent:       on('irc:event'),
   onItemsUpdated:   on('feed:updated'),
+  onItemImages:     on('feed:images'),
   onTranslateProgress: on('translate:progress'),
   onStatus:         on('feed:status'),
   onSourcesChanged: on('sources:changed'),

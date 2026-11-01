@@ -2,12 +2,12 @@
 
 import { api, $, maxAgeLabel } from './dom.js';
 import { state, setSources, setBias } from './state.js';
-import { ingest, refreshRows, scheduleRender, bindFeedScroll, trimToMax, rebuildTagCache, bindList, pruneSources, setCountsListener, updateItems, setVisibleListener } from './feed.js';
+import { ingest, refreshRows, scheduleRender, bindFeedScroll, trimToMax, rebuildTagCache, bindList, pruneSources, setCountsListener, updateItems, setItemImages, setVisibleListener } from './feed.js';
 import { initMap, onVisibleItems, applyMapAppearance, refreshMapFilter } from './map.js';
 import { initBias, refreshBias } from './bias.js';
 import { initMarkets } from './markets.js';
 import { renderSources, renderTags, bindTagForms, bindSourceFilter, setStatus, repaintCounts } from './sidebar.js';
-import { renderStory, renderTabs, activeTab, closeTab, reopenClosedTab, setPinned, cycleTab, moveTab, selectUnpinnedTab, openAppTab, openHelpTab, openScratchTab, openChanHome, openChanTab, openTelegramDraft, navigate, reload as reloadTab, showMode, onSnapshotSaved, applyZoom, bindStoryButtons, bindTabDrag, restoreTabs, storyTabList, selectTabById, closeTabById, onArticleTranslateProgress, takeScreenshot } from './tabs.js';
+import { renderStory, renderTabs, activeTab, closeTab, reopenClosedTab, setPinned, cycleTab, moveTab, selectUnpinnedTab, openAppTab, openHelpTab, openScratchTab, openChanHome, openChanTab, openTelegramDraft, navigate, reload as reloadTab, showMode, onSnapshotSaved, applyZoom, applyReaderWidth, bindStoryButtons, bindTabDrag, restoreTabs, storyTabList, selectTabById, closeTabById, onArticleTranslateProgress, takeScreenshot } from './tabs.js';
 import { initHistory, reload as reloadHistory, setHistoryQuery } from './history.js';
 import { ui, loadUi, saveUi } from './ui.js';
 import { initChat, renderChat, toggleChat, toggleVideo, applyChatTheme, chatOpen, cycleChatTab, moveChatTab, selectChatTab, closeChatTab, reloadChatTab, pinChatTab, chatTabList } from './chat.js';
@@ -42,6 +42,7 @@ function applySetting(key) {
     case 'MaxFeedItems': trimToMax(); scheduleRender(); break;
     case 'RefreshIntervalSeconds': resetCountdown(); break;
     case 'WebViewZoom': applyZoom(); break;
+    case 'ReaderWidth': applyReaderWidth(); break;
     case 'GroupStories': $('btn-group').classList.toggle('on', s.GroupStories); scheduleRender(); break;
     case 'ChatTwitchChannels':
     case 'ChatKickChannels':
@@ -486,6 +487,7 @@ window.addEventListener('unhandledrejection', e => api.log('error', `Renderer: u
 
   api.onItems(items => ingest(items));
   api.onItemsUpdated(updateItems);
+  api.onItemImages(setItemImages);
   api.onTranslateProgress(onTranslateProgress);
   api.onStatus(setStatus);
   api.onSnapshot(onSnapshotSaved);

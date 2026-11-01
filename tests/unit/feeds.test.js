@@ -43,6 +43,34 @@ test('parseFeed: Atom picks the alternate link', () => {
   assert.equal(entry.author, 'Sam');
 });
 
+test('parseFeed: story pictures from Media RSS, enclosures, Atom and the description', () => {
+  const items = parseFeed(`<?xml version="1.0"?>
+    <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel>
+      <item><title>a</title><link>https://example.com/a</link>
+        <media:content url="https://cdn.example.com/v.mp4" medium="video"><media:thumbnail url="https://cdn.example.com/v.jpg"/></media:content></item>
+      <item><title>b</title><link>https://example.com/b</link>
+        <media:group><media:content url="https://cdn.example.com/b.jpg?w=800&amp;h=600" type="image/jpeg"/></media:group></item>
+      <item><title>c</title><link>https://example.com/c</link><enclosure url="https://cdn.example.com/c.png" type="image/png" length="1"/></item>
+      <item><title>d</title><link>https://example.com/news/d</link>
+        <description>&lt;img src="https://feeds.feedburner.com/~r/x/~4/y" width="1" height="1"&gt;&lt;img src="/img/d.jpg"&gt;</description></item>
+      <item><title>e</title><link>https://example.com/e</link><enclosure url="https://cdn.example.com/e.mp3" type="audio/mpeg"/>
+        <description>&lt;p&gt;No pictures&lt;/p&gt;</description></item>
+    </channel></rss>`);
+  assert.deepEqual(items.map(i => i.image), [
+    'https://cdn.example.com/v.jpg',
+    'https://cdn.example.com/b.jpg?w=800&h=600',
+    'https://cdn.example.com/c.png',
+    'https://example.com/img/d.jpg',
+    null,
+  ]);
+
+  const [entry] = parseFeed(`<?xml version="1.0"?>
+    <feed xmlns="http://www.w3.org/2005/Atom"><entry><id>1</id><title>t</title>
+      <link rel="alternate" href="https://example.com/p"/><link rel="enclosure" type="image/webp" href="https://cdn.example.com/p.webp"/>
+    </entry></feed>`);
+  assert.equal(entry.image, 'https://cdn.example.com/p.webp');
+});
+
 test('parseFeed: HTML block pages and junk are rejected with a clear code', () => {
   assert.throws(() => parseFeed('<!doctype html><html><body>Captcha</body></html>'), { label: 'BLOCKED' });
   assert.throws(() => parseFeed('<?xml version="1.0"?><nothing/>'), { label: 'PARSE' });

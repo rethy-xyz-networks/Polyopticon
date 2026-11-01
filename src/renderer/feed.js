@@ -62,7 +62,53 @@ export function buildRow(it, { extraMeta = null } = {}) {
       h('span', { class: 'saved-dot', title: 'Saved for offline reading', hidden: !it.saved }, '⤓')),
     h('div', { class: 'title' }, it.title),
     snippet && h('div', { class: 'snippet' }, snippet));
+  const pic = thumb(it);
+  if (pic) { row.classList.add('has-thumb'); row.prepend(pic); }
   return row;
+}
+
+// Hovering a story's picture shows it larger beside the list (one shared element; CSS caps its size).
+let preview = null, previewTimer = null;
+
+function showPreview(thumbImg) {
+  const id = thumbImg.closest('.item')?.dataset.id;
+  if (!id) return;
+  preview ??= document.body.appendChild(h('img', { id: 'thumb-preview', alt: '', draggable: 'false', hidden: true }));
+  const src = `polyopticon-icon://thumb/${id}?size=preview`;
+  const place = () => {
+    if (preview.dataset.for !== id) return;                   // the mouse moved on before it loaded
+    if (!thumbImg.isConnected) return hidePreview();          // its row was rebuilt meanwhile
+    const r = thumbImg.getBoundingClientRect();
+    const { width, height } = preview.getBoundingClientRect();
+    const gap = 10;
+    const left = r.right + gap + width <= innerWidth - 4 ? r.right + gap : Math.max(4, r.left - gap - width);
+    const top = Math.min(Math.max(4, r.top + r.height / 2 - height / 2), innerHeight - height - 4);
+    preview.style.left = `${left}px`;
+    preview.style.top = `${top}px`;
+    preview.style.visibility = '';
+  };
+  preview.dataset.for = id;
+  preview.style.visibility = 'hidden';                        // measured before it's shown
+  preview.hidden = false;
+  preview.onload = place;
+  preview.onerror = hidePreview;
+  if (preview.getAttribute('src') !== src) preview.src = src;
+  else if (preview.complete) place();
+}
+
+function hidePreview() {
+  clearTimeout(previewTimer);
+  if (!preview) return;
+  preview.hidden = true;
+  preview.dataset.for = '';
+}
+
+/** The story's picture from its feed, left of the text; none if the feed gave none or it fails to load. */
+function thumb(it) {
+  if (!it.image) return null;
+  const img = h('img', { class: 'thumb', src: `polyopticon-icon://thumb/${it.id}`, alt: '', loading: 'lazy', decoding: 'async', draggable: 'false' });
+  img.addEventListener('error', () => { img.closest('.item')?.classList.remove('has-thumb'); img.remove(); }, { once: true });
+  return img;
 }
 
 /** The publisher's icon (a Telegram channel's avatar for its messages); hidden if none. */
@@ -399,6 +445,17 @@ export function updateItems(updates) {
   scheduleRender({ batch: true });
 }
 
+/** Stories already listed whose feed now gives a picture: rebuild their rows with it. */
+export function setItemImages(updates) {
+  for (const { id, image } of updates) {
+    const it = state.itemsById.get(id);
+    if (!it) continue;
+    it.image = image;
+    for (const map of [nodes, memberNodes]) { map.get(id)?.remove(); map.delete(id); }
+  }
+  scheduleRender({ batch: true });
+}
+
 /** Drops rows of sources that were deleted. */
 export function pruneSources() {
   const before = state.items.length;
@@ -452,6 +509,17 @@ export function bindList(list, lookup, { preferSaved = false } = {}) {
   });
 
   list.addEventListener('dblclick', e => { const it = rowItem(e); if (it) open(it); });
+
+  // Hovering a story's picture shows a larger preview.
+  list.addEventListener('mouseover', e => {
+    const img = e.target.closest('img.thumb');
+    if (!img) return;
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => showPreview(img), 150);
+  });
+  list.addEventListener('mouseout', e => { if (e.target.closest('img.thumb') && !e.relatedTarget?.closest?.('img.thumb')) hidePreview(); });
+  list.addEventListener('scroll', hidePreview, { passive: true });
+  list.addEventListener('mousedown', hidePreview);
 
   // Right-click a story's source badge: limit the search to that source (again to undo).
   list.addEventListener('contextmenu', e => {

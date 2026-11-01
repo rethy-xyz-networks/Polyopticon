@@ -180,4 +180,4 @@ function stats() {
   return { icons: entries.filter(e => e.file).length, misses: entries.filter(e => e.miss).length };
 }
 
-module.exports = { init, handle, stats };
+module.exports = { init, handle, stats, get };

@@ -30,6 +30,11 @@ const ctx = {
 
   ingest(source, items) {
     const added = store.insertItems(source.id, items);
+    if (added.length < items.length) {
+      const known = new Set(added.map(it => it.extId));
+      const pictured = store.fillImages(source.id, items.filter(it => !known.has(it.extId)));
+      if (pictured.length) post({ type: 'item-images', items: pictured });
+    }
     if (added.length) {
       enricher.process(added, source);
       post({
@@ -38,7 +43,7 @@ const ctx = {
           id: it.id, sourceId: source.id, sourceName: source.name, kind: it.kind || 'article',
           title: it.title, summary: it.summary ?? null, url: it.url ?? null, author: it.author ?? null,
           publishedAt: it.publishedAt, clusterId: it.clusterId, places: it.places, lang: it.lang,
-          site: it.extra?.site ?? null,
+          site: it.extra?.site ?? null, image: it.extra?.image ?? null,
         })),
       });
     }

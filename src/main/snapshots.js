@@ -227,7 +227,8 @@ function shortUrl(u) {
   } catch { return u; }
 }
 
-function readerHtml(itemId, { translated = false } = {}) {
+/** The Reader view page. `fullWidth` lets the text fill the tab (the ReaderWidth setting; tabs.js toggles it live). */
+function readerHtml(itemId, { translated = false, fullWidth = false } = {}) {
   const s = db.getSnapshot(itemId);
   const item = db.getItem(itemId);
   if (!s || !(s.content_html || s.text)) return null;
@@ -237,12 +238,13 @@ function readerHtml(itemId, { translated = false } = {}) {
   const dir = !useTranslation && ['ar', 'he', 'fa', 'ur', 'ps'].includes(s.lang) ? 'rtl' : 'ltr';
   const meta = [s.byline, s.site_name || item?.sourceName,
                 item?.publishedAt && new Date(item.publishedAt).toLocaleString()].filter(Boolean).map(esc).join(' · ');
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(s.title || item?.title)}</title>
+  return `<!doctype html><html${fullWidth ? ' class="full"' : ''}><head><meta charset="utf-8"><title>${esc(s.title || item?.title)}</title>
 <style>
   :root { color-scheme: light dark; --bg:#fbfaf7; --fg:#1d1d1d; --muted:#6b6b6b; --link:#b3261e; }
   @media (prefers-color-scheme: dark) { :root { --bg:#141414; --fg:#e6e6e6; --muted:#8c8c8c; --link:#ff6b75; } }
   body { margin:0; background:var(--bg); color:var(--fg); font:18px/1.65 Georgia, "Times New Roman", serif; }
   main { max-width: 42rem; margin: 0 auto; padding: 32px 24px 80px; }
+  html.full main { max-width: none; }
   h1 { font: 700 30px/1.25 "Segoe UI", system-ui, sans-serif; margin: 0 0 10px; }
   .meta { color:var(--muted); font: 13px "Segoe UI", system-ui, sans-serif; margin-bottom: 6px; }
   .orig { font: 13px "Segoe UI", system-ui, sans-serif; margin-bottom: 28px; word-break: break-all; }

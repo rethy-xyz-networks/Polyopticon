@@ -883,6 +883,15 @@ export function applyZoom() {
   for (const t of state.tabs) if (t.ready) t.view.setZoomFactor(state.settings.WebViewZoom);
 }
 
+/** The Reader text width setting, applied to open Reader tabs in place (no reload, so they keep their scroll). */
+export function applyReaderWidth() {
+  const full = state.settings.ReaderWidth === 1;
+  for (const t of state.tabs) {
+    if (t.ready && t.mode === 'reader')
+      t.view.executeJavaScript(`document.documentElement.classList.toggle('full', ${full})`).catch(() => {});
+  }
+}
+
 export function bindStoryButtons() {
   const input = $('tg-channel');
   $('tg-draft').addEventListener('submit', e => {

@@ -2,7 +2,7 @@
 
 // settings.json / tags.json persistence. Uses the same location and
 // PascalCase JSON shape as the C# build so existing files carry over.
-// Enums are numeric: FeedDensity 0=Compact 1=Normal 2=Comfortable,
+// Enums are numeric: FeedDensity 0=Compact 1=Normal 2=Comfortable, ReaderWidth 0=Column 1=Full width,
 // TagScope 0=Both 1=Title 2=Description.
 
 const fs   = require('fs');
@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   MaxFeedItems: 1000,
   AlwaysOpenInBrowser: false,
   WebViewZoom: 1.0,
+  ReaderWidth: 0,              // Reader view text: 0 = a readable column, 1 = the full width of the tab
   SourceStaggerMs: 300,
   LogRetentionCount: 20,
   DebugLogging: false,

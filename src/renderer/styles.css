@@ -276,7 +276,7 @@ body.resizing webview { pointer-events: none; }
 .search-bar { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .search-bar input { flex: 1; }
 
-.feed-list { flex: 1; overflow-y: auto; overflow-x: hidden; outline: none; overflow-anchor: auto; }
+.feed-list { flex: 1; overflow-y: auto; overflow-x: hidden; outline: none; overflow-anchor: auto; container-type: inline-size; }
 .item {
   padding: var(--item-pad-y) 12px; border-bottom: 1px solid var(--border); border-left: 2px solid transparent;
   cursor: pointer; content-visibility: auto; contain-intrinsic-size: auto 58px;
@@ -291,6 +291,23 @@ body.no-badges .item .badge { display: none; }
 .item .time { color: var(--text-2); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
 .item .opened { color: var(--accent-text); font-size: var(--fs-xs); }
 .item .title { font-size: var(--fs-md); font-weight: 600; line-height: 1.36; }
+/* A story with a picture from its feed: the picture on the left, its text beside it. Two sizes:
+   small when the story list is at (or near) its narrowest (260px, see app.js), normal otherwise. */
+.item { --thumb-w: 96px; --thumb-gap: 10px; }
+@container (max-width: 300px) { .item { --thumb-w: 44px; --thumb-gap: 6px; } }
+.item.has-thumb {
+  display: grid; grid-template-columns: var(--thumb-w) minmax(0, 1fr); grid-template-rows: auto auto 1fr;
+  column-gap: var(--thumb-gap);
+}
+.item.has-thumb > :not(.thumb) { grid-column: 2; }
+/* The larger picture shown while hovering one; capped so high-resolution pictures stay a sensible size. */
+#thumb-preview {
+  position: fixed; z-index: 1000; pointer-events: none; max-width: min(360px, 45vw); max-height: 60vh; width: auto; height: auto;
+  object-fit: contain; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+}
+#thumb-preview[hidden] { display: none; }
+.item .thumb { grid-column: 1; grid-row: 1 / span 3; width: var(--thumb-w); aspect-ratio: 3 / 2; height: auto; object-fit: cover; border-radius: var(--radius); background: var(--card); }
 .feed-empty { flex: 1; display: grid; place-items: center; color: var(--text-2); padding: 24px; text-align: center; }
 
 /* Story viewer */

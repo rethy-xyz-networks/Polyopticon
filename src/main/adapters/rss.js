@@ -56,6 +56,56 @@ function itemTitle(e) {
   return line ? trunc(line.trim(), 160) : title ?? '(no title)';
 }
 
+const asList = v => Array.isArray(v) ? v : v == null ? [] : [v];
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|avif)(\?|#|$)/i;
+
+/** An absolute http(s) URL for `src` (relative ones resolve against the story's link), or null. */
+function absUrl(src, base) {
+  if (typeof src !== 'string' || !src.trim() || /^data:/i.test(src.trim())) return null;
+  try {
+    const u = new URL(src.trim().replace(/&amp;/g, '&'), base || undefined);
+    return /^https?:$/.test(u.protocol) ? u.href : null;
+  } catch { return null; }
+}
+
+/** First <img> in an entry's HTML that isn't a tracking pixel or a share button. */
+function htmlImage(html) {
+  if (typeof html !== 'string') return null;
+  for (const tag of html.match(/<img\b[^>]*>/gi) ?? []) {
+    const attr = name => tag.match(new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'))?.slice(2).find(v => v != null) ?? null;
+    const src = attr('src');
+    const tiny = ['width', 'height'].some(a => { const v = attr(a); return v != null && parseInt(v, 10) <= 2; });
+    if (!src || tiny) continue;
+    if (/feedburner\.com\/~|feedsportal|\/pixel|\/tracking|doubleclick|share[-_]?(button|icon)|emoji|gravatar\.com\/avatar|\.svg(\?|$)/i.test(src)) continue;
+    return src;
+  }
+  return null;
+}
+
+/**
+ * The picture an entry declares: Media RSS (media:content / media:thumbnail, also inside
+ * media:group), an image enclosure, itunes:image, then the first picture in its HTML.
+ */
+function entryImage(e, link) {
+  const groups = asList(e['media:group']);
+  const contents = [...groups.flatMap(g => asList(g['media:content'])), ...asList(e['media:content'])];
+  const thumbs = [...groups.flatMap(g => asList(g['media:thumbnail'])), ...asList(e['media:thumbnail']),
+                  ...contents.flatMap(m => asList(m?.['media:thumbnail']))];
+  // media:content is a picture unless it says it's something else (video, audio).
+  const isImage = m => m?.['@_medium'] ? m['@_medium'] === 'image' : m?.['@_type'] ? /^image\//i.test(m['@_type']) : true;
+  const enclosures = [...asList(e.enclosure), ...asList(e.link).filter(l => l?.['@_rel'] === 'enclosure')]
+    .filter(x => /^image\//i.test(x?.['@_type'] || '') || !x?.['@_type'] && IMAGE_EXT.test(x?.['@_url'] || x?.['@_href'] || ''));
+  const candidates = [
+    ...contents.filter(isImage).map(m => m?.['@_url']),
+    ...thumbs.map(t => t?.['@_url']),
+    ...enclosures.map(x => x['@_url'] ?? x['@_href']),
+    e['itunes:image']?.['@_href'],
+    ...[e['content:encoded'], e.description, e.content, e.summary].map(h => htmlImage(text(h))),
+  ];
+  for (const c of candidates) { const u = absUrl(c, link); if (u) return u; }
+  return null;
+}
+
 /** Normalises RSS 2.0, RSS 1.0 (RDF) and Atom into a flat list of raw entries. */
 function parseFeed(content) {
   const doc = xml.parse(content);
@@ -74,6 +124,7 @@ function parseFeed(content) {
         author: text(i['dc:creator']) || text(i.author) || null,
         source: text(i.source) || null,
         sourceUrl: typeof i.source === 'object' ? i.source['@_url'] ?? null : null,
+        image: entryImage(i, text(i.link) || permalink),
       };
     });
   }
@@ -88,6 +139,7 @@ function parseFeed(content) {
       date: e.published ?? e.updated ?? e.issued ?? e.modified,
       author: text(e.author?.name) || null,
       source: null,
+      image: entryImage(e, atomLink(e.link)),
     }));
   }
 
@@ -154,6 +206,7 @@ class RssAdapter extends Adapter {
         url: e.link || null,
         author: e.author ? cleanText(e.author) : null,
         publishedAt: sanePublished(publishedAt),
+        extra: e.image ? { image: e.image } : undefined,
       }, e));
     }
     this.bodyHash = digest;                        // only once it parsed: a bad body is tried again
