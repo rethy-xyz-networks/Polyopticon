@@ -106,7 +106,8 @@ function hidePreview() {
 /** The story's picture from its feed, left of the text; none if the feed gave none or it fails to load. */
 function thumb(it) {
   if (!it.image) return null;
-  const img = h('img', { class: 'thumb', src: `polyopticon-icon://thumb/${it.id}`, alt: '', loading: 'lazy', decoding: 'async', draggable: 'false' });
+  // An empty title of its own: the row's description tooltip would otherwise cover the hover preview.
+  const img = h('img', { class: 'thumb', src: `polyopticon-icon://thumb/${it.id}`, alt: '', title: '', loading: 'lazy', decoding: 'async', draggable: 'false' });
   img.addEventListener('error', () => { img.closest('.item')?.classList.remove('has-thumb'); img.remove(); }, { once: true });
   return img;
 }

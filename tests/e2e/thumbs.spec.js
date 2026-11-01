@@ -126,6 +126,8 @@ test('hovering a picture shows a larger preview, capped in width; leaving hides 
   const pic = window.locator('#feed-list .item', { hasText: 'Story with a picture' }).locator('img.thumb');
   await expect.poll(() => pic.evaluate(img => img.complete && img.naturalWidth), { timeout: 30_000 }).toBe(192);
 
+  // The row's description tooltip mustn't show over the preview: the picture has an empty title of its own.
+  await expect(pic).toHaveAttribute('title', '');
   await pic.hover();
   const preview = window.locator('#thumb-preview');
   await expect(preview).toBeVisible();
