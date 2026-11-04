@@ -241,19 +241,31 @@ function translate(lang, texts, priority = 0, tag) {   // tag: lets progress mes
   });
 }
 
+// The feed worker is started again whenever it exits unexpectedly (a crash, or killed for memory): without it
+// no source is polled for the rest of the session. Quick repeated exits wait longer each time (up to a minute).
+let feedsStopping = false;
+let workerRestarts = 0;
+let workerStartedAt = 0;
+
 function startFeeds() {
   if (!worker) {
-    worker = utilityProcess.fork(path.join(__dirname, 'feed-worker.js'), [], { serviceName: 'Polyopticon Feeds' });
-    worker.on('message', onWorkerMessage);
-    worker.on('exit', code => {
-      log.warn(`Feed worker exited (code ${code})`);
+    const w = worker = utilityProcess.fork(path.join(__dirname, 'feed-worker.js'), [], { serviceName: 'Polyopticon Feeds' });
+    workerStartedAt = Date.now();
+    w.on('message', onWorkerMessage);
+    w.on('exit', code => {
+      if (worker !== w) return;
       worker = null;
       for (const resolve of pendingRefreshes.values()) resolve();
       pendingRefreshes.clear();
+      if (feedsStopping) return;
+      if (Date.now() - workerStartedAt > 10 * 60e3) workerRestarts = 0;      // it had been running fine
+      const wait = Math.min(60e3, 1000 * 2 ** workerRestarts++);
+      log.warn(`Feed worker exited (code ${code}) — starting it again in ${wait / 1000}s`);
+      setTimeout(() => { if (!worker && !feedsStopping) startFeeds(); }, wait);
     });
-    worker.postMessage({ cmd: 'init', dbPath: DB_PATH, settings: workerSettings(), credentials: secrets.get() });
+    w.postMessage({ cmd: 'init', dbPath: DB_PATH, settings: workerSettings(), credentials: secrets.get() });
   }
-  log.snapshot('Application start');
+  log.snapshot(workerRestarts ? 'Feed worker restarted' : 'Application start');
   worker.postMessage({ cmd: 'sources', sources: db.listSources() });
 }
 
@@ -795,6 +807,7 @@ app.on('render-process-gone', (_e, contents, details) =>
   log.warn(`Renderer gone (${contents.getType()}): ${details.reason}`));
 
 app.on('window-all-closed', () => {
+  feedsStopping = true;
   worker?.postMessage({ cmd: 'stop' });
   translator?.kill();
   irc.closeAll();

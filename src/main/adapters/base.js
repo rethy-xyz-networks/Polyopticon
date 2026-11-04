@@ -14,6 +14,11 @@ const { Pacer, jitter } = require('./pacing');
 // interval, and one success puts the source straight back on it.
 const BACKOFF_CAP_MS = 5 * 60e3;
 
+// A poll still running after this long is given up (and its requests aborted), so one that hangs somewhere
+// without a timeout of its own (a library's connection, say) can't stop the source for the rest of the session.
+// Longer than any single request's timeout (GDELT's download allows 60 s).
+const POLL_DEADLINE_MS = 3 * 60e3;
+
 /** Wait before the next poll given `failures` in a row; never shorter than the source's own interval. */
 function backoffMs(intervalMs, failures) {
   if (failures < 2) return intervalMs;
@@ -41,6 +46,7 @@ class Adapter {
     this.freshMs = 0;                   // how long the server says the latest copy stays fresh (set by the subclass)
     this.pacer = this.paced ? new Pacer() : null;   // adaptive polling state (see pacing.js)
     this.abort     = new AbortController();
+    this.pollDeadlineMs = POLL_DEADLINE_MS;
   }
 
   /** Static metadata comes from types.js; subclasses set `static type`. */
@@ -71,14 +77,22 @@ class Adapter {
     this.timer = setTimeout(() => this.tick(), delayMs);
   }
 
+  // The next poll is always scheduled, whatever went wrong in this one: an exception here used to end the
+  // source's polling for the session (and, unhandled, could take the whole feed worker down).
   async tick() {
     this.timer = null;
-    await this.pollOnce();
-    if (this.stopped) return;
-    const wait = Math.max(backoffMs(this.nextDelayMs(), this.failures), this.retryAfterMs);
-    this.retryAfterMs = 0;
-    if (this.failures >= 2 && wait > this.intervalMs) this.log.debug(`[${this.name}] ${this.failures} failures in a row — next try in ${Math.round(wait / 1000)}s`);
-    this.timer = setTimeout(() => this.tick(), wait);
+    let wait = this.intervalMs;
+    try {
+      await this.pollOnce();
+      if (this.stopped) return;
+      wait = Math.max(backoffMs(this.nextDelayMs(), this.failures), this.retryAfterMs);
+      this.retryAfterMs = 0;
+      if (this.failures >= 2 && wait > this.intervalMs) this.log.debug(`[${this.name}] ${this.failures} failures in a row — next try in ${Math.round(wait / 1000)}s`);
+    } catch (e) {
+      try { this.log.error(`[${this.name}] Polling step failed: ${e?.message ?? e}`); } catch { /* logging itself failed */ }
+    } finally {
+      if (!this.stopped && !this.timer) this.timer = setTimeout(() => this.tick(), wait);
+    }
   }
 
   /** Reschedule a waiting timer after the interval setting changed. */
@@ -109,9 +123,26 @@ class Adapter {
     return added;
   }
 
+  /** fetchItems, given up after pollDeadlineMs: its requests are aborted and the poll counts as a timeout. */
+  async fetchWithDeadline() {
+    const ctl = new AbortController();
+    const signal = AbortSignal.any([this.abort.signal, ctl.signal]);
+    let timer;
+    const deadline = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        ctl.abort();
+        reject(new SourceError('TMO', `No answer after ${Math.round(this.pollDeadlineMs / 1000)}s — gave up on this poll`));
+      }, this.pollDeadlineMs);
+    });
+    const work = this.fetchItems(signal);
+    work.catch(() => {});                // if it settles after the deadline, nobody is waiting for it any more
+    try { return await Promise.race([work, deadline]); }
+    finally { clearTimeout(timer); }
+  }
+
   async poll() {
     try {
-      const items = await this.fetchItems(this.abort.signal);
+      const items = await this.fetchWithDeadline();
       if (this.stopped) return;
       const n = items?.length ?? 0;
       const added = items ? this.ingest(items) : [];
@@ -133,11 +164,13 @@ class Adapter {
                   : e.name === 'TimeoutError' ? 'TMO'
                   : 'ERR';
       const cause = e.cause?.code ? ` (${e.cause.code})` : '';
-      this.log.warn(`[${this.name}] ${label}: ${e.message}${cause}`);
-      this.log.set(`src.${this.name}.last_status`, `${label}: ${e.message}`);
-      this.log.set(`src.${this.name}.errors`, this.errors);
-      this.log.onError(`[${this.name}] ${e.message}`);
-      this.status(label, true);
+      try {
+        this.log.warn(`[${this.name}] ${label}: ${e.message}${cause}`);
+        this.log.set(`src.${this.name}.last_status`, `${label}: ${e.message}`);
+        this.log.set(`src.${this.name}.errors`, this.errors);
+        this.log.onError(`[${this.name}] ${e.message}`);
+        this.status(label, true);
+      } catch { /* reporting the failure failed; the next poll still happens (see tick) */ }
     }
   }
 
@@ -145,4 +178,4 @@ class Adapter {
   async fetchItems() { throw new Error('not implemented'); }
 }
 
-module.exports = { Adapter, backoffMs, BACKOFF_CAP_MS };
+module.exports = { Adapter, backoffMs, BACKOFF_CAP_MS, POLL_DEADLINE_MS };

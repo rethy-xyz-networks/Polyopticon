@@ -19,6 +19,14 @@ const log = {
   set: forward('set'), onError: forward('onError'), snapshot: forward('snapshot'),
 };
 
+// A stray error from a library working in the background (a dropped connection, say) must not end polling.
+// Unhandled rejections are logged and the worker carries on; after an uncaught exception its state can't be
+// trusted, so it exits and the main process starts a fresh one (main.js startFeeds).
+process.on('unhandledRejection', e => log.error(`Feed worker: unhandled rejection: ${e?.stack || e?.message || e}`));
+process.on('uncaughtException', e => {
+  try { log.error(`Feed worker: uncaught exception — restarting: ${e?.stack || e?.message || e}`); } finally { setTimeout(() => process.exit(70), 100); }
+});
+
 let store = null;
 let settings = { intervalSeconds: 5, staggerMs: 300 };
 let credentials = {};
@@ -31,18 +39,22 @@ const ctx = {
   ingest(source, items) {
     const added = store.insertItems(source.id, items);
     if (added.length < items.length) {
-      const known = new Set(added.map(it => it.extId));
-      const pictured = store.fillImages(source.id, items.filter(it => !known.has(it.extId)));
-      if (pictured.length) post({ type: 'item-images', items: pictured });
+      try {
+        const known = new Set(added.map(it => it.extId));
+        const pictured = store.fillImages(source.id, items.filter(it => !known.has(it.extId)));
+        if (pictured.length) post({ type: 'item-images', items: pictured });
+      } catch (e) { log.warn(`[${source.name}] Adding pictures to stored stories failed: ${e.message}`); }
     }
     if (added.length) {
-      enricher.process(added, source);
+      // Stored stories are never "new" again, so they must reach the list even if grouping/places fail.
+      try { enricher.process(added, source); }
+      catch (e) { log.error(`[${source.name}] Grouping/places failed for ${added.length} new item(s): ${e.message}`); }
       post({
         type: 'items',
         items: added.map(it => ({
           id: it.id, sourceId: source.id, sourceName: source.name, kind: it.kind || 'article',
           title: it.title, summary: it.summary ?? null, url: it.url ?? null, author: it.author ?? null,
-          publishedAt: it.publishedAt, clusterId: it.clusterId, places: it.places, lang: it.lang,
+          publishedAt: it.publishedAt, clusterId: it.clusterId ?? null, places: it.places ?? [], lang: it.lang ?? null,
           site: it.extra?.site ?? null, image: it.extra?.image ?? null,
         })),
       });

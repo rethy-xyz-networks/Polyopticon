@@ -48,3 +48,27 @@ test('a quiet feed is polled less and less, and a new story brings it back to th
   const last = hits.slice(-2);
   expect(last[1] - last[0]).toBeLessThan(8000);
 });
+
+test('if the feed worker dies, it is started again and new stories keep arriving', async ({ app, window }) => {
+  test.setTimeout(180_000);
+  const saved = await addFeed(window, `${base}/feed`);
+  expect(saved.ok, saved.error).toBe(true);
+  await expect(window.locator('#feed-list .item', { hasText: 'First story' })).toBeVisible({ timeout: 30_000 });
+
+  // Kill it outright, as a crash or the system running out of memory would.
+  const killed = await app.evaluate(({ app }) => {
+    const p = app.getAppMetrics().find(m => m.type === 'Utility' && m.name === 'Polyopticon Feeds');
+    if (!p) return null;
+    process.kill(p.pid, 'SIGKILL');
+    return p.pid;
+  });
+  expect(killed).toBeTruthy();
+  await expect.poll(() => app.evaluate(({ app }, pid) =>
+    app.getAppMetrics().find(m => m.type === 'Utility' && m.name === 'Polyopticon Feeds' && m.pid !== pid)?.pid ?? null, killed),
+    { timeout: 20_000 }).toBeTruthy();
+
+  // The new worker starts every source again, staggered (172 here, 0.3 s apart): this one is last.
+  items = ['Published after the crash', ...items];
+  await expect(window.locator('#feed-list .item', { hasText: 'Published after the crash' })).toBeVisible({ timeout: 120_000 });
+  expect(window.pageErrors).toEqual([]);
+});

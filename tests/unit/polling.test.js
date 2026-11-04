@@ -94,3 +94,71 @@ test('RssAdapter: a body that fails to parse is not remembered, so it is tried a
     assert.equal((await a.fetchItems())[0].title, 'fine');
   } finally { server.close(); }
 });
+
+// Polling never stops by itself
+
+const { Adapter } = require('../../src/main/adapters/base');
+
+/** An adapter whose fetchItems is the given function; ctx records what it reports. */
+function testAdapter(fetchItems, { intervalMs = 20 } = {}) {
+  const noop = () => {};
+  const ctx = {
+    log: { debug: noop, info: noop, warn: noop, error: noop, set: noop, onError: noop },
+    statuses: [],
+    ingest: () => [],
+    status(_s, label, isError) { this.statuses.push([label, isError]); },
+    intervalMs: () => intervalMs,
+  };
+  class T extends Adapter { fetchItems(signal) { return fetchItems.call(this, signal); } }
+  T.meta = {};
+  return { adapter: new T({ id: 1, name: 'T', config: {} }, ctx), ctx };
+}
+const until = async (cond, ms = 3000) => { const end = Date.now() + ms; while (!cond()) { if (Date.now() > end) throw new Error('timed out'); await new Promise(r => setTimeout(r, 5)); } };
+
+test('Adapter: a poll that never answers is given up at the deadline, its requests aborted, and polling goes on', async () => {
+  let calls = 0, aborted = 0;
+  const { adapter, ctx } = testAdapter(signal => {
+    calls++;
+    if (calls === 1) return new Promise(() => { signal.addEventListener('abort', () => aborted++); });   // hangs forever
+    return Promise.resolve([]);
+  });
+  adapter.pollDeadlineMs = 50;
+  const unhandled = [];
+  const onUnhandled = e => unhandled.push(e);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    adapter.start();
+    await until(() => calls >= 3);
+    assert.equal(aborted, 1);
+    assert.deepEqual(ctx.statuses[0], ['TMO', true]);
+    assert.equal(adapter.failures, 0);                              // later polls succeeded
+  } finally { adapter.stop(); process.off('unhandledRejection', onUnhandled); }
+  assert.deepEqual(unhandled, []);
+});
+
+test('Adapter: an exception while scheduling the next poll (or while reporting an error) does not stop polling', async () => {
+  let calls = 0;
+  const { adapter, ctx } = testAdapter(() => { calls++; return calls % 2 ? Promise.reject(new Error('boom')) : Promise.resolve([]); });
+  let broken = 3;
+  adapter.nextDelayMs = () => { if (broken-- > 0) throw new Error('pacer broke'); return 20; };
+  ctx.status = () => { throw new Error('status channel broke'); };
+  const unhandled = [];
+  const onUnhandled = e => unhandled.push(e);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    adapter.start();
+    await until(() => calls >= 6);
+  } finally { adapter.stop(); process.off('unhandledRejection', onUnhandled); }
+  assert.deepEqual(unhandled, []);
+});
+
+test('Adapter: a stopped source schedules nothing more', async () => {
+  let calls = 0;
+  const { adapter } = testAdapter(() => { calls++; return Promise.resolve([]); });
+  adapter.start();
+  await until(() => calls >= 1);
+  adapter.stop();
+  const at = calls;
+  await new Promise(r => setTimeout(r, 100));
+  assert.equal(calls, at);
+});
