@@ -6,23 +6,12 @@
 // latest price and the change since the previous close, nothing historical.
 //
 // The tiles are built once and updated in place on each quote, so a one-second feed costs a few text
-// writes. The user's changes are kept in ui.json: marketsAdded [{ symbol, name, group }],
-// marketsRemoved [symbol] (a default tile they hid) and marketsOrder { group id: [symbol] } (tiles
-// dragged into another place or group; a tile not listed keeps its default group, after the listed ones).
+// writes. The groups are the user's own: none at first, each made with + New group, filled with + Add and
+// removed from its header. They're kept in ui.json as marketsGroups [{ id, name, items: [{ symbol, name }] }],
+// in the order shown; dragging a tile rewrites its group's items (and the one it left).
 
 import { api, $, h } from './dom.js';
 import { ui, saveUi } from './ui.js';
-
-// [symbol, label]. Yahoo's own names ("S&P 500", "Crude Oil Jun 26") are inconsistent, so defaults carry theirs.
-export const GROUPS = [
-  { id: 'us', name: 'United States', words: 'usa us america', items: [['^GSPC', 'S&P 500'], ['^IXIC', 'Nasdaq Composite'], ['^DJI', 'Dow Jones'], ['^RUT', 'Russell 2000'], ['^VIX', 'VIX']] },
-  { id: 'ca', name: 'Canada', words: 'tsx toronto', items: [['^GSPTSE', 'S&P/TSX Composite']] },
-  { id: 'apac', name: 'Asia-Pacific', words: 'asia pacific japan china hong kong korea south australia india', items: [['^N225', 'Nikkei 225'], ['^HSI', 'Hang Seng'], ['000001.SS', 'Shanghai Composite'], ['399001.SZ', 'Shenzhen Component'], ['^KS11', 'KOSPI'], ['^AXJO', 'ASX 200'], ['^NSEI', 'Nifty 50']] },
-  { id: 'eu', name: 'Europe', words: 'uk united kingdom britain germany france eurozone', items: [['^FTSE', 'FTSE 100'], ['^GDAXI', 'DAX'], ['^FCHI', 'CAC 40'], ['^STOXX50E', 'Euro Stoxx 50']] },
-  { id: 'energy', name: 'Energy', words: 'oil gas commodities', items: [['CL=F', 'WTI crude'], ['BZ=F', 'Brent crude'], ['NG=F', 'Natural gas']] },
-  { id: 'other', name: 'Metals & currencies', words: 'gold forex fx dollar yen yuan', items: [['GC=F', 'Gold'], ['DX-Y.NYB', 'US dollar index'], ['CAD=X', 'USD / CAD'], ['JPY=X', 'USD / JPY'], ['CNY=X', 'USD / CNY']] },
-  { id: 'crypto', name: 'Crypto', words: 'cryptocurrency coins bitcoin ethereum', items: [['BTC-USD', 'Bitcoin'], ['ETH-USD', 'Ethereum'], ['XRP-USD', 'XRP']] },
-];
 
 const STATE_LABEL = { open: 'OPEN', pre: 'PRE-MARKET', closed: 'CLOSED' };
 const TICK = { up: '▲', down: '▼', flat: '■' };
@@ -39,26 +28,14 @@ let lastAt = 0, status = { state: 'ok' };
 
 // What's shown
 
-const removed = () => new Set(ui.marketsRemoved ?? []);
-const added   = () => (Array.isArray(ui.marketsAdded) ? ui.marketsAdded : []);
+/** The user's groups, in order. A symbol is in at most one group (see isShown). */
+export const groups = () => (Array.isArray(ui.marketsGroups) ? ui.marketsGroups : [])
+  .filter(g => g && typeof g.id === 'string')
+  .map(g => ({ id: g.id, name: String(g.name ?? ''), items: Array.isArray(g.items) ? g.items.filter(i => i && typeof i.symbol === 'string') : [] }));
 
-const orders = () => (ui.marketsOrder && typeof ui.marketsOrder === 'object' ? ui.marketsOrder : {});
+const saveGroups = list => { saveUi({ marketsGroups: list }); rebuild(); };
 
-/** The tiles of one group, in order: those the user placed there, then defaults they haven't hidden or moved, then what they added. */
-function itemsOf(group) {
-  const gone = removed(), order = orders();
-  const placed = new Map();                        // symbol -> group id the user dragged it to
-  for (const [gid, list] of Object.entries(order)) if (GROUPS.some(g => g.id === gid) && Array.isArray(list)) for (const s of list) if (!placed.has(s)) placed.set(s, gid);
-  const all = [
-    ...GROUPS.flatMap(g => g.items.filter(([s]) => !gone.has(s)).map(([symbol, name]) => ({ symbol, name, custom: false, home: g.id }))),
-    ...added().map(a => ({ symbol: a.symbol, name: a.name, custom: true, home: a.group })),
-  ];
-  const rank = new Map((order[group.id] ?? []).map((s, i) => [s, i]));
-  return all.filter(i => (placed.get(i.symbol) ?? i.home) === group.id)
-    .sort((a, b) => (rank.get(a.symbol) ?? 1e6) - (rank.get(b.symbol) ?? 1e6));   // stable: unplaced tiles keep their natural order
-}
-
-export const allSymbols = () => GROUPS.flatMap(g => itemsOf(g).map(i => i.symbol));
+export const allSymbols = () => groups().flatMap(g => g.items.map(i => i.symbol));
 
 const isShown = symbol => allSymbols().includes(symbol);
 
@@ -69,7 +46,6 @@ export function initMarkets() {
   $('markets-search').addEventListener('input', e => { query = e.target.value; applyFilter(); });
   $('markets-search').addEventListener('keydown', e => { if (e.key === 'Escape' && query) { e.stopPropagation(); e.target.value = ''; query = ''; applyFilter(); } });
   $('markets-refresh').addEventListener('click', () => { if (open) { api.stopMarkets(); api.startMarkets(allSymbols()); } });
-  $('markets-restore').addEventListener('click', () => { saveUi({ marketsRemoved: [] }); rebuild(); });
   document.addEventListener('story:view', e => (e.detail === 'markets' ? openMarkets() : closeMarkets()));   // its tab was selected, or another
   // A hidden or minimised window stops polling; it picks up again on return.
   document.addEventListener('visibilitychange', () => {
@@ -104,9 +80,8 @@ function closeMarkets() {
 function rebuild() {
   built = true;
   tiles.clear(); groupEls.clear();
-  const root = $('markets-groups');
-  root.replaceChildren(...GROUPS.map(buildGroup));
-  $('markets-restore').hidden = !(ui.marketsRemoved ?? []).length;
+  const list = groups();
+  $('markets-groups').replaceChildren(...list.map(buildGroup), buildNewGroup(!list.length));
   for (const q of quotes.values()) paintTile(q, false);
   paintGroups();
   applyFilter();
@@ -114,16 +89,50 @@ function rebuild() {
 }
 
 function buildGroup(group) {
-  const items = itemsOf(group);
   const count = h('span', { class: 'mk-count' });
-  const grid = h('div', { class: 'mk-grid' }, items.map(buildTile), buildAddTile(group));
+  const grid = h('div', { class: 'mk-grid' }, group.items.map(buildTile), buildAddTile(group));
   const el = h('section', { class: 'mk-group', dataset: { group: group.id } },
-    h('h3', { class: 'mk-head' }, group.name, count), grid);
-  groupEls.set(group.id, { el, count, symbols: items.map(i => i.symbol), text: `${group.name} ${group.words ?? ''}`.toLowerCase(), addTile: grid.lastChild });
+    h('h3', { class: 'mk-head' }, h('span', { class: 'mk-group-name' }, group.name), count, buildRemoveGroup(group)), grid);
+  groupEls.set(group.id, { el, count, symbols: group.items.map(i => i.symbol), text: group.name.toLowerCase(), addTile: grid.lastChild });
   return el;
 }
 
-function buildTile({ symbol, name, custom }) {
+/** The header's Remove group. A group with tiles asks once more ("Remove group and its 3 tiles?") before it goes. */
+function buildRemoveGroup(group) {
+  const n = group.items.length;
+  const label = `Remove group ${group.name}`;
+  const btn = h('button', { class: 'mk-group-remove', type: 'button', title: label, 'aria-label': label }, 'Remove');
+  const disarm = () => { delete btn.dataset.armed; btn.textContent = 'Remove'; };
+  btn.addEventListener('click', () => {
+    if (n && !btn.dataset.armed) { btn.dataset.armed = '1'; btn.textContent = `Remove group and its ${n} tile${n === 1 ? '' : 's'}?`; return; }
+    saveGroups(groups().filter(g => g.id !== group.id));
+  });
+  btn.addEventListener('blur', disarm);
+  btn.addEventListener('keydown', e => { if (e.key === 'Escape' && btn.dataset.armed) { e.stopPropagation(); disarm(); } });
+  return btn;
+}
+
+/** + New group, after the last group: type a name and press Enter. With no groups yet it says how to start. */
+function buildNewGroup(empty) {
+  const input = h('input', { type: 'text', class: 'mk-new-input', placeholder: 'Group name, e.g. Tech stocks', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'New group name', maxlength: '40' });
+  const form = h('form', { class: 'mk-new-form', hidden: true }, input);
+  const btn = h('button', { class: 'mk-new-btn toggle-btn', type: 'button' }, '+ New group');
+  const show = on => { form.hidden = !on; btn.hidden = on; if (on) { input.value = ''; input.focus(); } };
+  btn.addEventListener('click', () => show(true));
+  input.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); show(false); } });
+  input.addEventListener('blur', () => setTimeout(() => { if (!input.value && !form.hidden) show(false); }, 150));
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = input.value.trim();
+    if (!name) return show(false);
+    saveGroups([...groups(), { id: `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, name, items: [] }]);
+  });
+  return h('div', { class: 'mk-new' },
+    empty && h('p', { class: 'mk-new-hint' }, 'No groups yet. Make one, then add the tickers you want to follow to it.'),
+    btn, form);
+}
+
+function buildTile({ symbol, name }) {
   const t = {
     name:   h('span', { class: 'mk-name', title: name }, name),
     badge:  h('span', { class: 'mk-badge' }),
@@ -135,7 +144,7 @@ function buildTile({ symbol, name, custom }) {
     h('div', { class: 'mk-top' }, t.name, t.badge),
     t.price,
     h('div', { class: 'mk-bottom' }, t.change, h('span', { class: 'mk-symbol' }, symbol)),
-    h('button', { class: 'mk-remove', title: `Remove ${name}`, 'aria-label': `Remove ${name}`, onclick: () => removeSymbol(symbol, custom) }, '×'));
+    h('button', { class: 'mk-remove', title: `Remove ${name}`, 'aria-label': `Remove ${name}`, onclick: () => removeSymbol(symbol) }, '×'));
   tiles.set(symbol, t);
   return t.el;
 }
@@ -160,25 +169,19 @@ function buildAddTile(group) {
     if (!res.ok) { msg.textContent = res.error; input.focus(); return; }
     const { symbol, name } = res.quote;
     if (isShown(symbol)) { msg.textContent = `${symbol} is already on the page.`; input.focus(); return; }
-    saveUi({
-      marketsAdded: [...added(), { symbol, name, group: group.id }],
-      marketsRemoved: (ui.marketsRemoved ?? []).filter(s => s !== symbol),
-      marketsOrder: withoutSymbol(symbol),
-    });
+    const list = groups();
+    const g = list.find(g => g.id === group.id);
+    if (!g) return;                                // removed meanwhile
+    g.items.push({ symbol, name });
     quotes.set(symbol, res.quote);
-    rebuild();
+    saveGroups(list);
   });
   return h('div', { class: 'mk-add' }, btn, form);
 }
 
-function removeSymbol(symbol, custom) {
-  if (custom) saveUi({ marketsAdded: added().filter(a => a.symbol !== symbol), marketsOrder: withoutSymbol(symbol) });
-  else saveUi({ marketsRemoved: [...removed(), symbol] });   // a restored default comes back where it was
-  rebuild();
+function removeSymbol(symbol) {
+  saveGroups(groups().map(g => ({ ...g, items: g.items.filter(i => i.symbol !== symbol) })));
 }
-
-/** marketsOrder with a symbol taken out, so an added symbol starts in the group it was added to. */
-const withoutSymbol = symbol => Object.fromEntries(Object.entries(orders()).map(([gid, list]) => [gid, (list ?? []).filter(s => s !== symbol)]));
 
 // Moving tiles
 
@@ -274,18 +277,17 @@ function placeAt(el, x, y) {
 }
 
 function saveOrder(root) {
-  const order = Object.fromEntries([...root.querySelectorAll('.mk-group')].map(g => [g.dataset.group, [...g.querySelectorAll('.mk-tile')].map(t => t.dataset.symbol)]));
-  const groupOf = new Map(Object.entries(order).flatMap(([gid, list]) => list.map(s => [s, gid])));
-  saveUi({ marketsOrder: order, marketsAdded: added().map(a => ({ ...a, group: groupOf.get(a.symbol) ?? a.group })) });
-  rebuild();
+  const items = new Map(groups().flatMap(g => g.items.map(i => [i.symbol, i])));
+  const order = new Map([...root.querySelectorAll('.mk-group')].map(g => [g.dataset.group, [...g.querySelectorAll('.mk-tile')].map(t => items.get(t.dataset.symbol)).filter(Boolean)]));
+  saveGroups(groups().map(g => ({ ...g, items: order.get(g.id) ?? g.items })));
 }
 
 // Search
 
 /**
- * Every word typed must match the tile's name or symbol, or its group's name or country words, so "asia" shows
- * the whole Asia-Pacific group and "nikkei" shows one tile. Groups with nothing to show are hidden, as are the
- * + Add tiles, so a search never offers to add to a list it is narrowing.
+ * Every word typed must match the tile's name or symbol, or its group's name, so a group's name shows the whole
+ * group and "nikkei" shows one tile. Groups with nothing to show are hidden, as are the + Add tiles and
+ * + New group, so a search never offers to add to a list it is narrowing.
  */
 function applyFilter() {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -302,7 +304,8 @@ function applyFilter() {
     g.el.hidden = !any && !!words.length;
     if (!g.el.hidden) shown++;
   }
-  $('markets-empty').hidden = !!shown;
+  $('markets-groups').querySelector('.mk-new').hidden = !!words.length;
+  $('markets-empty').hidden = !!shown || !words.length;
 }
 
 // Painting

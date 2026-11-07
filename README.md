@@ -111,7 +111,7 @@ The buttons, from left to right:
 - **Video** (Ctrl+V): Shows or hides the [Video Player View](#video-player-view) below the chat, or opens the chat if it is hidden.
 - **Telegram**: Opens a [Telegram channel tab](#telegram-channel) within the **Article View**.
 - **Bias chart** (Ctrl+B): Shows or hides the [bias chart](#bias-chart), plotting each news feed's outlet by political lean and reliability.
-- **Global Markets** (Ctrl+G): Shows or hides [Global Markets](#global-markets), live prices for indices, energy, metals, currencies and crypto.
+- **Global Markets** (Ctrl+G): Shows or hides [Global Markets](#global-markets), live prices in groups of tickers you make.
 - **Settings** (Ctrl+,): Toggles the [Settings](#settings) panel.
 - **Scratchpad**: Opens the [Scratchpad](#scratchpad) tab within the **Article View**.
 - **4chan**: Opens a [4chan /pol/ tab](#4chan) within the **Article View** (optional, hide it in *Settings -> General*).
@@ -335,11 +335,11 @@ Ratings come from the [MediaBias News API](https://mediabias.news), which republ
 
 <img src="docs/screenshots/global-markets.png">
 
-The **Global Markets** button (Ctrl+G), next to the bias button, shows a tile per instrument with its exact current price and today's change (▲ / ▼ and a percent, measured from the previous close). Like the map it is a special view that replaces the article area, not a tab. Groups: United States, Canada, Asia-Pacific, Europe, Energy, Metals & currencies and Crypto (BTC, ETH, XRP). Each group header counts how many of its markets are open, and tiles for closed markets are dimmed. Nothing historical is kept.
+The **Global Markets** button (Ctrl+G), next to the bias button, shows a tile per instrument with its exact current price and today's change (▲ / ▼ and a percent, measured from the previous close). Like the map it is a special view that replaces the article area, not a tab. The groups are your own: there are none at first. **+ New group** makes one (type a name, press Enter), and hovering a group's header shows **Remove**, which asks once more if the group still has tiles. Each group header counts how many of its markets are open, and tiles for closed markets are dimmed. Nothing historical is kept.
 
 - **Live, but only while you look.** Prices come from Yahoo Finance's unofficial quote endpoint: one batch request per second covers every tile. It polls only while the view is open and the window visible. Measured: one request per second for five minutes, and two per second for a minute, drew no rate limiting. There is no documented limit, so on a 429 or an error the poller backs off (5, 10, 30, then 60 s, or the server's Retry-After) and the header says so.
-- **Adding a tile.** Each group ends in **+ Add**: type a Yahoo symbol (`SOL-USD`, `^GSPC`, `AAPL`); it is checked against Yahoo and added to that group. Hover a tile and click **×** to remove it; **Restore removed** brings hidden defaults back. Both are kept in `ui.json` (`marketsAdded`, `marketsRemoved`).
-- **Search.** The box in the header filters the tiles by group, country, name or ticker symbol. **Refresh** reconnects and fetches the prices at once.
+- **Adding a tile.** Each group ends in **+ Add**: type a Yahoo symbol (`SOL-USD`, `^GSPC`, `AAPL`); it is checked against Yahoo and added to that group. Hover a tile and click **×** to remove it, or drag it to another place or group. Groups and their tiles are kept in `ui.json` (`marketsGroups`).
+- **Search.** The box in the header filters the tiles by group, name or ticker symbol. **Refresh** reconnects and fetches the prices at once.
 - Exchanges can delay quotes by up to 15 minutes.
 
 ### Map
@@ -529,7 +529,7 @@ Everything the app stores lives outside the repository, in `%LocalAppData%\Polyo
 
 The app reopens the way you left it: window size, position and maximised state, pane widths,
 unticked sources, Live/History (and its scope), the Group / auto-scroll / case toggles, the map and its
-time window, the Global Markets tiles you added or removed, the chat column (`ui.json`), keyword filters (`tags.json`), and the open tabs (`pinned.json`).
+time window, your Global Markets groups, the chat column (`ui.json`), keyword filters (`tags.json`), and the open tabs (`pinned.json`).
 
 To run a separate copy with its own data (e.g. for testing), set `POLYOPTICON_DATA_DIR` to another folder
 before `npm start`.
