@@ -127,15 +127,15 @@ The sidebar on the left. The **edit** button in its header opens Settings -> Sou
 
 ### Finding a Source
 
-The search box at the top of the **Sources & Filters View** sidebar finds a source by its name, its group (country) or its category. Every word typed must match, and accents and case don't matter (`ruv` finds RÚV), so typing a country shows all of its sources. Folded groups open while a search is active. Esc clears the search.
+The search box at the top of the **Sources & Filters View** sidebar finds a source by its name, its group (country) or its category. Every word typed must match, and accents and case don't matter (`rte` finds RTÉ), so typing a country shows all of its sources. Folded groups open while a search is active. Esc clears the search.
 
 ### Source Groups
 
 The sidebar lists sources in three sections:
 
-- **Countries:** USA, Canada, Mexico, UK, Iceland, France, Germany, Spain, Italy, Netherlands, Ireland, Sweden, Denmark, Finland, Poland, Hungary, Serbia, Croatia, Ukraine, Russia, Georgia, Turkey, Syria, Israel, Egypt, Qatar, Saudi Arabia, UAE, Iran, Pakistan, India, Singapore, Vietnam, Thailand, China, Mongolia, Philippines, North Korea, South Korea, Japan, Australia, New Zealand, Brazil, Argentina and more.
-- **Areas:** Groups spanning several countries: the EU, the Balkans, Pacific Islands, Africa, and International (outlets and analysis with a world focus, such as Euronews, UN News and Foreign Policy).
-- **Other:** Telegram, Wires & Search, Disasters & Health (USGS and GDACS alerts, NASA) Business (FT, Bloomberg, CNBC, MarketWatch) and Sports (AFTN).
+- **Countries:** USA, Canada, Mexico, UK, Iceland, France, Germany, Ireland, Sweden, Denmark, Finland, Poland, Hungary, Serbia, Croatia, Ukraine, Russia, Georgia, Syria, Israel, Egypt, Qatar, UAE, Iran, Pakistan, India, Singapore, Vietnam, Thailand, China, Mongolia, North Korea, South Korea, Japan, Uruguay and more.
+- **Areas:** Groups spanning several countries: the EU, the Balkans, Africa, and International (outlets and analysis with a world focus, such as Euronews, UN News and Foreign Policy).
+- **Other:** Wires & Search, Disasters & Health (NASA) and Business (FT, Bloomberg, CNBC, MarketWatch).
 
 A source's group is the "Group" field in its editor. A new group name counts as a country unless it is one of the areas above.
 
@@ -328,7 +328,7 @@ Ratings come from the [MediaBias News API](https://mediabias.news), which republ
 
 - **One lookup per feed.** Each RSS feed is looked up once, shortly after start-up (or when you add it), and the answer is remembered in the database, whether or not an outlet was found. **Settings -> General -> Media bias -> Recheck** forgets every answer and asks again.
 - **Matching** uses the website's domain, from the feed address and from the links of its stories, and accepts an outlet only if its domains include it, so look-alike names don't match.
-- **Not plotted:** feeds the database doesn't know (NYT, The Guardian …), and outlets no rater has rated (RT, TASS …). They're listed under the chart.
+- **Not plotted:** feeds the database doesn't know (NYT, The Guardian …), and outlets no rater has rated (RT …). They're listed under the chart.
 - The API allows about 120 requests a minute; lookups are paced under that and wait out a refusal.
 
 ### Global Markets

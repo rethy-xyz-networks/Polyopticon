@@ -8,17 +8,17 @@ const visibleSources = window => window.locator('#source-groups .source:visible 
 const visibleGroups = window => window.locator('#source-groups .group:visible .group-head span').allTextContents();
 
 test('a country shows all of its sources', async ({ window }) => {
-  await window.locator('#source-filter').fill('canada');
-  expect(await visibleGroups(window)).toEqual(['Canada']);
-  expect(await visibleSources(window)).toEqual(['CBC', 'CBC NS', 'Global News']);
+  await window.locator('#source-filter').fill('ukraine');
+  expect(await visibleGroups(window)).toEqual(['Ukraine']);
+  expect(await visibleSources(window)).toEqual(['Kyiv Independent', 'Ukrinform', 'Ukrainska Pravda']);
 });
 
 test('matches source names, ignoring case and accents', async ({ window }) => {
-  await window.locator('#source-filter').fill('BBC');
-  expect(await visibleSources(window)).toEqual(['BBC']);
-  await window.locator('#source-filter').fill('ruv');
-  expect(await visibleSources(window)).toEqual(['RÚV']);
-  expect(await visibleGroups(window)).toEqual(['Iceland']);
+  await window.locator('#source-filter').fill('BBC ASIA');
+  expect(await visibleSources(window)).toEqual(['BBC Asia']);
+  await window.locator('#source-filter').fill('rte');
+  expect(await visibleSources(window)).toEqual(['RTÉ']);
+  expect(await visibleGroups(window)).toEqual(['Ireland']);
 });
 
 test('several words narrow it down (country + name)', async ({ window }) => {
@@ -52,9 +52,9 @@ test('no match says so; Esc brings everything back', async ({ window }) => {
 });
 
 test('the filter survives the sidebar being rebuilt', async ({ window }) => {
-  await window.locator('#source-filter').fill('canada');
+  await window.locator('#source-filter').fill('ukraine');
   await window.evaluate(() => import('./sidebar.js').then(m => m.renderSources()));
-  expect(await visibleSources(window)).toEqual(['CBC', 'CBC NS', 'Global News']);
+  expect(await visibleSources(window)).toEqual(['Kyiv Independent', 'Ukrinform', 'Ukrainska Pravda']);
 });
 
 test('a fresh install lists the Truth Social archive under its current name', async ({ window }) => {
@@ -78,8 +78,8 @@ test('groups are in sections: countries A -> Z, then areas, then other', async (
   expect(countries).toEqual([...countries].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })));
   expect(countries).toEqual(expect.arrayContaining(['USA', 'Canada', 'Iceland']));
   expect(countries).not.toContain('EU');
-  expect(await sections.nth(1).locator('.group-head span').allTextContents()).toEqual(['EU', 'Pacific Islands']);
-  expect(await sections.nth(2).locator('.group-head span').allTextContents()).toEqual(['Telegram', 'Wires & Search']);
+  expect(await sections.nth(1).locator('.group-head span').allTextContents()).toEqual(['Africa', 'Balkans', 'EU', 'International']);
+  expect(await sections.nth(2).locator('.group-head span').allTextContents()).toEqual(['Wires & Search', 'Disasters & Health', 'Business']);
 });
 
 test('section titles sit a step below the pane title', async ({ window }) => {
@@ -88,7 +88,7 @@ test('section titles sit a step below the pane title', async ({ window }) => {
 });
 
 test('searching hides empty sections and their lines', async ({ window }) => {
-  await window.locator('#source-filter').fill('telegram');
+  await window.locator('#source-filter').fill('bloomberg');
   await expect(window.locator('#source-groups .section-title:visible')).toHaveText(['Other']);
   await expect(window.locator('#source-groups hr:visible')).toHaveCount(0);
   await window.locator('#source-filter').fill('');
