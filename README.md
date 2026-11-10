@@ -8,6 +8,8 @@
 
 > **Pre-release software.** Polyopticon is still under active development, so expect bugs, issues, and features that change or break between versions. Please report problems you run into.
 
+<img src="docs/screenshots/views.png" alt="Screenshot of each view">
+
 Polyopticon is a desktop news-monitoring dashboard. It pulls news outlets, forums, imageboard posts, Twitch streams and chat, and other public sources into one configurable workspace, so you can follow a protest, a major media event, or any fast-moving story as it develops, in real time.
 
 Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, free API keys) are stored encrypted on your computer.
@@ -60,6 +62,7 @@ Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, 
   - [Tab Search](#tab-search)
 - [Settings](#settings)
   - [Data Folder](#data-folder)
+  - [Site Logins and Cookies](#site-logins-and-cookies)
   - [Ad Blocking](#ad-blocking)
 - [Project Structure](#project-structure)
 - [API Usage](#api-usage)
@@ -88,8 +91,6 @@ Publishing a release on GitHub builds both and attaches them to it (`.github/wor
 
 ## Layout
 
-<img src="docs/screenshots/views.png" alt="Screenshot of each view">
-
 Polyopticon has five main areas, known as views, with the [toolbar](#toolbar) across the top:
 
 - **[Sources & Filters View](#sources--filters-view)**: The sidebar on the left. It picks which outlets and wires (grouped by country) populate the **Article List View** feed, and holds the include / exclude keywords (bottom of the list).
@@ -100,6 +101,8 @@ Polyopticon has five main areas, known as views, with the [toolbar](#toolbar) ac
 
 Drag the bars between the views to resize them. Width and height per view are recorded and remembered.
 
+The **Sources & Filters View** (Ctrl+Shift+F) and the **Article List View** (Ctrl+Shift+E) can be hidden from their toolbar buttons, which gives the room to the **Article View**. A hidden view comes back as it was (scroll position, search). Searching the stories (Ctrl+F) or switching Live / History (Ctrl+H) shows the list again. Both choices are remembered.
+
 ## Toolbar
 
 The centre of the toolbar shows the app's status: **Live** with a countdown to the next refresh (or **Refreshing…**), the oldest age a story can have to be listed (Settings -> General -> Max article age), and an **Offline** badge when there is no connection. While a translation model downloads or loads, its progress shows here too (which can be clicked to stop it during translation).
@@ -107,6 +110,8 @@ The centre of the toolbar shows the app's status: **Live** with a countdown to t
 The buttons, from left to right:
 
 - **Refresh** (Shift+R): Polls every source immediately.
+- **Sources & Filters** (Ctrl+Shift+F): Shows or hides the [Sources & Filters View](#sources--filters-view).
+- **Article List** (Ctrl+Shift+E): Shows or hides the [Article List View](#article-list-view); the Article View takes its width.
 - **Chat** (Ctrl+J): Shows or hides the [Live Chat View](#live-chat-view).
 - **Video** (Ctrl+V): Shows or hides the [Video Player View](#video-player-view) below the chat, or opens the chat if it is hidden.
 - **Telegram**: Opens a [Telegram channel tab](#telegram-channel) within the **Article View**.
@@ -279,7 +284,7 @@ Ctrl+= / Ctrl+- / Ctrl+0 zoom the page in, out and back. The default zoom is in 
   Text comes from whichever works best: Readability, per-site rules, the page's JSON-LD, or its paragraphs.
   Telegram/Bluesky posts use the post text itself.
 - When a site only sent part of an article (e.g. NYT after the free-article limit), the save is marked
-  "partial". Log in to the site once in a Live tab. The session persists, so later saves get the full text.
+  "partial". Log in to the site once in a Live tab. The login persists across launches (see [Site Logins and Cookies](#site-logins-and-cookies)), so later saves get the full text.
 - Saved pages are kept for 90 days by default (Settings -> Storage). Their text is kept forever.
 
 ### Translation
@@ -370,7 +375,7 @@ The base map works offline: no tile server or API key. Outlines, facts and summa
 
 <img src="docs/screenshots/telegram.png">
 
-To read a public Telegram channel directly, press the **Telegram** button in the toolbar. A new tab opens with a field where the title would be. Enter the channel's name or link (`durov`, `@durov`, `t.me/durov`) and press Enter, and the field gives way to Telegram's own web view of the channel (`t.me/s/<channel>`). It's live only: nothing from it is saved, and it runs on its own in-memory browser session. Like article tabs it can be dragged, pinned (it reopens at the next start), zoomed, and moved with Back / Forward / Reload, and middle-clicking a link opens it as another tab in the background.
+To read a public Telegram channel directly, press the **Telegram** button in the toolbar. A new tab opens with a field where the title would be. Enter the channel's name or link (`durov`, `@durov`, `t.me/durov`) and press Enter, and the field gives way to Telegram's own web view of the channel (`t.me/s/<channel>`). It's live only: no copy of it is saved. It runs on its own browser session (shared with 4chan tabs), whose logins and cookies last between launches. Like article tabs it can be dragged, pinned (it reopens at the next start), zoomed, and moved with Back / Forward / Reload, and middle-clicking a link opens it as another tab in the background.
 
 <img src="docs/screenshots/telegram2.png">
 
@@ -388,7 +393,7 @@ Windows account (`scratchpad.bin`). If Windows encryption is unavailable it is n
 
 #### 4chan
 
-The toolbar's optional **4chan** button opens 4chan /pol/ as a live-only tab (hide the button in Settings -> General). Middle-click any link there to open it in a background tab. Nothing from these tabs is saved, and they run on their own in-memory browser session, so no cookies or cache reach the disk.
+The toolbar's optional **4chan** button opens 4chan /pol/ as a live-only tab (hide the button in Settings -> General). Middle-click any link there to open it in a background tab. No copies of these pages are saved. They run on their own browser session, apart from articles, whose logins, cookies and cache last between launches (see [Site Logins and Cookies](#site-logins-and-cookies)).
 
 #### Keyboard Shortcuts
 
@@ -528,11 +533,24 @@ Everything the app stores lives outside the repository, in `%LocalAppData%\Polyo
 `ui.json`, `pinned.json` (the open tabs).
 
 The app reopens the way you left it: window size, position and maximised state, pane widths,
-unticked sources, Live/History (and its scope), the Group / auto-scroll / case toggles, the map and its
+which views are hidden, unticked sources, Live/History (and its scope), the Group / auto-scroll / case toggles, the map and its
 time window, your Global Markets groups, the chat column (`ui.json`), keyword filters (`tags.json`), and the open tabs (`pinned.json`).
 
 To run a separate copy with its own data (e.g. for testing), set `POLYOPTICON_DATA_DIR` to another folder
 before `npm start`.
+
+### Site Logins and Cookies
+
+Article, chat and 4chan / Telegram tabs each run on their own browser session, and each keeps its logins,
+cookie-banner answers, site storage and cache between launches, as a browser that continues where it left off does.
+Cookies with an expiry date, site storage and the cache are kept by the browser engine in the folder below. Session cookies
+(the ones a browser would drop on exit, which many sites use for a login or a cookie choice) are saved a few seconds after
+they change and at exit, to `session-cookies.bin` (encrypted where the system offers it), and set again at the next start
+before any page loads (`src/main/websession.js`).
+
+Logins, cookies and the page cache live in Electron's browser folder, `%AppData%\Polyopticon\` (`Partitions\articles`,
+`Partitions\chat`, `Partitions\chan`, and `session-cookies.bin`). Deleting those while the app is closed signs you out of every site.
+Direct video links in the video area still use a memory-only session.
 
 ### Ad Blocking
 
@@ -561,7 +579,8 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
     │   ├── thumbs.js       story pictures from feeds, shrunk and cached for a week
     │   ├── chat.js         chat-panel session and webview lock-down
     │   ├── irc.js          anonymous, read-only IRC connections for the chat column
-    │   ├── fourchan.js     4chan tabs: in-memory session, middle-click -> new tab
+    │   ├── fourchan.js     4chan tabs: own session, middle-click -> new tab
+    │   ├── websession.js   site logins and cookie choices kept between launches (session cookies)
     │   ├── perfwatch.js    CPU / hang watchdog for the session log
     │   ├── secrets.js      encrypted API keys and sessions (Windows DPAPI)
     │   ├── blocker.js      ad/tracker blocking (host list + EasyList) for article and 4chan tabs
@@ -576,6 +595,7 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
         ├── telegram.js     parsing Telegram channel names and t.me links for the Telegram button
         ├── streams.js      Twitch / Kick / YouTube stream names, links and player pages for the split
         ├── reorder.js      drag-to-reorder for the tab strips (articles, chats)
+        ├── layout.js       showing / hiding the Sources & Filters and Article List views
         ├── feed.js, history.js, tabs.js, scratchpad.js, map.js, bias.js, markets.js, chat.js, irc.js, sidebar.js, settings.js, sourcesearch.js
         ├── state.js, ui.js, dom.js
         └── assets/         logo, offline world map, icon licence
