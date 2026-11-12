@@ -37,6 +37,7 @@ function sample(end = Date.UTC(2026, 10, 7), days = 400) {
         options: ['LPC', 'CPC', 'BQ', 'NDP', 'GPC', 'PPC'],
         names: { LPC: 'Liberal', CPC: 'Conservative', BQ: 'Bloc Québécois', NDP: 'New Democratic', GPC: 'Green', PPC: "People's Party" },
         partyOf: { LPC: 'Liberal', CPC: 'Conservative', BQ: 'BQ', NDP: 'NDP', GPC: 'Green', PPC: 'PPC' },
+        pages: { LPC: 'Liberal Party of Canada', CPC: 'Conservative Party of Canada' },
         variantLabel: null, variants: [],
         polls: polls.sort((a, b) => b.date.localeCompare(a.date)),
         events: [{ date: iso(end - 60 * DAY), text: 'A by-election in Test Riding.' }] },
@@ -185,5 +186,84 @@ test('a question with variants shows one at a time, with only the answers it has
   await expect(window.locator('#polls-variant')).toBeHidden();
   await window.locator('#polls-set').selectOption('regional');
   await expect(window.locator('#polls-variant')).toHaveValue('Ontario');
+  expect(window.pageErrors).toEqual([]);
+});
+
+test('a poll long after the one before it still shows its average, and a gap says it has no polls', async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await window.locator('#btn-polls').click();
+  const d = sample();
+  const end = Date.UTC(2026, 8, 5);
+  d.sets = [{ ...d.sets[1], id: 'gap', label: 'Gap', options: ['Yes', 'No'], partyOf: {}, events: [],
+    polls: [[end, 9, 85], [end - 580 * DAY, 15, 77], [end - 594 * DAY, 22, 71], [end - 600 * DAY, 10, 90]]
+      .map(([t, yes, no]) => ({ firm: 'Firm A', date: iso(t), values: { Yes: yes, No: no }, moe: null, sample: null, method: null, lead: null, url: null })) }];
+  await feed(window, d);
+  await window.locator('#polls-range button[data-r="all"]').click();
+  // Each line: its run over the early polls, then the last poll on its own, drawn as a dash 8 px wide
+  const paths = await window.locator('#polls-chart .pl-line').evaluateAll(els => els.map(e => e.getAttribute('d')));
+  expect(paths).toHaveLength(2);
+  for (const d of paths) expect(d).toMatch(/L[\d.]+,[\d.]+M[\d.]+,[\d.]+M[\d.]+,[\d.]+h8$/);
+  await expect(window.locator('.pl-tile[data-party="No"] .pl-value')).toHaveText('85.0%');
+  const box = await window.locator('#polls-chart').boundingBox();
+  await window.mouse.move(box.x + box.width * 0.55, box.y + box.height * 0.5);
+  await expect(window.locator('#polls-tip .pl-tip-n')).toHaveText(/^No polls in the \d+ days up to this day$/);
+  await expect(window.locator('#polls-tip .pl-tip-row')).toHaveCount(0);
+  expect(window.pageErrors).toEqual([]);
+});
+
+test('seat projections count seats, and approval leads with the net', async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await window.locator('#btn-polls').click();
+  const d = sample();
+  const end = Date.UTC(2026, 10, 7);
+  const poll = (i, values) => ({ firm: 'Firm A', date: iso(end - i * 30 * DAY), values, moe: null, sample: null, method: null, lead: null, url: null });
+  d.sets = [
+    { ...d.sets[1], id: 'seats', label: 'Seats', kind: 'parties', unit: 'seats', options: ['EPP', 'S&D', 'Others'], partyOf: {}, events: [],
+      polls: [0, 1, 2].map(i => poll(i, { EPP: 173, 'S&D': 120, Others: 8 })) },
+    { ...d.sets[1], id: 'approval', label: 'Approval', kind: 'approval', options: ['Approve', 'Disapprove', 'Unsure'], partyOf: {}, events: [],
+      polls: [0, 1, 2].map(i => poll(i, { Approve: 38, Disapprove: 59, Unsure: 3 })) },
+  ];
+  await feed(window, d);
+  await expect(window.locator('.pl-tile[data-party="EPP"] .pl-value')).toHaveText('173.0');
+  await expect(window.locator('.pl-lead')).toHaveText(/lead by 53\.0 seats over/);
+  await expect(window.locator('#polls-chart')).toContainText('150');
+  await expect(window.locator('#polls-chart')).not.toContainText('%');
+
+  await window.locator('#polls-set').selectOption('approval');
+  await expect(window.locator('.pl-lead')).toHaveText('Net approval −21.0');
+  await expect(window.locator('.pl-tile[data-party="Disapprove"] .pl-value')).toHaveText('59.0%');
+  // Approve wears green and Disapprove red, whatever order the table gives them
+  const fill = p => window.locator(`.pl-tile[data-party="${p}"] .pl-swatch`).getAttribute('style');
+  expect(await fill('Approve')).toContain('green');
+  expect(await fill('Disapprove')).toContain('red');
+  expect(window.pageErrors).toEqual([]);
+});
+
+test("a party's tile, table heading or line label opens its Wikipedia article as a tab, as the map's places do", async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await window.locator('#btn-polls').click();
+  await feed(window, sample());
+  const active = () => window.evaluate(async () => {
+    const { state } = await import('./state.js'), t = state.tabs.find(x => x.id === state.activeTabId);
+    return { kind: t.kind, site: t.site, url: t.item.url };
+  });
+  // Only an answer whose heading links an article opens one
+  await expect(window.locator('.pl-tile[data-article]')).toHaveCount(2);
+  await expect(window.locator('.pl-tile[data-party="BQ"]')).not.toHaveAttribute('data-article');
+  await window.locator('.pl-tile[data-party="CPC"]').click();
+  await expect(window.locator('#polls-view')).toBeHidden();
+  expect(await active()).toEqual({ kind: 'chan', site: 'wikipedia', url: 'https://en.wikipedia.org/wiki/Conservative_Party_of_Canada' });
+
+  await window.locator('#btn-polls').click();
+  await expect(window.locator('#polls-view')).toBeVisible();
+  await window.locator('#polls-table th[data-article="Liberal Party of Canada"]').click();
+  expect(await active()).toEqual({ kind: 'chan', site: 'wikipedia', url: 'https://en.wikipedia.org/wiki/Liberal_Party_of_Canada' });
+
+  await window.locator('#btn-polls').click();
+  await window.locator('.pl-end[data-article="Conservative Party of Canada"] text').click();
+  expect(await active()).toEqual({ kind: 'chan', site: 'wikipedia', url: 'https://en.wikipedia.org/wiki/Conservative_Party_of_Canada' });
+  // The same article again is the tab already open, not a second one
+  const wiki = await window.evaluate(async () => (await import('./state.js')).state.tabs.filter(t => t.site === 'wikipedia').length);
+  expect(wiki).toBe(2);
   expect(window.pageErrors).toEqual([]);
 });

@@ -248,6 +248,44 @@ test('a question over its answers: the date column first, a firm given as a link
   assert.deepEqual(events, [{ date: '2026-10-05', text: 'The Northland Party is elected (October 5, 2026)' }]);
 });
 
+test('a cell template like {{N/A}} carries its attributes: N/A across two rows is no number', () => {
+  const { polls } = parsePollTable(`{| class="wikitable"
+! colspan="5" |Should it happen?
+|-
+!Date
+!Pollster/company
+!Yes
+!No
+!Unsure
+|-
+|January 16, 2025
+|[[Firm One]]
+|20%
+|'''80%'''
+|rowspan="2" {{N/A}}
+|-
+|January 14, 2025
+|[[Firm Two]]
+|10%
+|'''90%'''
+|-
+|December 10, 2024
+|Firm Three
+|13%
+|82%
+|style="color:grey" {{n/a}}
+|-
+|December 1, 2024
+|Firm Four
+|12%
+|80%
+|8%
+|}`);
+  assert.deepEqual(polls.map(p => [p.firm, p.values]), [
+    ['Firm One', { Yes: 20, No: 80 }], ['Firm Two', { Yes: 10, No: 90 }], ['Firm Three', { Yes: 13, No: 82 }], ['Firm Four', { Yes: 12, No: 80, Unsure: 8 }],
+  ]);
+});
+
 test('a column that splits the table is the variant, and cells spanning rows reach every row they cover', () => {
   const { options, variantLabel, polls } = parsePollTable(findTable(PAGE, 'Another leader'));
   assert.deepEqual(options, ['AP', 'BP', 'Undecided']);
@@ -280,6 +318,93 @@ function fakeApi(statuses, { missing = /general election|sovereignty|separatist|
   };
   return { fetchFn, calls };
 }
+
+test('answers under several headings are read heading by heading, each heading a variant with its own lead', () => {
+  const { options, variantLabel, polls } = parsePollTable(`{| class="wikitable"
+|-
+! colspan="9" | Leader approval
+|-
+! rowspan="2" | Pollster !! rowspan="2" | Fieldwork date !! rowspan="2" | Sample size
+! colspan="3" | [[Ann Alpha]] !! colspan="3" | [[Bo Beta]]
+|-
+! Pos. !! Neg. !! Net !! Pos. !! Neg. !! Net
+|-
+| Firm One || 3–5 Nov 2026 || 2.004 || 40 || 45 || {{Nowrap|–5}} || 30 || 20 || +10
+|-
+| Firm Two || 1 Nov 2026 || 1,500 || 42 || 40 || +2 || 31 || 22 || +9
+|}`);
+  // The title across the table is no heading; "2.004" is a thousands dot; "–5" is minus five
+  assert.deepEqual(options, ['Pos.', 'Neg.']);
+  assert.equal(variantLabel, 'Group');
+  assert.deepEqual(polls.map(p => [p.firm, p.variant, p.values['Pos.'], p.values['Neg.'], p.lead, p.sample]), [
+    ['Firm One', 'Ann Alpha', 40, 45, -5, 2004], ['Firm One', 'Bo Beta', 30, 20, 10, 2004],
+    ['Firm Two', 'Ann Alpha', 42, 40, 2, 1500], ['Firm Two', 'Bo Beta', 31, 22, 9, 1500],
+  ]);
+});
+
+test('a party over its parts is given whole or added up; a number across other answers is theirs jointly', () => {
+  const { options, polls } = parsePollTable(`{| class="wikitable"
+! rowspan="2" | Date !! rowspan="2" | Firm !! rowspan="2" | ALP !! colspan="2" | L/NP !! rowspan="2" | {{vert header|Grn}} !! rowspan="2" | Ref !! rowspan="2" | Others
+|-
+! Lib !! Nat
+|-
+| 12–14 Mar || Firm One || 30 || colspan="2" | 35 || 12 || 8 || 15
+|-
+| 5–7 Mar || Firm Two || 31 || 29 || 4 || 12 || 9 || 15
+|-
+| 1 Mar || Firm Three || 32 || 30 || 3 || colspan="2" | 20 || 15
+|}`, { year: 2026 });
+  // Dates without a year take the year of the heading; "Ref" full of numbers is a party, not a reference
+  assert.deepEqual(options, ['ALP', 'Lib', 'Nat', 'Grn', 'Ref', 'Others', 'L/NP', 'Grn + Ref']);
+  assert.deepEqual(polls.map(p => [p.date, p.values]), [
+    ['2026-03-14', { ALP: 30, 'L/NP': 35, Grn: 12, Ref: 8, Others: 15 }],
+    ['2026-03-07', { ALP: 31, Lib: 29, Nat: 4, Grn: 12, Ref: 9, Others: 15, 'L/NP': 33 }],
+    ['2026-03-01', { ALP: 32, Lib: 30, Nat: 3, 'Grn + Ref': 20, Others: 15, 'L/NP': 33 }],
+  ]);
+});
+
+test('a heading over some answers that no poll gives as one number is a question, not an answer', () => {
+  const { options, polls } = parsePollTable(`{| class="wikitable"
+! rowspan="2" | Firm !! rowspan="2" | Date !! colspan="2" | Referendum in 2023? !! rowspan="2" | Unsure/<br>Other
+|-
+! Yes !! No
+|-
+| Firm One || 2 May 2026 || 22 || 68 || 10
+|-
+| Firm Two || 1 May 2026 || 25 || 65 || 10
+|}`);
+  assert.deepEqual(options, ['Yes', 'No', 'Unsure/Other']);
+  assert.deepEqual(polls[0].values, { Yes: 22, No: 68, 'Unsure/Other': 10 });
+});
+
+test("each answer keeps the article its heading links; a person's party in brackets is not part of their name", () => {
+  const { options, names, pages } = parsePollTable(`{| class="wikitable"
+! Firm !! Date !! {{vert header|mw=35px|stp=1|[[Nathalie Arthaud]] [[Lutte Ouvrière|(LO)]]}} !! [[Labour Party (UK)|Lab]] !! [[Reform UK]] !! Others
+|-
+| Firm One || 2 May 2026 || 2 || 30 || 28 || 40
+|-
+| Firm Two || 1 May 2026 || 1 || 31 || 27 || 41
+|}`);
+  assert.deepEqual(options, ['Nathalie Arthaud', 'Lab', 'Reform UK', 'Others']);
+  assert.deepEqual(pages, { 'Nathalie Arthaud': 'Nathalie Arthaud', Lab: 'Labour Party (UK)', 'Reform UK': 'Reform UK' });
+  assert.deepEqual(names, { Lab: 'Labour Party' });
+});
+
+test('seat projections run to the hundreds, percentages stop at 100', () => {
+  const table = `{| class="wikitable"
+! Firm !! Date !! EPP !! S&D !! Others
+|-
+| Firm One || 31 Oct 2026 || 173 || 120 || 8
+|-
+| Firm Two || 30 Sep 2026 || 171 || 118 || 7
+|}`;
+  assert.deepEqual(parsePollTable(table, { max: 1000 }).polls[0].values, { EPP: 173, 'S&D': 120, Others: 8 });
+  assert.equal(parsePollTable(table)?.polls.length ?? 0, 0);                  // read as percentages, no poll is left
+  const set = buildSet({ id: 's', group: 'G', label: 'Seats', page: 'P', unit: 'seats', under: ['Seats'] },
+    { title: 'P', revid: 1, edited: 1, wikitext: `== Seats ==\n${table}` });
+  assert.equal(set.unit, 'seats');
+  assert.equal(set.polls[0].values.EPP, 173);
+});
 
 test('pagesOf follows redirects to each title asked for, and a missing page has no entry', () => {
   const body = { query: { redirects: [{ from: 'Next', to: 'First' }], pages: [
