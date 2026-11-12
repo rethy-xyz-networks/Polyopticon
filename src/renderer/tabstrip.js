@@ -6,6 +6,16 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 
 /**
+ * A site's own icon for a tab (Wikipedia, Twitch…), fetched once and cached like a feed's (polyopticon-icon://site/…);
+ * `fallback()` takes its place if there is none (offline on first use, or no icon found).
+ */
+export function siteFavicon(host, fallback, title) {
+  const img = h('img', { class: 'fav', src: `polyopticon-icon://site/${host}`, alt: '', title, decoding: 'async', draggable: 'false' });
+  img.addEventListener('error', () => img.replaceWith(fallback()), { once: true });
+  return img;
+}
+
+/**
  * @param {object}   o
  * @param {string}   o.id          stored in data-id (reordering reads it)
  * @param {string}  [o.kind]       extra class, e.g. the chat's site ('twitch', 'irc'); colours the .dot

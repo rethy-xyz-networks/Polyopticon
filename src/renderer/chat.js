@@ -10,7 +10,7 @@ import { state } from './state.js';
 import { ui, saveUi } from './ui.js';
 import { setSetting } from './settings.js';
 import { makeReorderable } from './reorder.js';
-import { tabEl, cycleIndex, moveIndex } from './tabstrip.js';
+import { tabEl, cycleIndex, moveIndex, siteFavicon } from './tabstrip.js';
 import { bindTabScroll } from './tabscroll.js';
 import { SITES, parseStream, siteOfLink, streamUrl, streamLabel, YOUTUBE_CSS, DIRECT_PARTITION } from './streams.js';
 
@@ -22,10 +22,7 @@ const SITE_GLYPH = { irc: ['chat', 'IRC'], direct: ['stream', 'Direct video link
 function siteBadge(kind) {
   const dot = () => h('span', { class: 'dot' });
   if (SITE_GLYPH[kind]) return h('span', { class: 'tab-mode', title: SITE_GLYPH[kind][1] }, icon(SITE_GLYPH[kind][0]));
-  if (!SITE_HOST[kind]) return dot();
-  const img = h('img', { class: 'fav', src: `polyopticon-icon://site/${SITE_HOST[kind]}`, alt: '', decoding: 'async', draggable: 'false' });
-  img.addEventListener('error', () => img.replaceWith(dot()), { once: true });
-  return img;
+  return SITE_HOST[kind] ? siteFavicon(SITE_HOST[kind], dot) : dot();
 }
 import { createIrcView, bindIrcEvents, parseIrcInput, parseIrcSpec } from './irc.js';
 import { attachHistory, remember } from './fieldhistory.js';

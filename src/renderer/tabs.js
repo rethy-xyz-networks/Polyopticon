@@ -14,7 +14,7 @@ import { state } from './state.js';
 import { markSaved, unmarkAllSaved, siteIcon } from './feed.js';
 import { renderShortcutList } from './shortcuts.js';
 import { makeReorderable } from './reorder.js';
-import { tabEl, cycleIndex, moveIndex } from './tabstrip.js';
+import { tabEl, cycleIndex, moveIndex, siteFavicon } from './tabstrip.js';
 import { telegramChannelOf, telegramUrl, parseTelegramChannel } from './telegram.js';
 import { initScratch, focusScratch, flushScratch, appendToScratch } from './scratchpad.js';
 import { popOut, dropPopout, focusPopout } from './popouts.js';
@@ -105,6 +105,10 @@ const WIKIPEDIA = /^https:\/\/[a-z-]+\.(?:m\.)?wikipedia\.org\//;
 const siteOf = (url, web = false) => (telegramChannelOf(url) ? 'telegram' : COMMONS.test(url) ? 'commons' : WIKIPEDIA.test(url) ? 'wikipedia' : web ? 'web' : '4chan');
 const SITE_LABEL = { '4chan': '4chan', telegram: 'Telegram', commons: 'Wikimedia Commons', wikipedia: 'Wikipedia', web: 'Web page' };
 const SITE_ICON  = { '4chan': 'chan', telegram: 'telegram', commons: 'photo', wikipedia: 'wikipedia', web: 'browser' };
+// A site whose own icon a tab shows (as the chat and stream tabs do); the glyph above if it can't be had
+const SITE_FAVICON = { wikipedia: 'wikipedia.org', '4chan': '4chan.org' };
+const siteGlyph = (site, title) => h('span', { class: 'tab-mode', title }, icon(SITE_ICON[site]));
+const chanIcon = (tab, title) => (SITE_FAVICON[tab.site] ? siteFavicon(SITE_FAVICON[tab.site], () => siteGlyph(tab.site, title), title) : siteGlyph(tab.site, title));
 
 /** A readable name until the page sends its title: "/pol/", "/pol/ 123456", "@durov", a photo's file name or an article's. */
 function chanTitle(url, site) {
@@ -413,7 +417,7 @@ export function storyTabList() {
   const host = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
   const detail = tab => isApp(tab) ? APP_TABS[tab.kind].title
     : [tab.item.sourceName, host(tab.item.url)].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' · ');
-  const tabIcon = tab => tab.kind === 'chan' ? h('span', { class: 'tab-mode' }, icon(SITE_ICON[tab.site]))
+  const tabIcon = tab => tab.kind === 'chan' ? chanIcon(tab)
     : isApp(tab) ? h('span', { class: 'tab-mode' }, icon(APP_TABS[tab.kind].icon))
     : siteIcon(tab.item);
   const rank = t => (t.id === state.activeTabId ? Infinity : t.lastUsed ?? 0);
@@ -515,7 +519,7 @@ export function renderTabs() {
     pinned: tab.pinned,
     lead: [
       tab.mode !== 'live' && h('span', { class: 'tab-mode', title: MODE_LABEL[tab.mode] }, icon(tab.mode === 'page' ? 'saved-page' : 'reader')),
-      tab.kind === 'chan' && h('span', { class: 'tab-mode', title: SITE_LABEL[tab.site] }, icon(SITE_ICON[tab.site])),
+      tab.kind === 'chan' && chanIcon(tab, SITE_LABEL[tab.site]),
       (tab.kind === 'scratch' || VIEW_KINDS.has(tab.kind)) && h('span', { class: 'tab-mode', title: APP_TABS[tab.kind].title }, icon(APP_TABS[tab.kind].icon)),
       !tab.kind && siteIcon(tab.item),                          // the source's icon, as in the feed
     ],

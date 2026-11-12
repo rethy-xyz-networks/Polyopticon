@@ -8,7 +8,7 @@ const path = require('path');
 const base = require('./fixtures');
 const { expect } = base;
 
-// A 1×1 PNG, as twitch.tv's cached icon; kick.com is a remembered miss (no icon found)
+// A 1×1 PNG, as the cached icon of twitch.tv, wikipedia.org and 4chan.org; kick.com is a remembered miss (no icon found)
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 const test = base.test.extend({
   dataDir: async ({ dataDir }, use) => {
@@ -17,6 +17,8 @@ const test = base.test.extend({
     fs.writeFileSync(path.join(dir, 'twitch.png'), PNG);
     fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify({
       'site:twitch.tv': { file: 'twitch.png', type: 'image/png', at: Date.now() },
+      'site:wikipedia.org': { file: 'twitch.png', type: 'image/png', at: Date.now() },
+      'site:4chan.org': { file: 'twitch.png', type: 'image/png', at: Date.now() },
       'site:kick.com': { miss: Date.now() },
     }));
     await use(dataDir);
@@ -40,5 +42,22 @@ test('chat and stream tabs show their site icon, a glyph for IRC and direct link
   const stream = n => window.locator('#video-tabs .tab', { hasText: n });
   await expect(stream('delta').locator('img.fav')).toHaveAttribute('src', 'polyopticon-icon://site/twitch.tv');
   await expect(stream('clip.mp4').locator('.tab-mode svg')).toHaveCount(1);
+  expect(window.pageErrors).toEqual([]);
+});
+
+test('Wikipedia and 4chan tabs show their site icon too', async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  // Added in the background: the strip shows them, no page loads
+  await window.evaluate(async () => {
+    const { openChanTab } = await import('./tabs.js');
+    openChanTab('https://en.wikipedia.org/wiki/Halifax,_Nova_Scotia', { background: true });
+    openChanTab('https://boards.4chan.org/news/', { background: true });
+  });
+  const tab = n => window.locator('#tabs .tab', { hasText: n });
+  await expect(tab('Halifax').locator('img.fav')).toHaveAttribute('src', 'polyopticon-icon://site/wikipedia.org');
+  await expect(tab('Halifax').locator('img.fav')).toHaveAttribute('title', 'Wikipedia');
+  await expect.poll(() => tab('Halifax').locator('img.fav').evaluate(img => img.complete && img.naturalWidth)).toBe(1);
+  await expect(tab('/news/').locator('img.fav')).toHaveAttribute('src', 'polyopticon-icon://site/4chan.org');
+  for (const n of ['Halifax', '/news/']) await expect(tab(n).locator('.tab-mode')).toHaveCount(0);   // no glyph beside the icon
   expect(window.pageErrors).toEqual([]);
 });
