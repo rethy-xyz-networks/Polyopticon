@@ -4,7 +4,7 @@
   <img src="src/renderer/assets/Polyopticon.png" alt="Polyopticon logo" width="160">
 </p>
 
-<p align="center"><b>One screen for every source of a developing story</b></p>
+<p align="center"><b>Desktop news-monitoring dashboard: RSS, Telegram, Bluesky, IRC, GDELT, and more in one live feed, with offline translation, a story map, and Twitch/Kick chat and streams.</b></p>
 
 > **Pre-release software.** Polyopticon is still under active development, so expect bugs, issues, and features that change or break between versions. Please report problems you run into.
 
@@ -119,7 +119,7 @@ The buttons, from left to right:
 - **Telegram**: Opens a [Telegram channel tab](#telegram-channel) within the **Article View**.
 - **Bias chart** (Ctrl+B): Shows or hides the [bias chart](#bias-chart), plotting each news feed's outlet by political lean and reliability.
 - **Global Markets** (Ctrl+G): Shows or hides [Global Markets](#global-markets), live prices in groups of tickers you make.
-- **Opinion polls** (Ctrl+O): Shows or hides [Opinion Polls](#opinion-polls), national voting intention by country.
+- **Opinion polls** (Ctrl+O): Shows or hides [Opinion Polls](#opinion-polls): voting intention, leaders, approval and standing questions, by country.
 - **Settings** (Ctrl+,): Toggles the [Settings](#settings) panel.
 - **Scratchpad**: Opens the [Scratchpad](#scratchpad) tab within the **Article View**.
 - **4chan**: Opens a [4chan /pol/ tab](#4chan) within the **Article View** (optional, hide it in *Settings -> General*).
@@ -352,11 +352,21 @@ The **Global Markets** button (Ctrl+G), next to the bias button, shows a tile pe
 
 ### Opinion Polls
 
-The **Opinion polls** button (Ctrl+O), next to Global Markets, shows national voting intention for a country (Canada for now): a tile per party with its polling average and how far it moved in the last 30 days, a chart of the average with every poll as a dot, and the table of polls, newest first, each linked to the firm's own release. Events between polls (by-elections, new leaders) are dashed lines on the chart and rows in the table; the last election is the starting point. **3M / 6M / 1Y / All** sets how far back the chart and table go.
+The **Opinion polls** button (Ctrl+O), next to Global Markets, shows the opinion polls Wikipedia lists for a country (Canada for now), one question at a time: a tile per answer with its polling average and how far it moved in the last 30 days, a chart of the average with every poll as a dot, and the table of polls, newest first, each linked to the firm's own release. Events between polls (by-elections, new leaders) are dashed lines on the chart and rows in the table; the last election is the starting point. **3M / 6M / 1Y / All** sets how far back the chart and table go.
 
-- **Where the polls come from.** No polling firm or agency publishes an open feed of every poll, so the polls come from the table Wikipedia's editors keep for the next election ([Canada's](https://en.wikipedia.org/wiki/Opinion_polling_for_the_next_Canadian_federal_election)), each row citing the firm's release. It is read through the public MediaWiki API: no key, no login. The text is CC BY-SA 4.0, credited in the view.
-- **The average.** Each day's value is a weighted mean of the polls that ended in the 21 days before it: each firm's latest poll counts once (so a weekly tracker doesn't outweigh a monthly poll), and a poll counts less as it ages.
-- **How often.** The page is fetched when the view opens, at most every 30 minutes (Refresh at most once a minute), and saved in `polls/`, so it shows at once and while offline. It polls only while the view is open. A busy answer (`429` / `503`) waits for Retry-After, a block an hour, and a failure is retried by itself, longer each time.
+The list beside the country chooses the question, and is remembered:
+
+| Group | Questions |
+|---|---|
+| Federal | Voting intention · Preferred prime minister · Government approval · Voting intention by province, by riding, and with another party leader |
+| Provincial voting intention | Each province's next election |
+| Questions | Quebec independence (all voters, French-speaking, others, and by party supported) · Alberta separation (the 2026 referendum question, and separating in general) · Canada joining the United States (asked of Canadians, and of Americans) |
+
+A question made of several tables (a province, a riding, a hypothetical leader) gets a second list for which one to show. A question is listed only while Wikipedia has polls for it, so a province with none yet is absent, and a table with a single poll shows as that poll.
+
+- **Where the polls come from.** No polling firm or agency publishes an open feed of every poll, so the polls come from the tables Wikipedia's editors keep ([the next federal election's](https://en.wikipedia.org/wiki/Opinion_polling_for_the_next_Canadian_federal_election), each province's next election, and the articles on the standing questions), each row citing the firm's release. They are read through the public MediaWiki API: no key, no login. The text is CC BY-SA 4.0, credited in the view with a link to the table shown. The titles asked for are Wikipedia's "next election" redirects, so a new election's page is followed without an update.
+- **The average.** Each day's value is a weighted mean of the polls that ended in the window before it: each firm's latest poll counts once (so a weekly tracker doesn't outweigh a monthly poll), and a poll counts less as it ages. The window is 21 days where polls are frequent and longer where they are rare (three times the usual gap between polls, up to 120 days); the view says which.
+- **How often.** The pages are checked when the view opens, at most every 30 minutes (Refresh at most once a minute), and saved in `polls/`, so they show at once and while offline. A check is one small request for every page's revision number, and a second for the text of the pages edited since (usually one or none). It checks only while the view is open. A busy answer (`429` / `503`) waits for Retry-After, a block an hour, and a failure is retried by itself, longer each time.
 
 ### Map
 
