@@ -254,7 +254,6 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus { border-colo
   /* A still rainbow: the full spectrum across the word. Animating it kept the window drawing 60 frames a
      second at idle (about 3.6 points of CPU across the renderer and GPU). */
 }
-.app-sub { color: var(--text-2); font-size: var(--fs-lg); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status { color: var(--text-2); font-size: var(--fs-sm); display: flex; gap: 6px; align-items: baseline; }
 .countdown { color: var(--text); font-weight: 600; min-width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
 .tool-buttons { justify-self: end; display: flex; gap: 2px; }
@@ -1106,23 +1105,27 @@ body.popout .pop-bar .nav-btns { display: inline-flex; }
 #pop-fullscreen.on .fs-leave { display: block; }
 body.popout.pop-fs .pop-bar { display: none; }
 
-/* Opinion polls (polls.js). Party colours are each party's own, stepped per theme so that neighbours stay apart
-   for colour-blind readers and against the panel (checked with a palette validator); the lines are labelled at
-   their ends and the table repeats every number, so no colour has to be told apart on its own. */
+/* Opinion polls (polls.js). Eight hues and a grey, stepped per theme so that neighbours stay apart for
+   colour-blind readers and against the panel (checked with a palette validator, in this order); polls.js gives a
+   party its usual hue. The lines are labelled at their ends and the table repeats every number, so no colour has
+   to be told apart on its own. */
 .polls-view {
-  --party-ca-LPC: #E8434A; --party-ca-CPC: #5274E8; --party-ca-BQ: #1A9DB2; --party-ca-NDP: #D27A28;
-  --party-ca-GPC: #1D7434; --party-ca-PPC: #9B72E0; --party-ca-Others: #8A8A8A;
+  --poll-red: #E8434A; --poll-blue: #5274E8; --poll-teal: #1A9DB2; --poll-orange: #D27A28;
+  --poll-green: #1D7434; --poll-purple: #9B72E0; --poll-pink: #E0508F; --poll-lime: #869E1A; --poll-grey: #8A8A8A;
   position: absolute; inset: 0; display: none; flex-direction: column; background: var(--panel-bg); z-index: 0;
 }
 :root[data-theme="light"] .polls-view {
-  --party-ca-LPC: #D02B32; --party-ca-CPC: #244F9E; --party-ca-BQ: #2AA4C4; --party-ca-NDP: #E07A20;
-  --party-ca-GPC: #236E35; --party-ca-PPC: #7046B8; --party-ca-Others: #7A7A7A;
+  --poll-red: #D02B32; --poll-blue: #244F9E; --poll-teal: #2AA4C4; --poll-orange: #E07A20;
+  --poll-green: #236E35; --poll-purple: #7046B8; --poll-pink: #C2408A; --poll-lime: #7C9A12; --poll-grey: #7A7A7A;
 }
 .story.polls-open .polls-view { display: flex; }
 .polls-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: var(--fs-lg); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .polls-head .muted { font-size: var(--fs-sm); }
 #polls-status[data-state="limited"], #polls-status[data-state="error"] { color: var(--accent-text); }
-.polls-country { font-size: var(--fs-sm); }
+.polls-country, .polls-set { font-size: var(--fs-sm); }
+.polls-set { max-width: 26em; }
+#polls-variant { max-width: 16em; }
+.polls-set[hidden] { display: none; }
 .polls-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 .polls-empty { padding: 24px 16px; color: var(--text-2); }
 .polls-empty[hidden], .polls-body[hidden], .polls-tip[hidden] { display: none; }
@@ -1144,6 +1147,7 @@ body.popout.pop-fs .pop-bar { display: none; }
 .pl-axis, .pl-mtick { stroke: var(--text-2); stroke-width: 1; opacity: .55; }
 .pl-tick { fill: var(--text-2); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 .pl-dot { opacity: .32; }
+.pl-few .pl-dot { opacity: .9; }
 .pl-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .pl-end text { fill: var(--text); font-size: var(--fs-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
 .pl-end circle, .pl-elect { stroke: var(--panel-bg); stroke-width: 2; }
@@ -1164,6 +1168,8 @@ body.popout.pop-fs .pop-bar { display: none; }
 .polls-table th { position: sticky; top: 0; background: var(--panel-bg); text-align: left; font-weight: 600; color: var(--text-2); padding: 4px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .polls-table td { padding: 3px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .polls-table .pl-num { text-align: right; font-variant-numeric: tabular-nums; }
+.polls-table th.pl-num { white-space: normal; vertical-align: bottom; }
+.pl-nb { white-space: nowrap; }
 .polls-table .pl-top { font-weight: 700; }
 .polls-table .pl-firm { white-space: normal; }
 .polls-table a { color: var(--accent-text); }
