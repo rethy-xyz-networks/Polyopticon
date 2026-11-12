@@ -8,7 +8,11 @@ const { test, expect } = require('./fixtures');
 const DAY = 86400e3;
 const iso = ms => new Date(ms).toISOString().slice(0, 10);
 
-/** Made-up polls: three firms, every few days for `days`, ending on `end`, plus the election and an event. */
+/**
+ * A made-up copy as main sends it: voting intention (three firms, every few days for `days`, ending on `end`,
+ * plus the election and an event), a question about leaders polled once a month, and one with a variant per
+ * province.
+ */
 function sample(end = Date.UTC(2026, 10, 7), days = 400) {
   const polls = [];
   const firms = [['Firm A', 3, 'IVR'], ['Firm B', 7, 'Telephone'], ['Firm C', 11, 'Online']];
@@ -23,13 +27,30 @@ function sample(end = Date.UTC(2026, 10, 7), days = 400) {
     }
   }
   polls.push({ firm: '2025 election', date: '2025-04-28', election: true, values: { LPC: 43.8, CPC: 41.3, BQ: 6.3, NDP: 6.3, GPC: 1.2, PPC: 0.7 }, url: null });
+  const page = { title: 'Opinion polling for the 46th Canadian federal election', url: 'https://en.wikipedia.org/wiki/Example', revid: 1, edited: end, events: [] };
+  const monthly = (values, extra = {}) => Array.from({ length: 6 }, (_, i) => (
+    { firm: 'Firm A', date: iso(end - i * 30 * DAY), values: values(i), moe: 3.1, sample: 1000, method: 'IVR', lead: null, url: null, ...extra }));
   return {
-    country: 'ca', name: 'Canada', title: 'Opinion polling for the 46th Canadian federal election', url: 'https://en.wikipedia.org/wiki/Example',
-    revid: 1, edited: end, fetchedAt: Date.now(),
-    parties: ['LPC', 'CPC', 'BQ', 'NDP', 'GPC', 'PPC'],
-    partyNames: { LPC: 'Liberal', CPC: 'Conservative', BQ: 'Bloc Québécois', NDP: 'New Democratic', GPC: 'Green', PPC: "People's Party" },
-    polls: polls.sort((a, b) => b.date.localeCompare(a.date)),
-    events: [{ date: iso(end - 60 * DAY), text: 'A by-election in Test Riding.' }],
+    country: 'ca', name: 'Canada', fetchedAt: Date.now(),
+    sets: [
+      { ...page, id: 'vote', group: 'Federal', label: 'Voting intention', kind: 'parties',
+        options: ['LPC', 'CPC', 'BQ', 'NDP', 'GPC', 'PPC'],
+        names: { LPC: 'Liberal', CPC: 'Conservative', BQ: 'Bloc Québécois', NDP: 'New Democratic', GPC: 'Green', PPC: "People's Party" },
+        partyOf: { LPC: 'Liberal', CPC: 'Conservative', BQ: 'BQ', NDP: 'NDP', GPC: 'Green', PPC: 'PPC' },
+        variantLabel: null, variants: [],
+        polls: polls.sort((a, b) => b.date.localeCompare(a.date)),
+        events: [{ date: iso(end - 60 * DAY), text: 'A by-election in Test Riding.' }] },
+      { ...page, id: 'pm', group: 'Federal', label: 'Preferred prime minister', kind: 'question', url: 'https://en.wikipedia.org/wiki/Example#Leadership_polls',
+        options: ['Ann Alpha', 'Bo Beta', 'Unsure/none', 'Cy Beta'], names: {},
+        partyOf: { 'Ann Alpha': 'Liberal', 'Bo Beta': 'NDP', 'Cy Beta': 'NDP' },
+        variantLabel: null, variants: [],
+        // Cy Beta led the party until three months ago, Bo Beta since
+        polls: monthly(i => ({ 'Ann Alpha': 50 - i, [i < 3 ? 'Bo Beta' : 'Cy Beta']: 20 + i, 'Unsure/none': 55 })) },
+      { ...page, id: 'regional', group: 'Elsewhere', label: 'Voting intention by province', kind: 'parties',
+        options: ['LPC', 'CPC', 'BQ'], names: {}, partyOf: { LPC: 'Liberal', CPC: 'Conservative', BQ: 'BQ' },
+        variantLabel: 'Province', variants: ['Quebec', 'Ontario'],
+        polls: [...monthly(() => ({ LPC: 40, CPC: 20, BQ: 30 }), { variant: 'Quebec' }), ...monthly(() => ({ LPC: 45, CPC: 42 }), { variant: 'Ontario' }).slice(0, 2)] },
+    ],
   };
 }
 
@@ -42,6 +63,7 @@ test('the polls button opens its view as a tab, once, and Ctrl+O selects it', as
   await expect(window.locator('#btn-polls')).toHaveClass(/\bon\b/);
   await expect(window.locator('#polls-empty')).toHaveText(/Fetching the polls from Wikipedia/);
   await expect(window.locator('#polls-country')).toHaveValue('ca');
+  await expect(window.locator('#polls-set')).toBeHidden();              // nothing to choose from yet
 
   await window.locator('#btn-markets').click();
   await expect(window.locator('#polls-view')).toBeHidden();
@@ -60,6 +82,8 @@ test('polls show as an average per party, a chart with labelled lines and a tabl
   await feed(window, sample());
 
   await expect(window.locator('#polls-empty')).toBeHidden();
+  await expect(window.locator('#polls-set')).toHaveValue('vote');
+  await expect(window.locator('#polls-variant')).toBeHidden();
   // Tiles, highest first
   await expect(window.locator('.pl-tile .pl-abbr')).toHaveText(['LPC', 'CPC', 'NDP', 'BQ', 'GPC', 'PPC']);
   await expect(window.locator('.pl-tile[data-party="LPC"] .pl-value')).toHaveText(/^4[34]\.\d%$/);
@@ -111,4 +135,55 @@ test('the chosen range is remembered', async ({ window, dataDir }) => {
   await expect.poll(() => {
     try { return JSON.parse(require('fs').readFileSync(require('path').join(dataDir, 'ui.json'), 'utf8')).pollsRange; } catch { return null; }
   }).toBe('6m');
+});
+
+test('another question is chosen from the list: its own answers, colours by party, and it is remembered', async ({ window, dataDir }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await window.locator('#btn-polls').click();
+  await feed(window, sample());
+  await expect(window.locator('#polls-set optgroup')).toHaveCount(2);
+  await expect(window.locator('#polls-set optgroup').first()).toHaveAttribute('label', 'Federal');
+  await expect(window.locator('#polls-set option')).toHaveText(['Voting intention', 'Preferred prime minister', 'Voting intention by province']);
+
+  await window.locator('#polls-set').selectOption('pm');
+  // The former leader has no tile and no label at the chart's edge, but keeps a line, in his party's colour
+  await expect(window.locator('.pl-tile .pl-abbr')).toHaveText(['Unsure/none', 'Ann Alpha', 'Bo Beta']);
+  await expect(window.locator('.pl-tile[data-party="Ann Alpha"] .pl-full')).toHaveText('Liberal');
+  await expect(window.locator('.pl-lead')).toHaveText(/^Ann Alpha leads Bo Beta by \d+\.\d points$/);   // not the undecided
+  await expect(window.locator('#polls-chart .pl-line')).toHaveCount(4);
+  await expect(window.locator('#polls-chart .pl-end text')).toHaveCount(3);
+  const stroke = name => window.locator('#polls-table th', { hasText: name }).locator('.pl-key').evaluate(e => getComputedStyle(e).backgroundColor);
+  expect(await stroke('Bo Beta')).toBe(await stroke('Cy Beta'));
+  expect(await stroke('Bo Beta')).not.toBe(await stroke('Ann Alpha'));
+  await expect(window.locator('#polls-table tbody tr')).toHaveCount(6);
+  await expect(window.locator('#polls-status')).toHaveText(/^6 polls · /);
+  await expect(window.locator('#polls-foot')).toContainText('previous 90 days');               // monthly polls: a longer window
+  await expect(window.locator('#polls-foot a')).toHaveAttribute('href', 'https://en.wikipedia.org/wiki/Example#Leadership_polls');
+  await expect.poll(() => {
+    try { return JSON.parse(require('fs').readFileSync(require('path').join(dataDir, 'ui.json'), 'utf8')).pollsSet; } catch { return null; }
+  }).toBe('pm');
+  expect(window.pageErrors).toEqual([]);
+});
+
+test('a question with variants shows one at a time, with only the answers it has', async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  await window.locator('#btn-polls').click();
+  await feed(window, sample());
+  await window.locator('#polls-set').selectOption('regional');
+  await expect(window.locator('#polls-variant')).toBeVisible();
+  await expect(window.locator('#polls-variant')).toHaveAttribute('aria-label', 'Province');
+  await expect(window.locator('#polls-variant option')).toHaveText(['Quebec', 'Ontario']);
+  await expect(window.locator('.pl-tile .pl-abbr')).toHaveText(['LPC', 'BQ', 'CPC']);
+  await expect(window.locator('#polls-table tbody tr')).toHaveCount(6);
+
+  await window.locator('#polls-variant').selectOption('Ontario');
+  await expect(window.locator('.pl-tile .pl-abbr')).toHaveText(['LPC', 'CPC']);
+  await expect(window.locator('#polls-table tbody tr')).toHaveCount(2);
+  await expect(window.locator('#polls-status')).toHaveText(/^2 polls · /);
+  // Back on a question without variants, their picker goes
+  await window.locator('#polls-set').selectOption('vote');
+  await expect(window.locator('#polls-variant')).toBeHidden();
+  await window.locator('#polls-set').selectOption('regional');
+  await expect(window.locator('#polls-variant')).toHaveValue('Ontario');
+  expect(window.pageErrors).toEqual([]);
 });
