@@ -15,7 +15,8 @@
 // the window. The window is 21 days where polls are frequent and longer where they are rare (three times the usual
 // gap between them, up to 120 days), so a province polled every other month still gets a line.
 
-import { api, $, h } from './dom.js';
+import { api, $, h, wikipediaUrl } from './dom.js';
+import { openChanTab } from './tabs.js';
 import { ui, saveUi } from './ui.js';
 
 const MIN_WINDOW = 21, MAX_WINDOW = 120;          // days
@@ -30,14 +31,25 @@ const LABEL_MAX = 24;                             // characters of an answer's n
 // the rest take the hues left over, in this order, and grey when none is left. A set's colours depend only on its
 // answers, so a line keeps its colour whatever the range or variant.
 const HUES = ['red', 'blue', 'teal', 'orange', 'green', 'purple', 'pink', 'lime'];
+const APPROVE = /^(approve|pos\.?|positive|favou?rable|in favou?r|right direction|satisfied)\b/i;
+const DISAPPROVE = /^(disapprove|neg\.?|negative|unfavou?rable|oppose|wrong direction|dissatisfied)\b/i;
+// First match wins, so the specific comes before the general ("Social Democratic" before "Democratic",
+// "Liberal Democrats" before "Liberal", Australia's Liberals before Canada's).
 const FAMILY = [
-  ['grey', /^(others?|none|neither|independent)\b|unsure|undecided|don't know|not sure/i],
-  ['red', /liberal|^lpc$|^lib$|^no$|^oppose|^disapprove|^remain/i],
-  ['blue', /conservative|^cpc$|^pc$|^ucp$|^cons\b|^saskatchewan$|^sk party$|tory/i],
-  ['orange', /ndp|new democrat/i],
-  ['green', /green|^gpc$|^grn$|^yes$|^approve|in favou?r|^separate|separation/i],
-  ['teal', /^bq$|bloc|^pq$|parti qu/i],
-  ['purple', /^ppc$|people's/i],
+  ['grey', /^(others?|none|neither|independent|ind\.?|oth\.?)\b|unsure|undecided|don't know|not sure|no answer|^d\/k|^und\b|no party|^none\b|^neither\b/i],
+  ['green', APPROVE],
+  ['red', DISAPPROVE],
+  ['orange', /ndp|new democrat|liberal democrat|^ld$|lib dems|free democratic|\bfdp\b|\bd66\b|renew|^nzf$|new zealand first/i],
+  ['teal', /reform uk|^ref$|^bq$|bloc|^pq$|parti qu|\bafd\b|alternative for germany|^onp$|one nation|^pvv$|party for freedom|\bact\b|^esn$|sovereign nations|^snp$/i],
+  ['blue', /\(d\)|democratic party \(united states\)|^democrat/i],
+  ['red', /\(r\)|republican party \(united states\)|^republican$/i],
+  ['red', /social democrat|socialist|labou?r|^lab$|\bspd\b|\balp\b|\bpsoe\b|^s&d$|lewica|the left \(poland\)|^pd$/i],
+  ['blue', /liberal party of australia|liberal–national|^l\/np$|^lib$|coalition \(australia\)/i],
+  ['red', /liberal|^lpc$|^no$|^remain|stay out/i],
+  ['blue', /conservative|^cpc$|^pc$|^ucp$|^con$|^cons\b|^saskatchewan$|^sk party$|tory|christian democrat|\bcdu\b|\bcsu\b|^union$|cdu\/csu|^epp$|people's party group|law and justice|^pis$|^nat$|national party|^vvd$|^ldp$|liberal democratic party \(japan\)|^fg$|fine gael|republicans \(france\)|^lr\b/i],
+  ['green', /green|^gpc$|^grn$|grüne|^gp$|^yes$|^rejoin|in favou?r|^separate|separation|^g\/efa$/i],
+  ['purple', /^ppc$|people's party of canada|linke|the left|^sf$|sinn féin|^bsw$|wagenknecht|^ecr$|^tpm$|te pāti māori|^pfe$|patriots for europe|^rn\b|national rally|^konfederacja/i],
+  ['pink', /^ff$|fianna fáil|^volt$|^ko$|civic coalition/i],
 ];
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -62,13 +74,20 @@ const sets = () => data.get(country())?.sets ?? [];
 const currentSet = () => sets().find(s => s.id === ui.pollsSet) ?? sets()[0] ?? null;
 const variantOf = s => (!s?.variants?.length ? null : s.variants.includes(ui.pollsVariants?.[s.id]) ? ui.pollsVariants[s.id] : s.variants[0]);
 const nameOf = (s, o) => s.names?.[o] ?? o;
+const articleOf = (s, o) => s.pages?.[o] ?? null;                 // the Wikipedia article an answer's heading links to
+/** An answer's article attributes: the tile, table heading and line label open it as a tab, as the map's place card does. */
+const linkAttrs = (s, o) => (articleOf(s, o) ? { 'data-article': articleOf(s, o) } : {});
 
 /** A set's colour per answer (see HUES). Answers of one party (a leader and their successor) share its colour. */
 function coloursOf(s) {
   if (colours.has(s)) return colours.get(s);
   const family = o => { for (const text of [s.partyOf?.[o], o]) { const f = text && FAMILY.find(([, re]) => re.test(text))?.[0]; if (f) return f; } return null; };
   const byKey = new Map(), free = new Set(HUES), waiting = [];
-  for (const o of s.options) {
+  // An answer asked in more polls picks first, so Australia's Coalition (in every poll) takes blue before the
+  // Liberals alone (asked only in some).
+  const asked = o => s.polls.reduce((n, p) => n + (p.values?.[o] != null), 0);
+  const counts = new Map(s.options.map(o => [o, asked(o)]));
+  for (const o of [...s.options].sort((a, b) => counts.get(b) - counts.get(a))) {
     const key = s.partyOf?.[o] ?? o;
     if (byKey.has(key)) continue;
     const f = family(o);
@@ -83,6 +102,8 @@ function coloursOf(s) {
 }
 const toMs = iso => Date.parse(`${iso}T12:00:00Z`);
 const fmt1 = v => (v == null ? '—' : v.toFixed(1));
+const pct = () => (model?.set.unit === 'seats' ? '' : '%');                   // seat counts have no percent sign
+const fmtU = v => `${fmt1(v)}${v == null ? '' : pct()}`;
 const dateText = (ms, opts = { year: 'numeric', month: 'short', day: 'numeric' }) => new Date(ms).toLocaleDateString(undefined, { timeZone: 'UTC', ...opts });
 
 // Lifecycle
@@ -98,6 +119,11 @@ export function initPolls() {
   const chart = $('polls-chart');
   chart.addEventListener('pointermove', hover);
   chart.addEventListener('pointerleave', unhover);
+  // A party's (or a person's) tile, table heading or line label opens its Wikipedia article as a tab
+  const view = $('polls-view');
+  const openArticle = e => { const el = e.target.closest?.('[data-article]'); if (el) { e.preventDefault(); openChanTab(wikipediaUrl(el.dataset.article)); } };
+  view.addEventListener('click', openArticle);
+  view.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openArticle(e); });
   document.addEventListener('visibilitychange', () => { if (open && !document.hidden) ask(); });
   api.onPollData(applyPolls);
   api.onPollStatus(s => { status.set(s.country, s); paintStatus(); });
@@ -180,23 +206,33 @@ function windowDays(polls) {
 
 /**
  * The average for each day from `from` to the last poll: per answer, the mean of each firm's latest poll that
- * ended in the `win` days up to the day, weighted 1 on the day falling to 0 at the window's start. Null for an
- * answer no poll in the window measured.
+ * measured it in the `win` days up to the day, weighted 1 on the day falling to 0 at the window's start. A poll
+ * that asked several line-ups at once (France's first round: one row per set of candidates) is one poll, its
+ * rows averaged. Null for an answer no poll in the window measured.
  */
 function averages(polls, parties, from, to, win) {
   const days = [], avg = Object.fromEntries(parties.map(p => [p, []]));
   let lo = 0;
   for (let t = from; t <= to; t += DAY) {
     while (lo < polls.length && polls[lo].t <= t - win * DAY) lo++;
-    const latest = new Map();
-    for (let i = lo; i < polls.length && polls[i].t <= t; i++) latest.set(polls[i].firm, polls[i]);
-    days.push({ t, n: latest.size });
+    const firms = new Set();
+    const latest = Object.fromEntries(parties.map(p => [p, new Map()]));   // answer -> firm -> { t, sum, n }
+    for (let i = lo; i < polls.length && polls[i].t <= t; i++) {
+      const x = polls[i];
+      firms.add(x.firm);
+      for (const p of parties) {
+        const v = x.values[p];
+        if (v == null) continue;
+        const had = latest[p].get(x.firm);
+        if (had && had.t === x.t) { had.sum += v; had.n++; } else latest[p].set(x.firm, { t: x.t, sum: v, n: 1 });
+      }
+    }
+    days.push({ t, n: firms.size });
     for (const p of parties) {
       let sum = 0, weight = 0;
-      for (const x of latest.values()) {
-        if (x.values[p] == null) continue;
+      for (const x of latest[p].values()) {
         const w = 1 - (t - x.t) / (win * DAY);
-        sum += w * x.values[p]; weight += w;
+        sum += w * x.sum / x.n; weight += w;
       }
       avg[p].push(weight ? sum / weight : null);
     }
@@ -268,19 +304,26 @@ function paintSummary() {
     const delta = now[p] != null && before[p] != null ? now[p] - before[p] : null;
     const dir = delta == null || Math.abs(delta) < 0.05 ? 'flat' : delta > 0 ? 'up' : 'down';
     const full = nameOf(set, p) !== p ? nameOf(set, p) : set.partyOf?.[p] && set.kind !== 'parties' ? set.partyOf[p] : '';
-    return h('div', { class: 'pl-tile', dataset: { party: p }, title: `${nameOf(set, p)}: ${fmt1(now[p])}% in the polling average` },
+    const article = articleOf(set, p);
+    return h('div', { class: 'pl-tile', dataset: { party: p }, ...linkAttrs(set, p), ...(article ? { tabindex: '0', role: 'link' } : {}),
+      title: `${nameOf(set, p)}: ${fmtU(now[p])}${set.unit === 'seats' ? ' seats' : ''} in the polling average${article ? `\nClick for the Wikipedia article: ${article}` : ''}` },
       h('span', { class: 'pl-swatch', style: `background:${col[p]}` }),
       h('span', { class: 'pl-abbr' }, p),
       h('span', { class: 'pl-full' }, full),
-      h('span', { class: 'pl-value' }, `${fmt1(now[p])}%`),
+      h('span', { class: 'pl-value' }, fmtU(now[p])),
       h('span', { class: 'pl-delta', dataset: { dir }, title: `Change over the last ${CHANGE_DAYS} days` },
         delta == null ? '' : `${dir === 'up' ? '▲' : dir === 'down' ? '▼' : '■'} ${Math.abs(delta).toFixed(1)} in ${CHANGE_DAYS} d`));
   });
   const gap = lead && second ? (now[lead] - now[second]).toFixed(1) : null;
+  const units = set.unit === 'seats' ? 'seats' : 'points';
+  // Approval: the net, approving less disapproving
+  const yes = parties.find(p => APPROVE.test(p)), no = parties.find(p => DISAPPROVE.test(p));
+  const net = set.kind === 'approval' && yes && no && now[yes] != null && now[no] != null ? now[yes] - now[no] : null;
   const leadText = set.kind === 'breakdown' ? `Answering “${model.variant}”, among each party's supporters`
+    : net != null ? `Net approval ${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(1)}${model.variant ? ` · ${model.variant}` : ''}`
     : gap == null ? ''
-    : set.kind === 'parties' ? `${nameOf(set, lead)} lead by ${gap} points over ${nameOf(set, second)}`
-    : `${nameOf(set, lead)} leads ${nameOf(set, second)} by ${gap} points`;
+    : set.kind === 'parties' ? `${nameOf(set, lead)} lead by ${gap} ${units} over ${nameOf(set, second)}`
+    : `${nameOf(set, lead)} leads ${nameOf(set, second)} by ${gap} ${units}`;
   $('polls-summary').replaceChildren(h('div', { class: 'pl-lead' }, leadText), h('div', { class: 'pl-tiles' }, tiles));
 }
 
@@ -299,7 +342,7 @@ function paintTable() {
     h('th', { class: 'pl-firm' }, 'Polling firm'), h('th', {}, 'Ended'),
     parties.map(p => {                                      // a long name wraps, its colour staying with its first word
       const [first, ...rest] = p.split(' ');
-      return h('th', { class: 'pl-num', title: nameOf(set, p) }, h('span', { class: 'pl-nb' }, h('span', { class: 'pl-key', style: `background:${col[p]}` }), first), rest.length ? ` ${rest.join(' ')}` : '');
+      return h('th', { class: 'pl-num', title: nameOf(set, p) + (articleOf(set, p) ? ' · click for its Wikipedia article' : ''), ...linkAttrs(set, p) }, h('span', { class: 'pl-nb' }, h('span', { class: 'pl-key', style: `background:${col[p]}` }), first), rest.length ? ` ${rest.join(' ')}` : '');
     }),
     extra.includes('lead') && h('th', { class: 'pl-num' }, 'Lead'), extra.includes('sample') && h('th', { class: 'pl-num' }, 'Sample'),
     extra.includes('method') && h('th', {}, 'Method'), extra.includes('url') && h('th', {}, 'Source'));
@@ -355,20 +398,21 @@ function draw() {
   if (!open || !model) return;
   const W = box.clientWidth, H = box.clientHeight;
   if (W < 120 || H < 80) return;
-  const { col, parties, from, to, days, avg, polls, events, election } = model;
+  const { set, col, parties, from, to, days, avg, polls, events, election } = model;
   const short = p => (p.length > LABEL_MAX ? `${p.slice(0, LABEL_MAX - 1)}…` : p);
   const right = Math.min(W * 0.4, Math.max(MARGIN.right, 58 + 6.6 * Math.max(...parties.map(p => short(p).length))));   // room for the longest direct label
   const x0 = MARGIN.left, x1 = W - right, y0 = H - MARGIN.bottom, y1 = MARGIN.top;
   const span = Math.max(to - from, DAY);
   const x = t => x0 + (t - from) / span * (x1 - x0);
   const max = Math.max(10, ...polls.flatMap(p => parties.map(q => p.values[q] ?? 0)));
-  const top = Math.ceil(max / 10) * 10;
+  const step = max > 120 ? 50 : max > 60 && set.unit === 'seats' ? 20 : 10;     // seats can run to hundreds
+  const top = Math.ceil(max / step) * step;
   const y = v => y0 - v / top * (y0 - y1);
 
   const grid = [];
-  for (let v = 0; v <= top; v += 10) {
+  for (let v = 0; v <= top; v += step) {
     grid.push(svg('line', { class: v ? 'pl-grid' : 'pl-axis', x1: x0, x2: x1, y1: y(v), y2: y(v) }));
-    grid.push(svg('text', { class: 'pl-tick', x: x0 - 6, y: y(v) + 4, 'text-anchor': 'end' }, `${v}%`));
+    grid.push(svg('text', { class: 'pl-tick', x: x0 - 6, y: y(v) + 4, 'text-anchor': 'end' }, `${v}${pct()}`));
   }
   // Month ticks, as many as fit; over more than three years, a tick per year
   const months = [];
@@ -393,11 +437,15 @@ function draw() {
   const dots = [], lines = [], ends = [];
   for (const p of parties) {
     for (const poll of polls) if (poll.values[p] != null) dots.push(svg('circle', { class: 'pl-dot', cx: x(poll.t), cy: y(poll.values[p]), r: few ? 3.5 : 2.4, fill: col[p] }));
-    let d = '', pen = false, last = null;
+    // A gap in the line is a stretch with no polls in the window. A stretch of a single day (a poll long after
+    // the one before it) is a dash, so the average there doesn't vanish.
+    let d = '', run = 0, last = null;
     avg[p].forEach((v, i) => {
-      if (v == null) { pen = false; return; }
-      d += `${pen ? 'L' : 'M'}${x(days[i].t).toFixed(1)},${y(v).toFixed(1)}`;
-      pen = true; last = v;
+      if (v == null) { run = 0; return; }
+      const px = x(days[i].t), py = y(v).toFixed(1);
+      d += `${run ? 'L' : 'M'}${px.toFixed(1)},${py}`;
+      if (!run && avg[p][i + 1] == null) d += `M${(px - 4).toFixed(1)},${py}h8`;
+      run++; last = v;
     });
     if (d) lines.push(svg('path', { class: 'pl-line', d, stroke: col[p] }));
     if (avg[p].at(-1) != null) ends.push({ p, v: last, y: y(last), col: col[p] });   // a line that ended earlier (a former leader) has no label at the edge
@@ -407,13 +455,13 @@ function draw() {
   for (let i = 1; i < ends.length; i++) ends[i].y = Math.max(ends[i].y, ends[i - 1].y + LABEL_GAP);
   if (ends.length) ends.at(-1).y = Math.min(ends.at(-1).y, y0 - 2);   // none below the axis
   for (let i = ends.length - 2; i >= 0; i--) ends[i].y = Math.min(ends[i].y, ends[i + 1].y - LABEL_GAP);
-  const labels = ends.map(e => svg('g', { class: 'pl-end' },
+  const labels = ends.map(e => svg('g', { class: 'pl-end', ...linkAttrs(set, e.p) },
     svg('circle', { cx: x1 + 8, cy: e.y, r: 4, fill: e.col }),
     svg('text', { x: x1 + 16, y: e.y + 4 }, `${short(e.p)} ${fmt1(e.v)}`)));
 
   const elect = election && election.t >= from ? parties.filter(p => election.values[p] != null).map(p =>
     svg('rect', { class: 'pl-elect', x: x(election.t) - 4, y: y(election.values[p]) - 4, width: 8, height: 8, fill: col[p], transform: `rotate(45 ${x(election.t)} ${y(election.values[p])})` },
-      svg('title', {}, `${election.firm}: ${p} ${election.values[p]}%`))) : [];
+      svg('title', {}, `${election.firm}: ${p} ${election.values[p]}${pct()}`))) : [];
 
   const cross = svg('g', { id: 'polls-cross', visibility: 'hidden' }, svg('line', { y1: y1, y2: y0 }));
   box.replaceChildren(svg('svg', { width: W, height: H, class: few ? 'pl-few' : null, role: 'img', 'aria-label': `Polling average, ${dateText(from)} to ${dateText(to)}` },
@@ -443,8 +491,8 @@ function hover(e) {
   const tip = $('polls-tip');
   tip.replaceChildren(...[
     h('div', { class: 'pl-tip-date' }, dateText(day.t)),
-    rows.map(p => h('div', { class: 'pl-tip-row' }, h('span', { class: 'pl-key', style: `background:${col[p]}` }), h('span', {}, nameOf(set, p)), h('b', {}, `${fmt1(avg[p][i])}%`))),
-    h('div', { class: 'pl-tip-n' }, `Average of ${day.n} firm${day.n === 1 ? '' : 's'} in the last ${win} days`),
+    rows.map(p => h('div', { class: 'pl-tip-row' }, h('span', { class: 'pl-key', style: `background:${col[p]}` }), h('span', {}, nameOf(set, p)), h('b', {}, fmtU(avg[p][i])))),
+    h('div', { class: 'pl-tip-n' }, day.n ? `Average of ${day.n} firm${day.n === 1 ? '' : 's'} in the last ${win} days` : `No polls in the ${win} days up to this day`),
     ended.map(p => h('div', { class: 'pl-tip-poll' }, `${p.firm}: `, rows.slice(0, 3).map(q => `${q} ${p.values[q] ?? '—'}`).join(' · '))),
   ].flat());
   tip.hidden = false;

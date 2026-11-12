@@ -22,6 +22,9 @@ export function h(tag, props = {}, ...children) {
 const pad2 = n => String(n).padStart(2, '0');
 
 /** "2026-10-04 5:42 PM" */
+/** An English Wikipedia article's address, from its title (a map place's article, a poll's party). */
+export const wikipediaUrl = title => `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
+
 export function formatStamp(ms) {
   const d = new Date(ms);
   const hr = d.getHours() % 12 || 12;

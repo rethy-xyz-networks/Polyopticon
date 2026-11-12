@@ -7,7 +7,7 @@
 // main process downloads on first use (mapdata.js), so a card opens at once and its photos follow.
 
 import * as L from '../../node_modules/leaflet/dist/leaflet-src.esm.js';
-import { h } from './dom.js';
+import { h, wikipediaUrl } from './dom.js';
 import { geo } from './map-draw.js';
 
 // Shipped facts: { countries: { ISO: {...} }, states: { QID: {...} } } and { QID: {...} } for counties and cities;
@@ -98,7 +98,7 @@ export function createCard({ map, stage, drawing, count, onStories, onPage, onCh
   const factList = rows => h('dl', { class: 'mc-facts' }, rows.filter(r => r[1]).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, String(v))]));
   // The article opens as a tab too
   const wikiLink = rec => rec?.wiki && h('a', {
-    class: 'mc-wiki', href: `https://en.wikipedia.org/wiki/${encodeURIComponent(rec.wiki.replace(/ /g, '_'))}`,
+    class: 'mc-wiki', href: wikipediaUrl(rec.wiki),
     onclick: e => { e.preventDefault(); onPage(e.currentTarget.href); },
   }, `Wikipedia: ${rec.wiki}`);
   const wdLink = q => q && h('div', { class: 'mc-src' }, h('a', { href: `https://www.wikidata.org/wiki/${q}`, target: '_blank', rel: 'noopener' }, `Wikidata ${q}`));

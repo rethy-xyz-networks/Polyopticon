@@ -978,7 +978,7 @@ body.resizing-corner webview { pointer-events: none; }
 .video-view webview { z-index: 1; background: #000; }
 .video-view webview.inactive { z-index: 0; pointer-events: none; }
 /* A disabled stream: its tab is dimmed and the pane says so instead of loading it. */
-#video-tabs .tab.disabled .label, #video-tabs .tab.disabled .dot { opacity: .45; }
+#video-tabs .tab.disabled .label, #video-tabs .tab.disabled .dot, #video-tabs .tab.disabled .fav, #video-tabs .tab.disabled .tab-mode { opacity: .45; }
 #video-tabs .tab.disabled .label { text-decoration: line-through; }
 .video-disabled { position: absolute; inset: 0; z-index: 2; background: #000; }
 .video-disabled[hidden] { display: none; }
@@ -1135,6 +1135,10 @@ body.popout.pop-fs .pop-bar { display: none; }
 .pl-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
 .pl-tile { display: grid; grid-template-columns: 4px auto auto; grid-template-areas: "sw abbr value" "sw full delta"; column-gap: 8px; align-items: baseline;
   min-width: 150px; padding: 6px 10px 6px 0; background: var(--badge-bg); }
+.pl-tile[data-article] { cursor: pointer; }
+.pl-tile[data-article]:hover, .pl-tile[data-article]:focus-visible { background: var(--card-hover); outline: 1px solid var(--border); }
+.pl-tile[data-article]:hover .pl-abbr, th[data-article]:hover, .pl-end[data-article]:hover text { text-decoration: underline; }
+th[data-article], .pl-end[data-article] { cursor: pointer; }
 .pl-swatch { grid-area: sw; align-self: stretch; border-radius: 0 2px 2px 0; }
 .pl-abbr { grid-area: abbr; font-weight: 700; }
 .pl-full { grid-area: full; font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }

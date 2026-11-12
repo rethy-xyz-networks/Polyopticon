@@ -13,6 +13,20 @@ import { makeReorderable } from './reorder.js';
 import { tabEl, cycleIndex, moveIndex } from './tabstrip.js';
 import { bindTabScroll } from './tabscroll.js';
 import { SITES, parseStream, siteOfLink, streamUrl, streamLabel, YOUTUBE_CSS, DIRECT_PARTITION } from './streams.js';
+
+// A chat or stream tab leads with its site's icon, fetched once and cached like a feed's (polyopticon-icon://site/…).
+// IRC rooms and direct video links have no site of their own, so they get a glyph; an icon that fails to load
+// falls back to the site's colour dot.
+const SITE_HOST = { twitch: 'twitch.tv', kick: 'kick.com', youtube: 'youtube.com', dgg: 'destiny.gg' };
+const SITE_GLYPH = { irc: ['chat', 'IRC'], direct: ['stream', 'Direct video link'] };
+function siteBadge(kind) {
+  const dot = () => h('span', { class: 'dot' });
+  if (SITE_GLYPH[kind]) return h('span', { class: 'tab-mode', title: SITE_GLYPH[kind][1] }, icon(SITE_GLYPH[kind][0]));
+  if (!SITE_HOST[kind]) return dot();
+  const img = h('img', { class: 'fav', src: `polyopticon-icon://site/${SITE_HOST[kind]}`, alt: '', decoding: 'async', draggable: 'false' });
+  img.addEventListener('error', () => img.replaceWith(dot()), { once: true });
+  return img;
+}
 import { createIrcView, bindIrcEvents, parseIrcInput, parseIrcSpec } from './irc.js';
 import { attachHistory, remember } from './fieldhistory.js';
 import { popOut, dropPopout, focusPopout } from './popouts.js';
@@ -502,7 +516,7 @@ function paintVideo() {
     const tab = tabEl({
       id: key, kind: s.site, label, title: s.disabled ? `${where}\n(disabled: not loaded)` : where,
       active: key === currentStream, pinned: s.pinned,
-      lead: [h('span', { class: 'dot' })],
+      lead: [siteBadge(s.site)],
       trail: [h('span', { class: `snd${silent(s) ? ' off' : ''}${mutedOf(s) ? ' on' : ''}`, title: silent(s) ? 'Silent: click for sound' : 'Click to mute this stream',
         onclick: e => { e.stopPropagation(); toggleMute(s); } }, icon(silent(s) ? 'muted' : 'volume-2'))],
       closeTitle: `Close ${label}`,
@@ -795,7 +809,7 @@ export function renderChat() {
     return tabEl({
       id: c.key, kind: c.kind, label: c.label, title: where,
       active: c.key === current, pinned: c.pinned,
-      lead: [h('span', { class: 'dot' })],
+      lead: [siteBadge(c.kind)],
       closeTitle: c.kind === 'dgg' ? 'Hide destiny.gg chat' : c.kind === 'irc' ? `Leave ${c.label}` : `Remove ${c.label}`,
       onSelect: () => { saveUi({ chatTab: c.key }); renderChat(); },
       onClose: () => removeChat(c),
