@@ -1,22 +1,25 @@
 'use strict';
 
-// Opinion polls: a wrapper around the poll tables Wikipedia's editors keep, one country at a time. For Canada that
-// is federal voting intention (national, by province, by riding, with another party leader), preferred prime
-// minister, government approval, each province's next election, and the standing questions (Quebec independence,
-// Alberta separation, joining the United States). No polling firm or agency publishes an open feed of every poll,
-// so this is the most complete public source: each row cites the firm's own release, and the text is CC BY-SA 4.0
-// (credited in the view). The pages are read through the MediaWiki API, no key or login.
+// Opinion polls: a wrapper around the poll tables Wikipedia's editors keep, one country at a time (the countries,
+// and which tables on which pages, are in poll-countries.js). For Canada, for example, that is federal voting
+// intention (national, by province, by riding, with another party leader), preferred prime minister, government
+// approval, each province's next election, and the standing questions (Quebec independence, Alberta separation,
+// joining the United States). No polling firm or agency publishes an open feed of every poll, so this is the most
+// complete public source: each row cites the firm's own release, and the text is CC BY-SA 4.0 (credited in the
+// view). The pages are read through the MediaWiki API, no key or login.
 //
 // A country's pages are checked when its view asks, at most once every REFRESH_MS, and kept under <data>/polls so
 // they show at once next time and while offline. A check is one small request for every page's revision id, then
-// one for the text of the pages that changed (usually one or none). Wikimedia asks for a User-Agent naming the app
-// and a contact; a 429 or 503 waits for Retry-After, a 403 an hour, and a failure is retried later on its own
-// (longer each time) while the view is still wanted. Nothing here ever needs the user.
+// one for the text of the pages that changed (usually one or none). Only the country on screen is checked: the
+// pages are large (up to about 700 KB) and Wikimedia slows down a client that asks for many at once. Wikimedia
+// asks for a User-Agent naming the app and a contact; a 429 or 503 waits for Retry-After, a 403 an hour, and a
+// failure is retried later on its own (longer each time) while the view is still wanted. Nothing here ever needs
+// the user.
 //
 // The parser is generic over Wikipedia's poll-table layouts: a column is the firm, the date, the link, the margin
 // of error, the sample, the method or the lead by its heading, and every other column is an answer (a party, a
-// leader, Yes / No). So another question is a new entry in a country's `sets`, and another country a new COUNTRIES
-// entry.
+// leader, Yes / No), alone or in groups (each leader's Positive / Negative). So another question is a new set in
+// poll-countries.js, and another country a new entry there.
 
 const fs   = require('fs');
 const path = require('path');
@@ -29,49 +32,8 @@ const MIN_GAP_MS = 60e3;                      // Refresh, pressed again and agai
 const RETRY_MS = [60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3, 30 * 60e3];
 const BLOCK_MS = 60 * 60e3;
 const WANTED_MS = 35 * 60e3;                  // retry on our own only while the view asked recently
-const FORMAT = 2;                             // of the saved copy; a copy in another format is fetched again
-
-// A set is one question: { id, group, label, kind?, page, under, … }.
-//   page     the page's title (a redirect such as "Next … election" follows the current one), or
-//            { after, suffix }: the title another page resolved to, plus a suffix
-//   under    the headings its table sits under, outermost first (text or pattern); not all the levels are needed
-//   skip     tables whose own heading matches are left out
-//   merge    every table under the headings is one series (a table per period)
-//   variant  every table under the headings is one choice of this name ("Province"), named by its heading;
-//            `base` names the table directly under the headings. A table with a column of its own for the
-//            choice (a riding, a hypothetical leader) needs neither.
-//   kind     'parties' for voting intention; 'breakdown' where the columns are groups of voters and the variant
-//            the answer, so no column leads another
-//   names    full names for the answers, where the table's own links don't give good ones
-const CA_FEDERAL = 'Opinion polling for the next Canadian federal election';   // a redirect to the current election's page
-const PROVINCES = {
-  ab: 'Alberta', bc: 'British Columbia', mb: 'Manitoba', nb: 'New Brunswick', nl: 'Newfoundland and Labrador',
-  ns: 'Nova Scotia', on: 'Ontario', pe: 'Prince Edward Island', qc: 'Quebec', sk: 'Saskatchewan',
-};
-
-const COUNTRIES = {
-  ca: {
-    name: 'Canada',
-    sets: [
-      { id: 'vote', group: 'Federal', label: 'Voting intention', kind: 'parties', page: CA_FEDERAL, under: ['National polls', 'Table of polls'],
-        names: { LPC: 'Liberal', CPC: 'Conservative', BQ: 'Bloc Québécois', NDP: 'New Democratic', GPC: 'Green', PPC: "People's Party", Others: 'Other parties' } },
-      { id: 'pm', group: 'Federal', label: 'Preferred prime minister', page: CA_FEDERAL, under: [/^Leadership polls/i], merge: true },
-      { id: 'approval', group: 'Federal', label: 'Government approval', page: CA_FEDERAL, under: [/approval polls/i] },
-      { id: 'regional', group: 'Federal', label: 'Voting intention by province', kind: 'parties', page: CA_FEDERAL, under: ['Regional polls'], variant: 'Province' },
-      { id: 'ridings', group: 'Federal', label: 'Voting intention by riding', kind: 'parties', page: { after: CA_FEDERAL, suffix: ' by constituency' }, under: [], variant: 'Riding' },
-      { id: 'leader', group: 'Federal', label: 'Voting intention with another party leader', kind: 'parties', page: CA_FEDERAL, under: [/^Voting intention with/i] },
-      ...Object.entries(PROVINCES).map(([code, name]) => (
-        { id: `prov-${code}`, group: 'Provincial voting intention', label: name, kind: 'parties', page: `Next ${name} general election`, under: [/^Opinion poll/i] })),
-      { id: 'qc-independence', group: 'Questions', label: 'Quebec independence', page: 'Quebec sovereignty movement', under: [/^Opinion poll/i],
-        skip: /by party/i, variant: 'Voters', base: 'All voters' },
-      { id: 'qc-independence-party', group: 'Questions', label: 'Quebec independence, by party supported', kind: 'breakdown', page: 'Quebec sovereignty movement', under: [/^Opinion poll/i, /by party/i] },
-      { id: 'ab-referendum', group: 'Questions', label: 'Alberta: the 2026 referendum question', page: 'Alberta separatist movement', under: [/referendum question/i] },
-      { id: 'ab-separation', group: 'Questions', label: 'Alberta: separating from Canada', page: 'Alberta separatist movement', under: [/hypothetical separation/i] },
-      { id: 'us-join', group: 'Questions', label: 'Joining the United States (asked of Canadians)', page: 'Movements for the United States annexation of Canada', under: [/^Canadian polling/i] },
-      { id: 'us-join-us', group: 'Questions', label: 'Canada joining the United States (asked of Americans)', page: 'Movements for the United States annexation of Canada', under: [/^American polling/i], merge: true },
-    ],
-  },
-};
+const FORMAT = 3;                             // of the saved copy; a copy in another format is fetched again
+const { COUNTRIES } = require('./poll-countries');
 
 // Wikitext
 
@@ -111,7 +73,7 @@ function parseDate(s) {
 function expandTemplates(s) {
   for (let i = 0; i < 20; i++) {
     const next = s.replace(/\{\{([^{}]*)\}\}/g, (_, body) => {
-      const [name, ...args] = body.split('|');
+      const [name, ...args] = body.split(/\|(?![^[]*\]\])/);           // not the pipe inside a [[link|label]]
       const n = name.trim().toLowerCase();
       const plainArgs = args.filter(a => !/^\s*[\w-]+\s*=/.test(a)).map(a => a.trim());
       if (n === 'dts' || n === 'date table sorting' || n === 'sort date') {
@@ -126,7 +88,10 @@ function expandTemplates(s) {
         return mon ? [nums.at(-1), mon, plainArgs[y]].filter(Boolean).join(' ') : nums.length >= 2 ? `${plainArgs[y]}-${nums.at(-1)}-${nums.at(-2)}` : '';   // the month as a number
       }
       if (/party colou?r$/.test(n)) return `@@pc:${plainArgs.at(-1) ?? ''}@@`;
+      if (/^(n\/a|na|n\.a\.|n\/d|nd|tba|tbd|unknown|dunno|nil)$/.test(n)) return `@@na:${plainArgs[0] ?? 'N/A'}@@`;   // a table cell of its own: see cell()
       if (n === 'nowrap' || n === 'nobr' || n === 'small' || n === 'nobold') return args.join('|');
+      if (n === 'vert header' || n === 'vertical header' || n === 'verth') return plainArgs.at(-1) ?? '';
+      if (n === '!') return '|';
       if (n === 'white' || n === 'color' || n === 'font color' || n === 'colored text') return plainArgs.at(-1) ?? '';
       if (n === 'abbr' || n === 'tooltip' || n === 'nts' || n === 'val') return plainArgs[0] ?? '';
       if (n === 'sort' || n === 'sortname') return plainArgs[1] ?? plainArgs[0] ?? '';
@@ -157,9 +122,11 @@ const ENTITIES = { amp: '&', nbsp: ' ', ndash: '–', mdash: '—', minus: '−'
 function plain(s) {
   return s
     .replace(/@@pc:[^@]*@@/g, '')
+    .replace(/@@na:([^@]*)@@/g, '$1')
     .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')
     .replace(/\[https?:\/\/\S+\s+([^\]]*)\]/g, '$1')
     .replace(/\[https?:\/\/[^\s\]]+\]/g, '')
+    .replace(/\s*([/–-])\s*<br\s*\/?>\s*/gi, '$1')                  // "Unsure/<br>Other" reads Unsure/Other
     .replace(/<br\s*\/?>/gi, ' ')
     .replace(/<[^>]+>/g, '')
     .replace(/'{2,}/g, '')
@@ -168,23 +135,37 @@ function plain(s) {
     .trim();
 }
 
+const ATTRS = /^\s*((?:(?:rowspan|colspan|style|class|align|valign|width|bgcolor|scope|data-[\w-]+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"']+)\s*)+)/i;
+
 /**
  * One cell: { text, colspan, rowspan, party, name, sort }. "style=… | value" keeps the value; the spans, the
  * party whose colour the cell wears and its sort key are read off the attributes; `name` is the article a cell
  * that is one link points at ("Liberal Party of Canada" for [[Liberal Party of Canada|LPC]]).
+ *
+ * A cell template such as {{N/A}} brings its own attributes and `|` on the page, so `rowspan="2" {{N/A}}` is
+ * N/A over two rows, not the text `rowspan="2"`: expandTemplates marks it, and attributes before the mark, or
+ * before any value with no `|`, are read as attributes.
  */
 function cell(raw) {
   const p = topLevelPipe(raw);
-  const attrs = p < 0 ? '' : raw.slice(0, p);
-  const value = p < 0 ? raw : raw.slice(p + 1);
+  let attrs = p < 0 ? '' : raw.slice(0, p);
+  let value = p < 0 ? raw : raw.slice(p + 1);
+  const lead = p < 0 && ATTRS.exec(value);
+  if (lead && value.slice(lead[0].length).trim()) { attrs = lead[1]; value = value.slice(lead[0].length); }
   const span = re => { const m = re.exec(attrs); return m ? Math.max(1, Math.min(+m[1], 200)) : 1; };
-  const link = /^\s*(?:'{2,})?\[\[([^\]|#]+)(?:#[^\]|]*)?\|[^\]]*\]\](?:'{2,})?s?\s*$/.exec(value);
+  const link = /^\s*(?:'{2,})?\[\[([^\]|#]+)(?:#[^\]|]*)?(\|[^\]]*)?\]\](?:'{2,})?s?\s*$/.exec(value);
+  // A heading of two links, the person then their party ("[[Nathalie Arthaud]] [[Lutte Ouvrière|(LO)]]"), is the
+  // person: the party in brackets would set them apart from the same person in the next table
+  const links = [...value.matchAll(/\[\[([^\]|#]+)/g)].map(m => m[1].replace(/_/g, ' ').trim()).filter(t => !/^(File|Image|Category):/i.test(t));
+  let text = plain(value);
+  if (links.length > 1 && /\[\[[^\]]*\|\s*\([^)\]]{1,8}\)\s*\]\]\s*$/.test(value)) text = text.replace(/\s*\([^)]*\)$/, '');
   return {
-    text: plain(value),
+    text,
     colspan: span(/colspan\s*=\s*"?(\d+)/i),
     rowspan: span(/rowspan\s*=\s*"?(\d+)/i),
     party: /@@pc:([^@]*)@@/.exec(raw)?.[1].trim() || null,
-    name: link ? link[1].replace(/\s*\([^)]*\)\s*$/, '').trim() : null,
+    name: link?.[2] ? link[1].replace(/\s*\([^)]*\)\s*$/, '').trim() : null,
+    page: links[0] ?? null,                                          // the article it links to (the first), as titled
     sort: /data-sort-value\s*=\s*"?([^"|]+)/i.exec(attrs)?.[1].trim() ?? null,
   };
 }
@@ -284,7 +265,7 @@ function tableRows(table, refs) {
 /** "44.2" -> 44.2, "±3.1 pp" -> 3.1, "1,027 (1/4)" -> 1027; "—", "N/A", "" -> null. */
 const number = s => { const m = /\d[\d,]*(?:\.\d+)?/.exec(String(s ?? '')); return m ? Number(m[0].replace(/,/g, '')) : null; };
 /** A lead or a net rating: "+37%" -> 37, "−5" -> -5. */
-const signed = s => { const n = number(s); return n != null && /[−-]\s*\d/.test(String(s)) ? -n : n; };
+const signed = s => { const n = number(s); return n != null && /[−–-]\s*\d/.test(String(s)) ? -n : n; };
 /** A margin of error: "±3.1 pp" -> 3.1, and "3,0%" (a decimal comma) -> 3. */
 const margin = s => number(String(s ?? '').replace(/(\d),(\d{1,2})(?!\d)/, '$1.$2'));
 
@@ -292,91 +273,178 @@ const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, '')
 
 // What a column holds, by its heading. Every other column with a heading is an answer.
 const ROLES = [
-  ['firm', /polling firm|pollster|polling organi[sz]ation|conducted by|poll source|^firm$/i],
-  ['date', /\bdates?\b/i],
+  ['firm', /polling firm|pollster|polling organi[sz]ation|^organi[sz]ation$|conducted by|poll source|^aggregator$|^firm$/i],
+  ['date', /\bdates?\b|^updated$/i],
   ['link', /^(link|sources?|refs?\.?|references?)$/i],
   ['moe', /margin|^moe$/i],
   ['sample', /^sample/i],
-  ['method', /method|^(polling )?type$/i],
+  ['method', /method|^(polling )?type$|^interview mode$/i],
   ['lead', /^lead\b|^net\b/i],
-  ['skip', /^(client|notes?|remarks?)$/i],
+  ['skip', /^(client|notes?|remarks?|area|abs\.?|abstention)$/i],
   ['variant', /^hypothetical|^(riding|constituency|district|language|position|region)$/i],
 ];
+
+/** A sample size: "2,004", or "2.004" where a dot groups the thousands. */
+const sampleSize = s => number(String(s ?? '').replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2'));
+const numeric = s => /^[−-]?\d[\d,.]*\s*%?$/.test(String(s ?? '').trim());
 
 /**
  * A poll table as { options: ['LPC', …], names: { LPC: 'Liberal Party of Canada' }, partyOf: { LPC: 'Liberal' },
  * variantLabel, polls: [{ firm, date, values: { LPC: 44, … }, moe, sample, method, lead, url, variant?,
  * election? }], events: [{ date, text }] }, newest first; null if it isn't one. `options` are the answers (parties,
- * leaders, Yes / No) in the table's order; `partyOf` is the party whose colour the table gives an answer;
- * `variant` is the row's value in a column that splits the table (a riding, a hypothetical leader), named by
- * `variantLabel`. Rows that aren't a poll (sub-headers, notes) are skipped; a row with a date and a sentence
- * across the columns is an event (a by-election, a new leader); the election's own row is kept, marked, as the
- * starting point. `refs` (refsOf) finds the source of a row that names a reference defined elsewhere.
+ * leaders, Yes / No) in the table's order; `partyOf` is the party whose colour the table gives an answer, and
+ * `pages` the Wikipedia article its heading links to ({ Lab: 'Labour Party (UK)' }).
+ *
+ * `variant` is what a row's numbers are about when the table holds several things side by side: the row's value
+ * in a column that splits the table (a riding, a hypothetical leader), or the group heading above the answers
+ * when they come in groups (each leader's Positive / Negative / Net; Primary vote and Two-party preferred), one
+ * poll per group. `variantLabel` names it ('Group' for column groups). A heading over some of a group's answers
+ * (L/NP over Lib and Nat) is an answer too: a firm that gives one number across them gives it, and a firm that
+ * splits them gives the sum. In a group named by `matchups` (a pattern), a row answering only some of the
+ * group's answers (Labor v One Nation) is a matchup of its own: each row is named after the answers it gives.
+ *
+ * Rows that aren't a poll (sub-headers, notes) are skipped; a row with a date and a sentence across the columns
+ * is an event (a by-election, a new leader); the election's own row is kept, marked, as the starting point.
+ * `refs` (refsOf) finds the source of a row that names a reference defined elsewhere; `year` completes dates
+ * written without one ("September 24–28" in a table under "September 2026"); a number over `max` (100 for a
+ * percentage) isn't an answer.
  */
-function parsePollTable(table, { refs } = {}) {
+function parsePollTable(table, { refs, year, matchups, max = 100 } = {}) {
   const rows = tableRows(table, refs);
-  const distinct = r => new Set(r.cols.filter(Boolean)).size;
-  const hi = rows.findIndex(r => r.header && distinct(r) >= 4);
+  // The heading is the header rows at the top, less a title across the whole table ("Opinion polls")
+  const hi = rows.findIndex(r => r.header);
   if (hi < 0) return null;
   let depth = 1;
-  const deepest = Math.max(...rows[hi].cells.map(c => c.rowspan));
-  while (depth < deepest && rows[hi + depth]?.header) depth++;
-  const head = rows.slice(hi, hi + depth);
+  while (rows[hi + depth]?.header) depth++;
+  const width = Math.max(...rows.map(r => r.cols.length));
+  const title = new Set(rows.slice(hi, hi + depth).flatMap(r => r.cells.filter(c => c.colspan >= width - 1)));
+  const head = rows.slice(hi, hi + depth).map(r => ({ ...r, cols: r.cols.map(c => (title.has(c) ? undefined : c)) }));
+  if (new Set(head.flatMap(r => r.cols).filter(Boolean)).size < 4) return null;
+  const data = rows.slice(hi + depth).filter(r => !r.header);
 
-  // A column's heading is the lowest cell with text ("Yes" under "Should Quebec be…?"); its party colour is
-  // whichever of its cells wears one (the swatch row under the party's name).
-  const role = {}, options = [], names = {}, partyOf = {}, optionCol = {};
-  for (let c = 0; c < rows[hi].cols.length; c++) {
-    const cells = head.map(r => r.cols[c]).filter(Boolean);
+  // A column's heading is the lowest cell with text ("Yes" under "Should Quebec be…?"); its group, the highest
+  // cell with text that spans it and others; its party colour, whichever of its cells wears one (the swatch row
+  // under the party's name).
+  const columns = [];
+  for (let c = 0; c < width; c++) {
+    const cells = [...new Set(head.map(r => r.cols[c]).filter(Boolean))];
     const labelled = cells.findLast(x => x.text);
     if (!labelled || (c && cells.every(x => head.some(r => r.cols[c - 1] === x)))) continue;   // no heading, or a wide heading's second column
-    const label = labelled.text;
-    const kind = ROLES.find(([, re]) => re.test(label))?.[0];
+    const spanning = cells.filter(x => x !== labelled && x.text && x.colspan > 1);
+    let kind = ROLES.find(([, re]) => re.test(labelled.text))?.[0];
+    // "Ref" is a reference column on one page and Reform UK on another: a column of numbers is an answer
+    if (kind === 'link') {
+      const filled = data.map(r => r.cols[c]?.text).filter(Boolean);
+      if (filled.length && filled.filter(numeric).length > filled.length / 2) kind = undefined;
+    }
     if (kind === 'skip') continue;
-    if (kind) { role[kind] ??= { c, label }; continue; }
-    if (label in optionCol) continue;
-    optionCol[label] = c;
-    options.push(label);
-    if (labelled.name && labelled.name !== label && !/^List of /i.test(labelled.name)) names[label] = labelled.name;
-    const party = cells.find(x => x.party)?.party;
-    if (party) partyOf[label] = party;
+    columns.push({ c, label: labelled.text, kind, labelled, cells, group: spanning[0] ?? null, sub: spanning.length > 1 ? spanning.at(-1) : null });
   }
-  if (!role.firm || !role.date || options.length < 2) return null;
+  const role = {};
+  for (const col of columns) if (col.kind && (col.kind !== 'lead' || !col.group)) role[col.kind] ??= col;
+  const answers = columns.filter(col => !col.kind);
+  if (!role.firm || !role.date) return null;
+
+  // Groups: answers under two or more headings are read group by group. A heading over every answer is the
+  // question, not a group; one over only some of them (Konfederacja over its two parties) is an answer of its own.
+  const grouped = new Set(answers.map(a => a.group).filter(Boolean)).size > 1;
+  if (!grouped) for (const col of answers) if (col.group && answers.some(a => a.group !== col.group)) col.sub ??= col.group;
+  const groups = new Map();                                            // group cell -> { name, answers, lead, subs }
+  for (const col of answers) {
+    const key = grouped ? col.group : null;
+    if (!groups.has(key)) groups.set(key, { name: grouped ? col.group?.text ?? '' : null, answers: [], subs: new Map() });
+    const g = groups.get(key);
+    if (g.answers.some(a => a.label === col.label)) continue;
+    g.answers.push(col);
+    if (col.sub) { if (!g.subs.has(col.sub)) g.subs.set(col.sub, []); g.subs.get(col.sub).push(col); }
+  }
+  // The cell a row gives across exactly these answers, if any: one also over others is a wider joint list
+  const whole = (r, parts) => {
+    const cell = r.cols[parts[0].c];
+    return cell && parts.every(p => r.cols[p.c] === cell) && answers.every(a => parts.includes(a) || r.cols[a.c] !== cell) ? cell : null;
+  };
+  // A heading over some answers is an answer itself only where a poll gives one number across all of them (L/NP
+  // over Lib and Nat); otherwise it's a question over those answers ("In 2023" over Yes and No, not D/K)
+  for (const g of groups.values()) for (const [sub, parts] of g.subs) {
+    if (!data.some(r => whole(r, parts))) g.subs.delete(sub);
+  }
+  if (grouped) for (const col of columns) if (col.kind === 'lead' && col.group && groups.has(col.group)) groups.get(col.group).lead = col;
+
+  const options = [], names = {}, partyOf = {}, pages = {};
+  const addOption = (label, cell, cells) => {
+    if (options.includes(label)) return;
+    options.push(label);
+    if (cell?.name && cell.name !== label && !/^List of /i.test(cell.name)) names[label] = cell.name;
+    if (cell?.page && !/^(List of |Category:|File:|Image:)/i.test(cell.page)) pages[label] = cell.page;
+    const party = cells.find(x => x.party && x.colspan === (cell?.colspan ?? 1))?.party;   // a colour across a group is the group's
+    if (party) partyOf[label] = party;
+  };
+  for (const g of groups.values()) {
+    for (const col of g.answers) addOption(col.label, col.labelled, col.cells);
+    for (const [sub] of g.subs) addOption(sub.text, sub, head.map(r => r.cols[r.cols.indexOf(sub)]).filter(Boolean));
+  }
+  if (options.length < 2) return null;
 
   const polls = [], events = [];
   const text = (r, kind) => (role[kind] ? r.cols[role[kind].c]?.text ?? '' : '');
-  for (const r of rows.slice(hi + depth)) {
-    if (r.header) continue;
-    const wide = r.cells.filter(c => c.colspan >= Math.max(3, Math.min(options.length, 6)) && /[A-Za-z]{4}/.test(c.text)).sort((a, b) => b.colspan - a.colspan)[0];
+  const dateOf = s => parseDate(s) ?? (year && /[A-Za-z]{3}/.test(s ?? '') ? parseDate(`${s} ${year}`) : null);
+  const answerCount = answers.length;
+  for (const r of data) {
+    const wide = r.cells.filter(c => c.colspan >= Math.max(3, Math.min(answerCount, 6)) && /[A-Za-z]{4}/.test(c.text) && !numeric(c.text)).sort((a, b) => b.colspan - a.colspan)[0];
     if (wide) {
-      const date = r.cells.filter(c => c !== wide).map(c => parseDate(c.text)).find(Boolean) ?? parseDate(wide.text);
+      const date = r.cells.filter(c => c !== wide).map(c => dateOf(c.text)).find(Boolean) ?? dateOf(wide.text);
       if (date) events.push({ date, text: wide.text });
       continue;
     }
     let firm = text(r, 'firm');
     if (!firm || /^(html|pdf|link|source|\[?\d+\]?)$/i.test(firm)) firm = hostOf(r.url);   // a firm given only as a link to its release
-    const date = parseDate(text(r, 'date')) ?? parseDate(r.cols[role.date.c]?.sort);
+    const date = dateOf(text(r, 'date')) ?? parseDate(r.cols[role.date.c]?.sort);
     if (!date || !firm) continue;
-    const values = {};
-    for (const o of options) { const v = number(r.cols[optionCol[o]]?.text); if (v != null && v <= 100) values[o] = v; }
-    if (Object.keys(values).length < 2) continue;
-    const poll = {
-      firm, date, values,
+    const base = {
+      firm, date,
       moe: role.moe ? margin(text(r, 'moe')) : null,
-      sample: role.sample ? number(text(r, 'sample')) : null,
+      sample: role.sample ? sampleSize(text(r, 'sample')) : null,
       method: text(r, 'method') || null,
-      lead: role.lead ? signed(text(r, 'lead')) : null,
       url: r.url,
     };
-    if (role.variant && text(r, 'variant')) poll.variant = text(r, 'variant');
-    if (/\b(election|referendum)\b/i.test(firm) && !/\b(study|survey|poll)/i.test(firm)) { poll.election = true; poll.moe = null; }   // the result itself
-    polls.push(poll);
+    for (const g of groups.values()) {
+      const values = {}, used = new Set();
+      for (const [sub, parts] of g.subs) {                               // one number across the parts is the whole
+        const cell = whole(r, parts);
+        if (cell) { const v = number(cell.text); if (v != null && v <= max) values[sub.text] = v; used.add(cell); }
+      }
+      for (const col of g.answers) {
+        const cell = r.cols[col.c];
+        if (!cell || used.has(cell)) continue;
+        used.add(cell);
+        const v = number(cell.text);
+        if (v == null || v > max) continue;
+        // A number across several answers (a joint list) is theirs together
+        const across = g.answers.filter(a => r.cols[a.c] === cell);
+        const label = across.length > 1 ? across.map(a => a.label).join(' + ') : col.label;
+        if (across.length > 1 && !options.includes(label)) options.push(label);
+        values[label] = v;
+      }
+      for (const [sub, parts] of g.subs) {                               // the parts given apart add up to the whole
+        if (sub.text in values) continue;
+        const vs = parts.map(p => values[p.label]);
+        if (vs.every(v => v != null)) values[sub.text] = Math.round(vs.reduce((a, b) => a + b, 0) * 10) / 10;
+      }
+      if (Object.keys(values).length < 2) continue;
+      const poll = { ...base, values, lead: g.lead ? signed(r.cols[g.lead.c]?.text) : role.lead ? signed(text(r, 'lead')) : null };
+      if (grouped) {
+        const all = [...g.answers.map(a => a.label), ...[...g.subs.keys()].map(s => s.text)];
+        poll.variant = matchups?.test(g.name) ? `${g.name}: ${Object.keys(values).sort((a, b) => all.indexOf(a) - all.indexOf(b)).join(' v ')}` : g.name;
+      } else if (role.variant && text(r, 'variant')) poll.variant = text(r, 'variant');
+      if (/\b(election|referendum)\b/i.test(firm) && !/\b(study|survey|poll)/i.test(firm)) { poll.election = true; poll.moe = null; }   // the result itself
+      polls.push(poll);
+    }
   }
   const asked = options.filter(o => polls.some(p => o in p.values));   // a column no poll has a number in isn't an answer
   if (asked.length < 2) return null;
   polls.sort((a, b) => b.date.localeCompare(a.date));
   events.sort((a, b) => b.date.localeCompare(a.date));
-  return { options: asked, names, partyOf, variantLabel: role.variant?.label ?? null, polls, events };
+  return { options: asked, names, partyOf, pages, variantLabel: grouped ? 'Group' : role.variant?.label ?? null, polls, events };
 }
 
 // Sets
@@ -406,12 +474,14 @@ function buildSet(cfg, page) {
   let anchor = null;
   for (const t of page.tables) {
     const at = placeUnder(cfg.under ?? [], t.path);
-    if (at == null || cfg.skip?.test(t.path.at(-1) ?? '')) continue;
-    const parsed = parsePollTable(t.text, { refs: page.refs });
+    if (at == null || cfg.skip?.test(t.path.slice(at + 1).join(' > '))) continue;
+    const year = t.path.map(h => /\b(19|20)\d\d\b/.exec(h)?.[0]).filter(Boolean).at(-1);   // "September 24–28" under "2026 > September 2026"
+    const parsed = parsePollTable(t.text, { refs: page.refs, year, matchups: cfg.matchups, max: cfg.unit === 'seats' ? 1000 : 100 });
     if (!parsed?.polls.length) continue;
     if (cfg.variant) {
-      const name = at < t.path.length - 1 ? t.path.at(-1) : cfg.base ?? cfg.label;
-      for (const x of [...parsed.polls, ...parsed.events]) x.variant = name;
+      const below = t.path.slice(at + 1);
+      const name = !below.length ? cfg.base ?? cfg.label : cfg.variantPath ? below.join(' · ') : below.at(-1);
+      for (const x of [...parsed.polls, ...parsed.events]) x.variant = x.variant ? `${name} · ${x.variant}` : name;   // a table split by its own columns keeps its split
     }
     if (!parts.length) anchor = t.path[Math.max(at, 0)];             // the heading the config names: a table's own can repeat on the page
     parts.push(parsed);
@@ -427,12 +497,13 @@ function buildSet(cfg, page) {
   const order = parts.flatMap(p => p.polls.map(x => x.variant)).filter(Boolean);     // the page's order, not the dates'
   variants.sort((a, b) => order.indexOf(a) - order.indexOf(b));
   return {
-    id: cfg.id, group: cfg.group, label: cfg.label, kind: cfg.kind ?? 'question', page: pageKey(cfg.page),
+    id: cfg.id, group: cfg.group, label: cfg.label, kind: cfg.kind ?? 'question', unit: cfg.unit ?? '%', page: pageKey(cfg.page),
     title: page.title, url: wikiUrl(page.title, anchor), revid: page.revid, edited: page.edited,
     options,
     names: { ...Object.assign({}, ...parts.map(p => p.names).reverse()), ...cfg.names },
     partyOf: Object.assign({}, ...parts.map(p => p.partyOf).reverse()),
-    variantLabel: variants.length ? cfg.variant ?? parts[0].variantLabel ?? 'Group' : null,
+    pages: Object.assign({}, ...parts.map(p => p.pages).reverse()),
+    variantLabel: variants.length ? cfg.variantLabel ?? cfg.variant ?? parts.find(p => p.variantLabel)?.variantLabel ?? 'Group' : null,
     variants,
     polls, events,
   };
