@@ -206,6 +206,7 @@ test('tiles can be dragged into a new place or another group, and the layout is 
   await drag('^GSPTSE', '.mk-group[data-group="us"] .mk-add');           // onto + Add: the end of that group
   expect(await symbols('us')).toEqual(['^VIX', '^IXIC', '^DJI', '^GSPC', '^RUT', '^GSPTSE']);
   await expect(window.locator('.mk-tile.dragging')).toHaveCount(0);
+  await expect(window.locator('#tabs .tab .label')).toHaveText(['Map', 'Global Markets']);   // letting go after a drag opens no page
 
   // Held against the bottom edge, the list scrolls to the groups further down.
   await window.locator('#markets-groups').evaluate(el => { el.style.flex = '0 0 260px'; });   // short enough that the groups overflow
@@ -225,5 +226,31 @@ test('tiles can be dragged into a new place or another group, and the layout is 
     us: ['^IXIC', '^DJI', '^GSPC', '^RUT', '^GSPTSE'], ca: ['^N225'], apac: ['^HSI', '^KS11'], crypto: ['BTC-USD', 'ETH-USD', 'XRP-USD', 'CAD=X', '^VIX'],
   });
   expect((savedGroups(dataDir) ?? []).find(g => g.id === 'crypto').items.at(-1)).toEqual({ symbol: '^VIX', name: 'VIX' });   // its name moves with it
+  expect(window.pageErrors).toEqual([]);
+});
+
+test('clicking a tile, or Enter on it, opens its Yahoo Finance page as a tab; its × does not', async ({ window }) => {
+  await openWith(window);
+  const tabs = window.locator('#tabs .tab .label');
+  await expect(tabs).toHaveCount(2);                                     // the Map and Global Markets
+  await window.locator('.mk-tile[data-symbol="^GSPC"]').click();
+  await expect(tabs).toHaveCount(3);
+  expect(await window.evaluate(async () => (await import('./state.js')).state.tabs.at(-1).item.url)).toBe('https://finance.yahoo.com/quote/%5EGSPC/');
+  await expect(window.locator('#tabs .tab').last().locator('img.fav')).toHaveAttribute('src', 'polyopticon-icon://site/finance.yahoo.com');
+
+  await window.locator('#btn-markets').click();                          // back to the tiles
+  await window.locator('.mk-tile[data-symbol="^GSPC"]').click();         // the same page: its tab again, not a second one
+  await expect(tabs).toHaveCount(3);
+  await window.locator('#btn-markets').click();
+  await window.locator('.mk-tile[data-symbol="CAD=X"]').focus();
+  await window.keyboard.press('Enter');
+  await expect(tabs).toHaveCount(4);
+  expect(await window.evaluate(async () => (await import('./state.js')).state.tabs.at(-1).item.url)).toBe('https://finance.yahoo.com/quote/CAD%3DX/');
+
+  await window.locator('#btn-markets').click();
+  await window.locator('.mk-tile[data-symbol="^VIX"]').hover();
+  await window.locator('.mk-tile[data-symbol="^VIX"] .mk-remove').click();
+  await expect(window.locator('.mk-tile[data-symbol="^VIX"]')).toHaveCount(0);
+  await expect(tabs).toHaveCount(4);
   expect(window.pageErrors).toEqual([]);
 });

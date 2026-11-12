@@ -108,7 +108,10 @@ const SITE_ICON  = { '4chan': 'chan', telegram: 'telegram', commons: 'photo', wi
 // A site whose own icon a tab shows (as the chat and stream tabs do); the glyph above if it can't be had
 const SITE_FAVICON = { wikipedia: 'wikipedia.org', '4chan': '4chan.org' };
 const siteGlyph = (site, title) => h('span', { class: 'tab-mode', title }, icon(SITE_ICON[site]));
-const chanIcon = (tab, title) => (SITE_FAVICON[tab.site] ? siteFavicon(SITE_FAVICON[tab.site], () => siteGlyph(tab.site, title), title) : siteGlyph(tab.site, title));
+// A web page (a chat link, a Yahoo Finance quote) shows its own site's icon.
+const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return null; } };
+const faviconHost = tab => SITE_FAVICON[tab.site] ?? (tab.site === 'web' ? hostOf(tab.item.url) : null);
+const chanIcon = (tab, title) => { const host = faviconHost(tab); return host ? siteFavicon(host, () => siteGlyph(tab.site, title), title) : siteGlyph(tab.site, title); };
 
 /** A readable name until the page sends its title: "/pol/", "/pol/ 123456", "@durov", a photo's file name or an article's. */
 function chanTitle(url, site) {

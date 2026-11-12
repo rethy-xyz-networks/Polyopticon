@@ -699,6 +699,9 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .mk-tile:hover .mk-remove, .mk-remove:focus-visible { display: block; }
 .mk-tile:hover .mk-badge { visibility: hidden; }
 .mk-tile { cursor: grab; touch-action: none; }
+.markets-groups:not(.moving) .mk-tile:hover { background: var(--card-hover); }
+.markets-groups:not(.moving) .mk-tile:hover .mk-name { text-decoration: underline; }
+.mk-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .markets-groups.moving, .markets-groups.moving .mk-tile { cursor: grabbing; user-select: none; }
 .markets-groups.moving .mk-remove { display: none; }
 .mk-tile.dragging { pointer-events: none; opacity: .35; }

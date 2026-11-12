@@ -12,6 +12,7 @@
 
 import { api, $, h } from './dom.js';
 import { ui, saveUi } from './ui.js';
+import { openChanTab } from './tabs.js';
 
 const STATE_LABEL = { open: 'OPEN', pre: 'PRE-MARKET', closed: 'CLOSED' };
 const TICK = { up: '▲', down: '▼', flat: '■' };
@@ -39,6 +40,9 @@ const allSymbols = () => groups().flatMap(g => g.items.map(i => i.symbol));
 
 const isShown = symbol => allSymbols().includes(symbol);
 
+/** The symbol's quote page: ^GSPC, CADUSD=X and BTC-USD all go in the path, escaped. */
+export const yahooUrl = symbol => `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}/`;
+
 // Lifecycle
 
 export function initMarkets() {
@@ -53,6 +57,15 @@ export function initMarkets() {
     if (document.hidden) api.stopMarkets(); else api.startMarkets(allSymbols());
   });
   makeTilesMovable($('markets-groups'));
+  // A click (not the end of a drag, see makeTilesMovable) or Enter opens the tile's Yahoo Finance page as a tab.
+  const quotePage = e => {
+    const el = e.target.closest?.('.mk-tile');
+    if (!el || e.target.closest('button, input')) return;
+    e.preventDefault();
+    openChanTab(yahooUrl(el.dataset.symbol), { web: true });
+  };
+  $('markets-groups').addEventListener('click', quotePage);
+  $('markets-groups').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList?.contains('mk-tile')) quotePage(e); });
   api.onMarketQuotes(applyQuotes);
   api.onMarketStatus(s => { status = s; paintStatus(); });
 }
@@ -140,7 +153,7 @@ function buildTile({ symbol, name }) {
     change: h('span', { class: 'mk-change' }, ''),
   };
   t.text = `${name} ${symbol}`.toLowerCase();
-  t.el = h('div', { class: 'mk-tile', dataset: { symbol }, title: `${name} (${symbol})` },
+  t.el = h('div', { class: 'mk-tile', dataset: { symbol }, title: `${name} (${symbol})\nClick for its Yahoo Finance page, drag to move`, tabindex: '0', role: 'link' },
     h('div', { class: 'mk-top' }, t.name, t.badge),
     t.price,
     h('div', { class: 'mk-bottom' }, t.change, h('span', { class: 'mk-symbol' }, symbol)),
@@ -194,6 +207,7 @@ function removeSymbol(symbol) {
  */
 function makeTilesMovable(root) {
   let drag = null;
+  const swallow = e => { e.stopPropagation(); e.preventDefault(); };
 
   root.addEventListener('pointerdown', e => {
     const el = e.target.closest('.mk-tile');
@@ -226,6 +240,9 @@ function makeTilesMovable(root) {
     const d = drag;
     drag = null;
     if (!d.moving) return;
+    // Letting go after a drag is not a click on the tile (that would open its page)
+    window.addEventListener('click', swallow, { capture: true, once: true });
+    setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);   // no click followed
     cancelAnimationFrame(d.raf);
     d.ghost.remove();
     d.el.classList.remove('dragging');
