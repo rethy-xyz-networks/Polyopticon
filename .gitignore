@@ -96,3 +96,5 @@ docs/tab-sizes-check/
 # Test and benchmark data
 /scripts/bench/*.json
 /docs/*.csv
+
+CLAUDE.md
