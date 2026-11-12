@@ -31,6 +31,7 @@ test.beforeAll(async () => {
           socket.write(`:${nick}!u@h JOIN ${room}\r\n:srv 332 ${nick} ${room} :Topic of the day\r\n:srv 353 ${nick} = ${room} :@op alice dave ${nick}\r\n:srv 366 ${nick} ${room} :End\r\n`);
           socket.write(`:alice!a@h PRIVMSG ${room} :\x02hello\x02 from the fake server\r\n`);
           socket.write(`:alice!a@h PRIVMSG ${room} :\x01ACTION waves\x01\r\n`);
+          socket.write(`:alice!a@h PRIVMSG ${room} :read (http://127.0.0.1:${port}/page?a=1), it is good\r\n`);
           socket.write(`:carol!c@h JOIN ${room}\r\n:carol!c@h PART ${room} :see you\r\n:dave!d@h QUIT :Ping timeout\r\n`);
           socket.write(`:alice!a@h NICK :alice_away\r\n:op!o@h KICK ${room} alice_away :behave\r\n:op!o@h TOPIC ${room} :New topic\r\n`);
           socket.write(`:eve!e@h QUIT :never seen in this room\r\n`);
@@ -95,6 +96,40 @@ test('➕ shows the chat types; IRC asks for a server and a room, connects anony
   await tab.locator('.close').click();
   await expect(window.locator('#chat-tabs .tab.irc')).toHaveCount(0);
   await expect.poll(() => received.some(l => l.startsWith('QUIT'))).toBe(true);
+});
+
+test('a link in an IRC message is clickable; right-click -> "Open in a tab" opens it in the article area', async ({ window }) => {
+  await window.locator('#btn-chat').click();
+  await window.locator('#chat-add-btn').click();
+  await window.locator('#chat-type-irc').click();
+  await window.locator('#chat-irc-server').fill(`irc://127.0.0.1:${port}`);
+  await window.locator('#chat-irc-room').fill('links');
+  await window.getByRole('button', { name: 'Connect' }).click();
+
+  const url = `http://127.0.0.1:${port}/page?a=1`;
+  const link = window.locator('.irc-view .irc-log a.irc-link');
+  await expect(link).toHaveText(url);                                  // the bracket and the comma around it aren't part of the link
+  await expect(link).toHaveAttribute('href', url);
+
+  // Elsewhere in the log the menu has no link entries.
+  await window.locator('.irc-view .irc-log .irc-line .irc-nick').first().click({ button: 'right' });
+  await expect(window.locator('.ctx-menu:not(.closing) button')).toHaveText(['Copy', 'Select all']);
+  await window.locator('.ctx-menu:not(.closing) button', { hasText: 'Select all' }).click();
+  await expect(window.locator('.ctx-menu')).toHaveCount(0);
+
+  await link.click({ button: 'right' });
+  await expect(window.locator('.ctx-menu:not(.closing) button')).toHaveText(['Open in a tab', 'Open in browser', 'Copy link address', 'Copy', 'Select all']);
+  await window.locator('.ctx-menu:not(.closing) button', { hasText: 'Open in a tab' }).click();
+
+  const tab = window.locator('#tabs .tab.active');
+  await expect(tab.locator('.label')).toHaveText('127.0.0.1');
+  await expect(tab.locator('.tab-mode svg')).toHaveAttribute('data-icon', 'browser');
+  await expect(window.locator(`webview[partition="persist:chan"][src="${url}"]`)).toHaveCount(1);
+
+  // The same link again selects that tab instead of opening a second one.
+  await link.click({ button: 'right' });
+  await window.locator('.ctx-menu:not(.closing) button', { hasText: 'Open in a tab' }).click();
+  await expect(window.locator('#tabs .tab .tab-mode svg[data-icon="browser"]')).toHaveCount(1);
 });
 
 test('Kick chats: ➕ -> Kick -> a channel name or link opens chat.kick.cx/embed/<channel> as a tab', async ({ window }) => {

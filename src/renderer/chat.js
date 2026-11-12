@@ -15,6 +15,7 @@ import { bindTabScroll } from './tabscroll.js';
 import { SITES, parseStream, siteOfLink, streamUrl, streamLabel, YOUTUBE_CSS, DIRECT_PARTITION } from './streams.js';
 import { createIrcView, bindIrcEvents, parseIrcInput, parseIrcSpec } from './irc.js';
 import { attachHistory, remember } from './fieldhistory.js';
+import { popOut, dropPopout, focusPopout } from './popouts.js';
 
 const PARTITION = 'persist:chat';
 const DGG = {
@@ -97,6 +98,66 @@ function setPinned(c, on) {
   renderChat();
 }
 
+// Popping out
+// Right-click -> Pop out: the chat (or stream, below) leaves its strip and opens in a window of its
+// own (popouts.js, main/popout.js). Closing that window puts it back, shown. Which ones float is
+// remembered (ui.chatPopped / ui.streamPopped: their keys), so they float again at the next start.
+// A popped-out chat or stream runs whether or not the chat column is open.
+
+const chatPopped = () => new Set(ui.chatPopped ?? []);
+const shownChats = () => { const out = chatPopped(); return chats().filter(c => !out.has(c.key)); };
+const chatWhere = c => (c.kind === 'twitch' ? `twitch.tv/${c.label}` : c.kind === 'kick' ? `kick.com/${c.label}` : c.kind === 'irc' ? `${c.room} on ${c.host}` : 'destiny.gg chat');
+
+function floatChat(c) {
+  const base = { key: `chat:${c.key}`, title: chatWhere(c), area: 'chat' };
+  popOut(c.kind === 'irc' ? { ...base, kind: 'irc', chat: { key: c.key, label: c.label, spec: c.spec, host: c.host, room: c.room } }
+                          : { ...base, kind: 'web', url: c.url, partition: PARTITION },
+    () => {                                                    // its window was closed: back in the strip, shown
+      saveUi({ chatPopped: (ui.chatPopped ?? []).filter(k => k !== c.key), chatTab: c.key });
+      if (open) renderChat(); else openChat();
+    });
+}
+
+function popOutChat(c) {
+  if (chatPopped().has(c.key)) return focusPopout(`chat:${c.key}`);
+  saveUi({ chatPopped: [...(ui.chatPopped ?? []), c.key] });
+  floatChat(c);
+  renderChat();                                                // its tab and page leave the column
+}
+
+const streamPopped = () => new Set(ui.streamPopped ?? []);
+const shownStreams = () => { const out = streamPopped(); return streams().filter(s => !out.has(streamKey(s))); };
+const floatingStreams = () => { const out = streamPopped(); return streams().filter(s => out.has(streamKey(s))); };
+
+function floatStream(s) {
+  const key = streamKey(s);
+  popOut({ key: `stream:${key}`, title: s.site === 'direct' ? s.name : streamLabel(s.site, s.name), area: 'stream', kind: 'web',
+           url: streamUrl(s.site, s.name), partition: s.site === 'direct' ? DIRECT_PARTITION : PARTITION,
+           site: s.site, volume: volumeOf(s), muted: mutedOf(s) },
+    () => {                                                    // its window was closed: back below the chat, shown
+      saveUi({ streamPopped: (ui.streamPopped ?? []).filter(k => k !== key), streamTab: key, videoOpen: true });
+      if (open) paintVideo(); else openChat();
+    });
+}
+
+function popOutStream(s) {
+  const key = streamKey(s);
+  if (streamPopped().has(key)) return focusPopout(`stream:${key}`);
+  saveUi({ streamPopped: [...(ui.streamPopped ?? []), key] });
+  floatStream(s);
+  paintVideo();
+}
+
+/** At start: what was floating when the app closed floats again. Keys of chats / streams that no longer exist are dropped. */
+function restorePopouts() {
+  const cs = chats(), ss = streams();
+  const chatKeys = (ui.chatPopped ?? []).filter(k => cs.some(c => c.key === k));
+  const streamKeys = (ui.streamPopped ?? []).filter(k => ss.some(s => streamKey(s) === k && !s.disabled));
+  if (chatKeys.length !== (ui.chatPopped ?? []).length || streamKeys.length !== (ui.streamPopped ?? []).length) saveUi({ chatPopped: chatKeys, streamPopped: streamKeys });
+  for (const c of cs) if (chatKeys.includes(c.key)) floatChat(c);
+  for (const s of ss) if (streamKeys.includes(streamKey(s))) floatStream(s);
+}
+
 function removeChats(list) {
   if (list.some(c => c.kind === 'dgg')) setSetting('ChatDestiny', false);
   const gone = new Set(list.map(c => c.key));
@@ -110,12 +171,13 @@ function removeChats(list) {
 }
 
 function chatMenu(c, x, y) {
-  const list = chats();
+  const list = shownChats();
   const idx = list.findIndex(t => t.key === c.key);
   const others = list.filter(t => t.key !== c.key && !t.pinned);
   const right = list.slice(idx + 1).filter(t => !t.pinned);
   showMenu(x, y, [
     { label: c.pinned ? 'Unpin tab' : 'Pin tab', onClick: () => setPinned(c, !c.pinned) },
+    { label: 'Pop out', onClick: () => popOutChat(c) },
     'sep',
     { label: 'Close tab', onClick: () => removeChats([c]) },
     { label: 'Close other tabs', disabled: !others.length, onClick: () => removeChats(others) },
@@ -137,7 +199,7 @@ export function initChat({ openSettings }) {
   reorder = makeReorderable($('chat-tabs'), {
     selector: '.tab', ignore: '.close',
     onRebuilt: () => renderChat(),
-    onDrop: keys => { saveUi({ chatOrder: keys }); renderChat(); },
+    onDrop: keys => { saveUi({ chatOrder: [...keys, ...chatPopped()] }); renderChat(); },   // floating chats keep a place, after the rest
   });
   $('chat-settings').addEventListener('click', e => { e.preventDefault(); onOpenSettings(); });
 
@@ -218,6 +280,7 @@ export function initChat({ openSettings }) {
   attachHistory($('chat-irc-server'), { keyOf: () => 'chat:irc-server', onPick: () => $('chat-irc-room').focus() });
   attachHistory($('chat-irc-room'), { keyOf: () => 'chat:irc-room' });
   initVideo();
+  restorePopouts();
   if (ui.chatOpen) openChat();
 }
 
@@ -309,7 +372,7 @@ function initVideo() {
     onRebuilt: () => paintVideo(),
     onDrop: keys => {
       const byKey = new Map(streams().map(s => [streamKey(s), s]));
-      saveStreams(keys.map(k => byKey.get(k)).filter(Boolean));
+      saveStreams([...keys.map(k => byKey.get(k)).filter(Boolean), ...floatingStreams()]);   // floating streams stay in the list
       paintVideo();
     },
   });
@@ -327,7 +390,7 @@ function initVideo() {
     input.classList.toggle('invalid', !name);
     if (!name) {
       input.title = kind === 'youtube' ? 'A YouTube @handle, channel ID or link'
-                  : kind === 'direct' ? 'A link to a video file, e.g. https://example.com/clip.mp4'
+                  : kind === 'direct' ? 'A link to a video file, e.g. https://example.com/clip.mp4, or an rtmp:// stream (rtmp://host/app/stream)'
                   : 'A channel name (letters, numbers, - and _) or link';
       return;
     }
@@ -338,6 +401,7 @@ function initVideo() {
     addingStream = false; streamSite = null;
     const list = streams();
     const stream = { site: kind, name };
+    if (streamPopped().has(streamKey(stream))) return focusPopout(`stream:${streamKey(stream)}`);   // already open, in a window of its own
     if (!list.some(s => streamKey(s) === streamKey(stream))) list.push(stream);   // already open: just switch to it
     saveStreams(list, { streamTab: streamKey(stream) });
     paintVideo();
@@ -360,6 +424,8 @@ function openStreamAdd() {
 
 function paintStreamAdd() {
   $('video-add').hidden = !addingStream;
+  // In the layout while no player is under it, floating over the player otherwise (styles.css, .chat-add)
+  $('video-add').classList.toggle('inline', !streams().some(x => streamKey(x) === currentStream && !x.disabled));
   $('video-add-btn').classList.toggle('on', addingStream);
   for (const b of document.querySelectorAll('#video-add [data-site]')) b.classList.toggle('on', b.dataset.site === streamSite);
   $('video-form').hidden = !streamSite;
@@ -396,13 +462,14 @@ function removeStreams(gone) {
 }
 
 function streamMenu(s, x, y) {
-  const list = streams();
+  const list = shownStreams();
   const idx = list.findIndex(t => streamKey(t) === streamKey(s));
   const others = list.filter(t => streamKey(t) !== streamKey(s) && !t.pinned);
   const right = list.slice(idx + 1).filter(t => !t.pinned);
   showMenu(x, y, [
     { label: s.pinned ? 'Unpin tab' : 'Pin tab', onClick: () => setStreamPinned(s, !s.pinned) },
     { label: s.disabled ? 'Enable stream' : 'Disable stream', onClick: () => setStreamDisabled(s, !s.disabled) },
+    { label: 'Pop out', disabled: s.disabled, onClick: () => popOutStream(s) },
     'sep',
     { label: 'Close tab', onClick: () => removeStreams([s]) },
     { label: 'Close other tabs', disabled: !others.length, onClick: () => removeStreams(others) },
@@ -414,13 +481,12 @@ function paintVideo() {
   const show = open && !!ui.videoOpen;
   $('chat-video-btn').classList.toggle('on', show);
   $('video-pane').hidden = $('video-splitter').hidden = !show;
-  const list = streams();
+  const list = shownStreams();                                // popped-out streams play in their own windows
   const keys = new Set(list.map(streamKey));
   addingStream = addingStream && show;
-  paintStreamAdd();
-
   currentStream = keys.has(ui.streamTab) ? ui.streamTab : list[0] ? streamKey(list[0]) : null;
-  $('video-empty').hidden = list.length > 0;
+  paintStreamAdd();                            // after currentStream: the bar floats only over a loaded player
+  $('video-empty').hidden = streams().length > 0;
   const cur = list.find(s => streamKey(s) === currentStream);
   $('video-reload').disabled = !cur || cur.disabled;
   $('video-disable').disabled = !cur;
@@ -571,6 +637,7 @@ function bindVideoSplitter() {
 
 /** Make a chat the active tab (and open the column). */
 function showChat(key) {
+  if (chatPopped().has(key)) return focusPopout(`chat:${key}`);   // already open, in a window of its own
   saveUi({ chatTab: key });
   if (!open) openChat();
 }
@@ -595,18 +662,18 @@ export const chatOpen = () => open;
 /** The chat tabs ('chat') or the stream tabs ('stream'), in a common shape. */
 function strip(area) {
   if (area === 'stream') {
-    const list = streams();
+    const list = shownStreams();
     return { list, keys: list.map(streamKey), current: currentStream,
              select: key => { saveUi({ streamTab: key }); paintVideo(); },
              close: s => removeStreams([s]), pin: setStreamPinned,
-             reorder: order => { const by = new Map(list.map(s => [streamKey(s), s])); saveStreams(order.map(k => by.get(k))); paintVideo(); },
+             reorder: order => { const by = new Map(list.map(s => [streamKey(s), s])); saveStreams([...order.map(k => by.get(k)), ...floatingStreams()]); paintVideo(); },
              reload: () => streamViews.get(currentStream)?.wv.reload() };
   }
-  const list = chats();
+  const list = shownChats();
   return { list, keys: list.map(c => c.key), current,
            select: key => { saveUi({ chatTab: key }); renderChat(); },
            close: removeChat, pin: setPinned, reload: reloadChat,
-           reorder: order => { saveUi({ chatOrder: order }); renderChat(); } };
+           reorder: order => { saveUi({ chatOrder: [...order, ...chatPopped()] }); renderChat(); } };
 }
 
 /** Ctrl+PgDown / Ctrl+PgUp: the next or previous tab, pinned ones included, wrapping around. */
@@ -671,6 +738,7 @@ export function pinChatTab(area) {
 function paintAddBar() {
   const none = chats().length === 0;
   $('chat-add').hidden = !(addBarOpen || none);
+  $('chat-add').classList.toggle('inline', none);         // nothing under it to float over
   $('chat-add-btn').classList.toggle('on', addBarOpen);
   $('chat-type-twitch').classList.toggle('on', addType === 'twitch');
   $('chat-type-kick').classList.toggle('on', addType === 'kick');
@@ -711,15 +779,19 @@ const activeView = () => views.get(current) ?? null;
 /** Re-sync tabs and views with the settings (also called when they change). */
 export function renderChat() {
   paintVideo();                              // channel suggestions follow the chat list
-  const list = chats();
+  const all = chats();
+  // A popped-out chat removed in Settings: its window goes too.
+  const gone = (ui.chatPopped ?? []).filter(k => !all.some(c => c.key === k));
+  if (gone.length) { for (const k of gone) dropPopout(`chat:${k}`); saveUi({ chatPopped: (ui.chatPopped ?? []).filter(k => !gone.includes(k)) }); }
+  const list = shownChats();                                  // popped-out chats live in their own windows
   const keys = new Set(list.map(c => c.key));
 
-  // Chats removed in settings: drop their pages.
+  // Chats removed in settings (or popped out): drop their pages.
   for (const [key, v] of views) if (!keys.has(key)) { if (v.destroy) v.destroy(); else v.wv.remove(); views.delete(key); }
 
   current = keys.has(ui.chatTab) ? ui.chatTab : list[0]?.key ?? null;
   if (!reorder?.dragging) $('chat-tabs').replaceChildren(...list.map(c => {
-    const where = c.kind === 'twitch' ? `twitch.tv/${c.label}` : c.kind === 'kick' ? `kick.com/${c.label}` : c.kind === 'irc' ? `${c.room} on ${c.host}` : 'destiny.gg chat';
+    const where = chatWhere(c);
     return tabEl({
       id: c.key, kind: c.kind, label: c.label, title: where,
       active: c.key === current, pinned: c.pinned,
@@ -731,7 +803,7 @@ export function renderChat() {
     });
   }));
 
-  $('chat-empty').hidden = list.length > 0;
+  $('chat-empty').hidden = all.length > 0;
   paintAddBar();
   $('chat-reload').disabled = !list.length;                  // stays in place, right of ➕, so the buttons don't shift
   if (!open || !current) return;

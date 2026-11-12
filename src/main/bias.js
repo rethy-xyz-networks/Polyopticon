@@ -213,4 +213,4 @@ function createChecker({ db, getJson: rawGetJson, onChange = () => {}, onProgres
   return { checkPending, recheckAll, isRunning: () => !!running };
 }
 
-module.exports = { API, httpJson, SIDE, FACT, hostOf, hostVariants, sourceHosts, domainsMatch, summarise, findOutlet, createChecker };
+module.exports = { API, httpJson, FACT, hostOf, hostVariants, sourceHosts, domainsMatch, summarise, findOutlet, createChecker };

@@ -68,6 +68,7 @@ test('outlets are plotted left to right by the raters\' average; feeds of one ou
 
   const dots = window.locator('.bias-dot');
   await expect(dots).toHaveCount(2);                                    // three feeds, two outlets
+  await expect(window.locator('.bias-name')).toHaveText(['Left Paper', 'Right Wire']);
   const cx = async name => (await dots.filter({ has: window.locator(`xpath=self::*[contains(@aria-label, "${name}")]`) }).getAttribute('transform')).match(/translate\(([\d.]+)/)[1];
   expect(Number(await cx('Left Paper'))).toBeLessThan(Number(await cx('Right Wire')));
   await expect(window.locator('.bias-tick', { hasText: /^Lean left$/ })).toBeVisible();
@@ -87,6 +88,53 @@ test('outlets are plotted left to right by the raters\' average; feeds of one ou
   await expect(window.locator('.bias-unrated .bias-chip', { hasText: names[3] })).toBeVisible();
   await expect(window.locator('#bias-summary')).toContainText('2 outlets · 3 feeds plotted');
   await window.locator('#bias-view').screenshot({ path: info.outputPath('bias.png') });
+  expect(window.pageErrors).toEqual([]);
+});
+
+test('every plotted outlet is named, however many share a rating; a name works like its dot', async ({ window }, info) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  // Every feed its own outlet, all on three ratings: the piles real feeds make.
+  const spots = [[[['AllSides', 'center']], [['Ad Fontes Media', 'high']]], [[['AllSides', 'leanLeft']], [['Ad Fontes Media', 'high']]], [[['AllSides', 'center']], [['Ad Fontes Media', 'mixed']]]];
+  const count = await window.evaluate(async ({ spots }) => {
+    const { state, setBias } = await import('./state.js');
+    const { refreshBias } = await import('./bias.js');
+    const val = { leanLeft: -1, center: 0 }, fv = { mixed: 2, high: 3 };
+    const feeds = state.sources.filter(s => s.type === 'rss' && s.enabled);
+    setBias(feeds.map((f, i) => {
+      const [bias, fact] = spots[i % spots.length];
+      return { sourceId: f.id, checkedAt: 1, outlet: { slug: `o${i}`, name: `Outlet Number ${i}`, url: `https://mediabias.news/sources/o${i}`,
+        x: val[bias[0][1]], y: fv[fact[0][1]], rating: bias[0][1], factuality: fact[0][1], bias, fact, stories: 10, satire: false } };
+    }));
+    refreshBias();
+    return feeds.length;
+  }, { spots });
+  expect(count).toBeGreaterThan(20);
+  await window.locator('#btn-bias').click();
+
+  await expect(window.locator('.bias-dot')).toHaveCount(count);
+  await expect(window.locator('.bias-name')).toHaveCount(count);
+  expect(await window.locator('.bias-leader').count()).toBeGreaterThan(0);
+  // No name covers another
+  const overlaps = await window.evaluate(() => {
+    const boxes = [...document.querySelectorAll('.bias-name')].map(el => el.getBBox());
+    let n = 0;
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], b = boxes[j];
+      if (a.x < b.x + b.width - 1 && b.x < a.x + a.width - 1 && a.y < b.y + b.height - 1 && b.y < a.y + a.height - 1) n++;
+    }
+    return n;
+  });
+  expect(overlaps).toBe(0);
+
+  // Hovering a name shows its outlet's ratings and lights its dot; moving off hides them
+  const name = window.locator('.bias-name', { hasText: /^Outlet Number 7$/ });
+  await name.hover();
+  await expect(window.locator('#bias-tip')).toContainText('Outlet Number 7');
+  await expect(window.locator('.bias-dot.hot')).toHaveCount(1);
+  await window.locator('.bias-head').hover();
+  await expect(window.locator('#bias-tip')).toBeHidden();
+  await expect(window.locator('.bias-dot.hot')).toHaveCount(0);
+  await window.locator('#bias-view').screenshot({ path: info.outputPath('bias-crowded.png') });
   expect(window.pageErrors).toEqual([]);
 });
 

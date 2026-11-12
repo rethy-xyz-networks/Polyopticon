@@ -178,4 +178,4 @@ class Adapter {
   async fetchItems() { throw new Error('not implemented'); }
 }
 
-module.exports = { Adapter, backoffMs, BACKOFF_CAP_MS, POLL_DEADLINE_MS };
+module.exports = { Adapter, backoffMs, BACKOFF_CAP_MS };

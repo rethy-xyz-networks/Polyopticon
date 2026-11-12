@@ -93,8 +93,10 @@ export function showMenu(x, y, items) {
   });
 }
 
-export function closeMenu() {
-  document.querySelector('.ctx-menu')?.remove();
+function closeMenu() {
+  // Fades out (.closing, styles.css) and is then taken off the page; a new menu can open meanwhile.
+  const menu = document.querySelector('.ctx-menu:not(.closing)');
+  if (menu) { menu.classList.add('closing'); setTimeout(() => menu.remove(), 120); }
   document.removeEventListener('pointerdown', onOutside, true);
   document.removeEventListener('keydown', onMenuKey, true);
   window.removeEventListener('blur', closeMenu);

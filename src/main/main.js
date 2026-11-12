@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, session, utilityProcess, protocol, nativeTheme, screen, webContents } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, session, utilityProcess, protocol, nativeTheme, screen, webContents, safeStorage } = require('electron');
 const fs        = require('fs');
 const path      = require('path');
 const log       = require('./logger');
@@ -16,10 +16,14 @@ const mapdata   = require('./mapdata');
 const chat      = require('./chat');
 const irc       = require('./irc');
 const fourchan  = require('./fourchan');
+const websession = require('./websession');
+const popout    = require('./popout');
 const perfwatch = require('./perfwatch');
 const database  = require('./db');
 const biasLookup = require('./bias');
 const markets   = require('./markets');
+const polls     = require('./polls');
+const rtmp      = require('./rtmp');
 const { SEED_GROUPS, SEED_REVISION, RETIRED, RENAMED } = require('./config');
 const { TYPES, validateSource } = require('./adapters/types');
 const { request } = require('./adapters/util');
@@ -34,6 +38,21 @@ if (process.env.POLYOPTICON_DATA_DIR) app.setPath('userData', path.join(DATA_DIR
 // Site logins, cookies and cache: Electron's default spot (%AppData%\Polyopticon), named here so
 // the move from the old name can be tested with APPDATA pointing elsewhere.
 else app.setPath('userData', renamedDir(path.join(process.env.APPDATA || app.getPath('appData'), 'Polyopticon')));
+// Chromium switches have to be set before the app is ready, so settings.json is read here already.
+store.init(DATA_DIR);
+if (process.platform === 'linux') {
+  // Chromium looks for a keyring only on the desktops it knows. On any other (Hyprland, Sway…) it finds none,
+  // so safeStorage can't encrypt: the Scratchpad won't save and site cookies are stored in plain text.
+  // The Secret Service keyring (GNOME Keyring, KeePassXC, KWallet 6) is asked for by name there.
+  const known = /gnome|unity|cinnamon|pantheon|xfce|deepin|ukui|kde|lxqt/i.test(process.env.XDG_CURRENT_DESKTOP || '');
+  if (!known && !app.commandLine.hasSwitch('password-store')) app.commandLine.appendSwitch('password-store', 'gnome-libsecret');
+  // Video decoding on the graphics card (VA-API), which Chromium leaves off on Linux: for Intel and AMD
+  // cards (Mesa or Intel's driver), for NVIDIA ones (which also need the libva-nvidia-driver package), and
+  // for any other VA-API driver (IgnoreDriverChecks). Without a working driver Chromium decodes on the CPU
+  // as before. The window logs which codecs the card took on (perfwatch.js).
+  if (store.loadSettings().HardwareVideoDecode)       // added to any features already asked for on the command line
+    app.commandLine.appendSwitch('enable-features', [app.commandLine.getSwitchValue('enable-features'), 'AcceleratedVideoDecodeLinuxGL,VaapiOnNvidiaGPUs,VaapiIgnoreDriverChecks'].filter(Boolean).join(','));
+}
 const DB_PATH           = renamedFile(path.join(DATA_DIR, 'polyopticon.db'), ['itsover.db', 'itsjoever.db'], ['-wal', '-shm', ''])   // database last;
 
 // The app was called ItsJoever, then ItsOver (until 2026-10). Its folders (and database file) are
@@ -63,11 +82,15 @@ let directSession = null;
 const READER_SCHEME     = 'polyopticon-reader';
 const ICON_SCHEME       = 'polyopticon-icon';
 const MAP_SCHEME        = 'polyopticon-map';
+// rtmp:// streams in the stream area: the player page, and the stream itself as FLV (rtmp.js).
+// Same name as RTMP_PLAYER in src/renderer/streams.js — keep them alike.
+const RTMP_SCHEME       = 'polyopticon-rtmp';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: READER_SCHEME, privileges: { standard: true, secure: true } },
   { scheme: ICON_SCHEME,   privileges: { standard: true, secure: true } },
   { scheme: MAP_SCHEME,    privileges: { standard: true, secure: true } },
+  { scheme: RTMP_SCHEME,   privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
 ]);
 
 let win      = null;
@@ -87,6 +110,17 @@ function openExternal(url) {
 
 function send(channel, ...args) {
   if (win && !win.isDestroyed()) win.webContents.send(channel, ...args);
+}
+
+/** A link from a chat, opened as a tab in the article area. `from`: the window it was clicked in. */
+function openLinkTab(url, from) {
+  if (!isWebUrl(url) || !win || win.isDestroyed()) return;
+  log.info(`Open in a tab -> ${url}`);
+  send('link:open', url);
+  if (from && from !== win.webContents) {                  // clicked in a pop-out: bring the main window up
+    if (win.isMinimized()) win.restore();
+    win.focus();
+  }
 }
 
 // Sources
@@ -159,6 +193,20 @@ function setupMarkets() {
     client: marketClient, log,
     onQuotes: q => send('markets:quotes', q),
     onStatus: s => send('markets:status', s),
+  });
+}
+
+// Opinion polls (polls.js)
+// Fetched from Wikipedia when the view asks, at most every 30 minutes, and kept under <data>/polls.
+
+let pollStore = null;
+
+function setupPolls() {
+  pollStore = polls.createPolls({
+    dir: path.join(DATA_DIR, 'polls'),
+    userAgent: () => `Polyopticon/${app.getVersion()} (https://github.com/rethy-xyz-networks/Polyopticon) Electron/${process.versions.electron}`,
+    onData: d => send('polls:data', d),
+    onStatus: s => send('polls:status', s),
   });
 }
 
@@ -314,6 +362,40 @@ function saveAccounts(next) {
   send('accounts:changed', secrets.summary());
 }
 
+// rtmp:// streams
+
+const RTMP_FILES = {
+  '/': ['text/html; charset=utf-8', path.join(__dirname, '..', 'renderer', 'rtmp-player.html')],
+  '/rtmp-player.js': ['text/javascript', path.join(__dirname, '..', 'renderer', 'rtmp-player.js')],
+  '/mpegts.js': ['text/javascript', require.resolve('mpegts.js/dist/mpegts.js')],
+};
+
+/** polyopticon-rtmp://player/?u=rtmp://… is the player page; /flv?u=… is that stream, for as long as it is read. */
+function rtmpRequest(req) {
+  const u = new URL(req.url);
+  const file = RTMP_FILES[u.pathname];
+  if (file) return fs.promises.readFile(file[1]).then(body => new Response(body, { headers: { 'content-type': file[0] } }));
+  const link = u.searchParams.get('u') || '';
+  if (u.pathname !== '/flv' || !rtmp.parseUrl(link)) return new Response('Not found', { status: 404 });
+  // Answered once the stream starts, so a refusal ("No such stream") can be the answer instead.
+  return new Promise(resolve => {
+    let out = null, stop = () => {};
+    const body = new ReadableStream({ start(c) { out = c; }, cancel() { stop(); } });
+    let begun = false;
+    stop = rtmp.play(link, {
+      onData(bytes) {
+        if (!begun) { begun = true; log.info(`Stream: playing ${link}`); resolve(new Response(body, { headers: { 'content-type': 'video/x-flv', 'cache-control': 'no-store' } })); }
+        try { out.enqueue(bytes); } catch { stop(); }           // the player went away
+      },
+      onEnd(error) {
+        log.info(`Stream: ${link} ${error ? `failed: ${error.message}` : 'ended'}`);
+        if (!begun) return resolve(new Response('', { status: 502, statusText: (error?.message || 'The stream is not live').replace(/[^\x20-\x7E]/g, ' ') }));
+        try { error ? out.error(error) : out.close(); } catch { /* already closed */ }
+      },
+    });
+  });
+}
+
 // Settings
 
 function applySettings(next) {
@@ -330,7 +412,7 @@ function applySettings(next) {
     log.info(`Debug logging ${settings.DebugLogging ? 'enabled' : 'disabled'}`);
   }
   if (prev.LogRetentionCount !== settings.LogRetentionCount) log.trimToRetention(settings.LogRetentionCount);
-  if (prev.IsDarkTheme !== settings.IsDarkTheme) nativeTheme.themeSource = settings.IsDarkTheme ? 'dark' : 'light';
+  if (prev.IsDarkTheme !== settings.IsDarkTheme) { nativeTheme.themeSource = settings.IsDarkTheme ? 'dark' : 'light'; popout.broadcast('popout:theme', !!settings.IsDarkTheme); }
   if (prev.SnapshotRetentionDays !== settings.SnapshotRetentionDays) snapshots.expire(settings.SnapshotRetentionDays);
   if (prev.TranslateLargeModel !== settings.TranslateLargeModel)
     translator?.postMessage({ cmd: 'options', options: { allowLarge: settings.TranslateLargeModel } });
@@ -377,11 +459,12 @@ function registerIpc() {
   ipcMain.on('settings:save', (_e, next) => applySettings(next));
   ipcMain.on('tags:save', (_e, tags) => store.saveTags(tags));
   ipcMain.on('shortcuts:pages', (_e, combos) => { pageShortcuts = new Set(combos); });
-  ipcMain.on('window:toggle-fullscreen', () => win?.setFullScreen(!win.isFullScreen()));
+  ipcMain.on('window:toggle-fullscreen', e => { const w = BrowserWindow.fromWebContents(e.sender) ?? win; w?.setFullScreen(!w.isFullScreen()); });   // the main window, or a pop-out
   ipcMain.on('tabs:pinned', (_e, list) => store.savePinned(list));
   ipcMain.on('tabs:pinned-sync', (e, list) => { store.savePinned(list); e.returnValue = true; });   // as the window closes
   ipcMain.on('ui:save', (_e, patch) => { if (patch && typeof patch === 'object') updateUi(patch); });
   ipcMain.on('shell:open', (_e, url) => openExternal(url));
+  ipcMain.on('tab:open-link', (e, url) => openLinkTab(url, e.sender));
   ipcMain.on('clipboard:write', (_e, value) => { if (typeof value === 'string') clipboard.writeText(value); });
   ipcMain.on('state:set', (_e, key, value) => log.set(key, value));
   ipcMain.on('log', (_e, level, msg) => {
@@ -429,6 +512,10 @@ function registerIpc() {
       return q ? { ok: true, quote: q } : { ok: false, error: `Yahoo has no price for ${symbol}` };
     } catch (e) { return { ok: false, error: `Could not look it up: ${e.message}` }; }
   });
+
+  // Opinion polls. Tests don't go online (OFFSCREEN): they get the saved copy, if any.
+  ipcMain.handle('polls:get', (_e, country, force) => pollStore.get(String(country), { force: !!force, offline: OFFSCREEN }));
+  ipcMain.handle('polls:countries', () => pollStore.countries());
 
   // Political lean
   ipcMain.handle('bias:recheck', () => { biasChecker?.recheckAll(); return true; });   // runs in the background; progress arrives as events
@@ -483,7 +570,12 @@ function registerIpc() {
   });
 
   // IRC chats: anonymous, read-only connections made here; the chat column shows what they hear.
-  ipcMain.handle('irc:connect', (_e, id, spec) => irc.connect(String(id), spec, ev => send('irc:event', ev)));
+  // An IRC room's events go to the window that asked for it (the main window, or a popped-out room).
+  ipcMain.handle('irc:connect', (e, id, spec) => {
+    const to = e.sender;
+    if (popout.isPopout(to)) to.once('destroyed', () => irc.disconnect(String(id)));
+    return irc.connect(String(id), spec, ev => { if (!to.isDestroyed()) to.send('irc:event', ev); });
+  });
   ipcMain.on('irc:disconnect', (_e, id) => irc.disconnect(String(id)));
   ipcMain.handle('translate:stats', () => ({ modelsBytes: dirSizeDeep(MODELS_DIR), dir: MODELS_DIR }));
 
@@ -610,10 +702,22 @@ function createWindow() {
   win.webContents.on('will-navigate', e => e.preventDefault());
   win.webContents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
 
-  // Lock down <webview>s: no preload, no node. Article views (web pages, the
-  // reader view, saved pages inside the snapshot folder) always get the article
-  // session; chat views (chat.js) get the chat session, for chat sites only.
-  win.webContents.on('will-attach-webview', (e, prefs, params) => {
+  guardWebviews(win.webContents);
+
+  // Full screen (toolbar button / F11): the renderer paints the button from these.
+  win.on('enter-full-screen', () => send('window:fullscreen', true));
+  win.on('leave-full-screen', () => send('window:fullscreen', false));
+
+  // Closing the main window quits the app: popped-out tabs go with it, and come back at the next start.
+  win.on('close', () => popout.closeAll());
+  win.on('closed', () => { win = null; });
+}
+
+// Lock down <webview>s (the main window's and the pop-outs'): no preload, no node. Article views
+// (web pages, the reader view, saved pages inside the snapshot folder) always get the article
+// session; chat views (chat.js) get the chat session, for chat sites only.
+function guardWebviews(host) {
+  host.on('will-attach-webview', (e, prefs, params) => {
     delete prefs.preload;
     prefs.nodeIntegration  = false;
     prefs.contextIsolation = true;
@@ -630,18 +734,19 @@ function createWindow() {
     }
     if (params.partition === DIRECT_PARTITION) {
       prefs.partition = DIRECT_PARTITION;
-      if (!isWebUrl(params.src)) e.preventDefault();
+      if (!isWebUrl(params.src) && !params.src?.startsWith(`${RTMP_SCHEME}://player/`)) e.preventDefault();
       return;
     }
     prefs.partition = ARTICLE_PARTITION;                 // ad blocking + reader scheme live here
     if (!isAllowedViewUrl(params.src)) e.preventDefault();
   });
+}
 
-  // Full screen (toolbar button / F11): the renderer paints the button from these.
-  win.on('enter-full-screen', () => send('window:fullscreen', true));
-  win.on('leave-full-screen', () => send('window:fullscreen', false));
-
-  win.on('closed', () => { win = null; });
+/** Where a page's forwarded keys and zoom go: the window showing it (the main window, or its pop-out). */
+function toHost(contents, channel, ...args) {
+  const host = contents.hostWebContents;
+  if (host && !host.isDestroyed() && popout.isPopout(host)) host.send(channel, ...args);
+  else send(channel, ...args);
 }
 
 /** The logo variants: Polyopticon.png in the renderer's assets folder. */
@@ -676,12 +781,16 @@ app.on('web-contents-created', (_e, contents) => {
     const combo = input.type === 'keyDown' ? comboName(input) : null;
     if (!pageShortcuts.has(combo)) return;
     e.preventDefault();
-    send('app:shortcut', combo, contents.id);   // the renderer finds the page's area (article, chat, stream) by it
+    toHost(contents, 'app:shortcut', combo, contents.id);   // the renderer finds the page's area (article, chat, stream) by it
   });
   // Right-click in an article or chat page: a Copy / Paste menu (the pages have none of their own).
   contents.on('context-menu', (_e, params) => {
     const f = params.editFlags;
     const items = [];
+    // A link in a chat: it can open as a tab in the article area (a click sends it to the system browser).
+    if (isWebUrl(params.linkURL) && chat.isChatContents(contents)) items.push(
+      { label: 'Open in a tab', click: () => openLinkTab(params.linkURL, contents.hostWebContents) },
+      { label: 'Open in browser', click: () => openExternal(params.linkURL) });
     if (params.linkURL) items.push({ label: 'Copy link address', click: () => clipboard.writeText(params.linkURL) });
     if (params.isEditable) items.push({ role: 'cut', enabled: f.canCut }, { role: 'copy', enabled: f.canCopy }, { role: 'paste', enabled: f.canPaste });
     else if (params.selectionText) items.push({ role: 'copy' });
@@ -696,7 +805,7 @@ app.on('web-contents-created', (_e, contents) => {
     const now = performance.now();
     if (now - lastZoomAt < 20) return;
     lastZoomAt = now;
-    send('app:zoom', direction);
+    toHost(contents, 'app:zoom', direction);
   });
   if (chat.isChatContents(contents)) chat.lockDown(contents, openExternal);
   else if (fourchan.isChanContents(contents)) fourchan.lockDown(contents, isWebUrl, (url, background) => send('chan:open', url, background));
@@ -744,19 +853,24 @@ app.on('login', (event, contents, details, authInfo, callback) => {
   callback(decodeURIComponent(login.username), decodeURIComponent(login.password));
 });
 
-app.whenReady().then(() => {
-  store.init(DATA_DIR);
+app.whenReady().then(async () => {
   ui = store.loadUi();
   settings = store.loadSettings();
   log.init(DATA_DIR, settings.LogRetentionCount);
   for (const m of migrated) log.info(`Renamed from the old name: ${m}`);
   log.setDebug(settings.DebugLogging);
   nativeTheme.themeSource = settings.IsDarkTheme ? 'dark' : 'light';
+  if (process.platform === 'linux') {
+    // --password-store=basic asks for Chromium's built-in key instead of a keyring (the tests run this way).
+    if (app.commandLine.getSwitchValue('password-store') === 'basic') safeStorage.setUsePlainTextEncryption(true);
+    log.info(`Keyring: ${safeStorage.getSelectedStorageBackend()}${safeStorage.isEncryptionAvailable() ? '' : ' — nothing can be encrypted, so keys, logins and the Scratchpad are not saved'}`);
+  }
 
   db = database.open(DB_PATH);
   seedSources();
   setupBias();
   setupMarkets();
+  setupPolls();
   secrets.load(DATA_DIR);
   scratchpad.load(DATA_DIR);
 
@@ -765,6 +879,10 @@ app.whenReady().then(() => {
   fourchan.init();
   directSession = session.fromPartition(DIRECT_PARTITION);
   directSession.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
+  directSession.protocol.handle(RTMP_SCHEME, rtmpRequest);
+  // Logins and cookie choices last between launches: session cookies are saved and set again (websession.js).
+  websession.init({ file: path.join(app.getPath('userData'), 'session-cookies.bin'), partitions: [ARTICLE_PARTITION, chat.CHAT_PARTITION, fourchan.CHAN_PARTITION] });
+  const sessionsRestored = websession.restore().catch(e => log.warn(`Site sessions not restored: ${e.message}`));
   const blockStats = blocker.install(articles);
   blocker.loadLists(path.join(DATA_DIR, 'adblock-lists.bin'));        // EasyList etc., in the background
   setInterval(() => { if (blockStats.blocked) log.debug(`Ad/tracker requests blocked so far: ${blockStats.blocked}`); }, 60_000).unref();
@@ -799,19 +917,45 @@ app.whenReady().then(() => {
   });
 
   Menu.setApplicationMenu(null);
+  popout.init({
+    preload: path.join(__dirname, 'preload.js'),
+    page: path.join(__dirname, '..', 'renderer', 'popout.html'),
+    offscreen: OFFSCREEN,
+    guard: guardWebviews,
+    openExternal,
+    getUi: () => ui,
+    updateUi,
+    settings: () => settings,
+    notify: key => send('popout:closed', key),
+  });
   registerIpc();
+  await sessionsRestored;                                   // before any page loads
   createWindow();
 });
 
 app.on('render-process-gone', (_e, contents, details) =>
   log.warn(`Renderer gone (${contents.getType()}): ${details.reason}`));
 
+// Site sessions are saved before quitting, whether the window was closed or app.quit() was called.
+let sessionsSaved = false;
+const saveSessions = () => websession.save()
+  .catch(e => log.warn(`Site sessions not saved: ${e.message}`))
+  .finally(() => { sessionsSaved = true; });
+app.on('before-quit', e => {
+  popout.setQuitting();                                     // windows closing now stay popped out for the next start
+  if (sessionsSaved) return;
+  e.preventDefault();
+  saveSessions().then(() => app.quit());
+});
+
 app.on('window-all-closed', () => {
   feedsStopping = true;
   worker?.postMessage({ cmd: 'stop' });
   translator?.kill();
   irc.closeAll();
-  db?.close();
-  log.shutdown();
-  app.quit();
+  saveSessions().then(() => {
+    db?.close();
+    log.shutdown();
+    app.quit();
+  });
 });

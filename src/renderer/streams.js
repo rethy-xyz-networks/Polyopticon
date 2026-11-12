@@ -1,5 +1,6 @@
 // Live streams for the split under the chat: Twitch, Kick and YouTube, plus Direct — a link
-// to a video file, played in Chromium's own video player. Pure helpers; the player itself
+// to a video file, played in Chromium's own video player, or an rtmp:// stream, played by the
+// app's own page (rtmp-player.html; main/rtmp.js fetches the stream). Pure helpers; the player itself
 // is in chat.js.
 
 const TWITCH = /^[a-z0-9_]{2,25}$/;
@@ -11,7 +12,7 @@ export const SITES = [
   { id: 'twitch',  label: 'Twitch',  hint: 'Twitch channel: name or link' },
   { id: 'kick',    label: 'Kick',    hint: 'Kick channel: name or link' },
   { id: 'youtube', label: 'YouTube', hint: 'YouTube channel: @handle or link' },
-  { id: 'direct',  label: 'Direct',  hint: 'Video link: https://…/video.mp4' },
+  { id: 'direct',  label: 'Direct',  hint: 'Video link: https://…/video.mp4 or rtmp://…' },
 ];
 
 // The partition direct links play in (main/main.js gives it a memory-only session of its own).
@@ -19,9 +20,22 @@ export const DIRECT_PARTITION = 'direct-video';
 
 const VIDEO_FILE = /\.(mp4|m4v|webm|ogv|ogg|mov|mkv|mp3|m4a|opus|wav|flac)$/i;
 
-/** A direct link as a full http(s) URL; null if it isn't one. */
+// The app's page that plays an rtmp:// stream (main/main.js RTMP_SCHEME).
+const RTMP_PLAYER = 'polyopticon-rtmp://player/';
+const RTMP = /^rtmps?:\/\//i;
+
+/** An rtmp(s)://host/app/stream link, tidied; null if it isn't one. */
+function rtmpUrl(text) {
+  try {
+    const u = new URL(String(text).trim());
+    return /^rtmps?:$/.test(u.protocol) && u.hostname && u.pathname.split('/').filter(Boolean).length >= 2 ? u.href : null;
+  } catch { return null; }
+}
+
+/** A direct link as a full http(s) or rtmp(s) URL; null if it isn't one. */
 function directUrl(text) {
   let t = String(text).trim();
+  if (RTMP.test(t)) return rtmpUrl(t);
   if (!/^https?:\/\//i.test(t)) t = `https://${t}`;
   try {
     const u = new URL(t);
@@ -37,6 +51,7 @@ export function siteOfLink(text) {
   if (t.startsWith('twitch.tv/')) return 'twitch';
   if (t.startsWith('kick.com/')) return 'kick';
   if (t.startsWith('youtube.com/') || t.startsWith('youtu.be/')) return 'youtube';
+  if (RTMP.test(String(text).trim())) return 'direct';
   try { if (VIDEO_FILE.test(new URL(directUrl(text)).pathname)) return 'direct'; } catch { /* not a link */ }
   return null;
 }
@@ -63,7 +78,7 @@ export function parseStream(site, text) {
 
 /** The page that plays this stream. */
 export function streamUrl(site, name) {
-  if (site === 'direct') return name;              // the file itself: Chromium shows it in its own player
+  if (site === 'direct') return RTMP.test(name) ? `${RTMP_PLAYER}?u=${encodeURIComponent(name)}` : name;   // the file itself: Chromium shows it in its own player
   const n = encodeURIComponent(name);
   if (site === 'kick') return `https://player.kick.com/${n}`;
   if (site === 'youtube') return YT_CHANNEL.test(name) ? `https://www.youtube.com/channel/${n}/live` : `https://www.youtube.com/@${n}/live`;

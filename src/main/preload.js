@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('polyopticon', {
   savePinnedSync: list           => ipcRenderer.sendSync('tabs:pinned-sync', list),
   saveUi:        patch           => ipcRenderer.send('ui:save', patch),
   openExternal:  url             => ipcRenderer.send('shell:open', url),
+  openLinkTab:   url             => ipcRenderer.send('tab:open-link', url),   // as a tab in the main window's article area
   copy:          text            => ipcRenderer.send('clipboard:write', text),
   setState:      (key, val)      => ipcRenderer.send('state:set', key, val),
   log:           (lvl, msg)      => ipcRenderer.send('log', lvl, msg),
@@ -33,6 +34,10 @@ contextBridge.exposeInMainWorld('polyopticon', {
   setMarkets:    symbols         => ipcRenderer.send('markets:set', symbols),
   stopMarkets:   ()              => ipcRenderer.send('markets:stop'),
   lookupMarket:  symbol          => ipcRenderer.invoke('markets:lookup', symbol),
+
+  // Opinion polls
+  getPolls:      (country, force) => ipcRenderer.invoke('polls:get', country, force),
+  pollCountries: ()              => ipcRenderer.invoke('polls:countries'),
 
   // History / snapshots
   history:       opts            => ipcRenderer.invoke('history:list', opts),
@@ -58,6 +63,14 @@ contextBridge.exposeInMainWorld('polyopticon', {
   // IRC chats
   ircConnect:    (id, spec)      => ipcRenderer.invoke('irc:connect', id, spec),
   ircDisconnect: id              => ipcRenderer.send('irc:disconnect', id),
+
+  // Popped-out tabs (main/popout.js)
+  popOut:        spec            => ipcRenderer.invoke('popout:open', spec),
+  closePopout:   key             => ipcRenderer.send('popout:close', key),
+  focusPopout:   key             => ipcRenderer.send('popout:focus', key),
+  popoutSpec:    ()              => ipcRenderer.invoke('popout:spec'),
+  popoutDock:    ()              => ipcRenderer.send('popout:dock'),
+  popoutTitle:   title           => ipcRenderer.send('popout:title', title),
 
   // Scratchpad
   loadScratch:   ()              => ipcRenderer.invoke('scratch:load'),
@@ -86,6 +99,8 @@ contextBridge.exposeInMainWorld('polyopticon', {
   onBiasProgress:   on('bias:progress'),
   onMarketQuotes:   on('markets:quotes'),
   onMarketStatus:   on('markets:status'),
+  onPollData:       on('polls:data'),
+  onPollStatus:     on('polls:status'),
   onAccounts:       on('accounts:changed'),
   onSnapshot:       on('snapshot:saved'),
   onTelegramAsk:    on('telegram:ask'),
@@ -95,4 +110,7 @@ contextBridge.exposeInMainWorld('polyopticon', {
   onZoom:           on('app:zoom'),
   onFullScreen:     on('window:fullscreen'),
   onChanOpen:       on('chan:open'),
+  onLinkOpen:       on('link:open'),
+  onPopoutClosed:   on('popout:closed'),
+  onPopoutTheme:    on('popout:theme'),
 });

@@ -37,11 +37,11 @@ class Enricher {
   /** Sources were added or edited (their group may have changed). */
   sourcesChanged() { this.homes.clear(); }
 
-  /** The matcher's places, counted towards the source's home share. */
-  found(it) {
+  /** The matcher's places, counted towards the source's home share (and a recount in progress, see retag). */
+  found(it, shares = this.recount ? [this.homeShare, this.recount] : [this.homeShare]) {
     const cc = this.homeCc(it.sourceId);
     const places = geotag({ title: it.title, summary: it.summary }, { cc });
-    this.homeShare.record(it.sourceId, cc, places.map(p => placeCc(p[0])));
+    for (const share of shares) share.record(it.sourceId, cc, places.map(p => placeCc(p[0])));
     return places;
   }
 
@@ -103,15 +103,25 @@ class Enricher {
     const started = Date.now();
     const rows = this.store.taggedItems();
     // Counted afresh from every stored story first, so the home fallback below uses the full picture.
-    this.homeShare = new HomeShare();
-    const found = new Map(rows.map(r => [r.id, this.found(r)]));
-    this.saveHomeShare();
+    // The tally in use stays until the new one is complete; stories polled meanwhile count towards both (found).
+    const found = new Map();
+    this.recount = new HomeShare();
     const recent = Date.now() - WINDOW_MS * 1.5;
-    let changed = 0, at = 0;
-    const step = () => {
+    let changed = 0;
+    const inChunks = (fn, then) => {
+      let at = 0;
+      const step = () => {
+        fn(rows.slice(at, at + RETAG_CHUNK));
+        at += RETAG_CHUNK;
+        at < rows.length ? setImmediate(step) : then();
+      };
+      step();
+    };
+    const count = chunk => { for (const r of chunk) found.set(r.id, this.found(r, [this.recount])); };
+    const tag = chunk => {
       const live = [];
       this.store.tx(() => {
-        for (const r of rows.slice(at, at + RETAG_CHUNK)) {
+        for (const r of chunk) {
           const places = this.places(r, found.get(r.id));
           if (JSON.stringify(places) === r.places) continue;
           this.store.setPlaces(r.id, places);
@@ -120,12 +130,15 @@ class Enricher {
         }
       });
       this.emitItems(live);
-      at += RETAG_CHUNK;
-      if (at < rows.length) return setImmediate(step);
-      this.store.setMeta('geotagVersion', GEOTAG_VERSION);
-      this.log.info(`Places re-tagged: ${changed} of ${rows.length} items changed in ${Date.now() - started} ms`);
     };
-    step();
+    inChunks(count, () => {
+      this.homeShare = this.recount; this.recount = null;
+      this.saveHomeShare();
+      inChunks(tag, () => {
+        this.store.setMeta('geotagVersion', GEOTAG_VERSION);
+        this.log.info(`Places re-tagged: ${changed} of ${rows.length} items changed in ${Date.now() - started} ms`);
+      });
+    });
   }
 
   /**

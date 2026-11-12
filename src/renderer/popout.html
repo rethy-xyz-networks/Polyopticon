@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: polyopticon-icon:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Polyopticon</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="popout">
+
+  <!-- A popped-out tab (main/popout.js): a slim bar, then the tab's page or IRC room -->
+  <header class="pane-header pop-bar">
+    <span class="nav-btns" id="pop-nav">
+      <button id="pop-back" class="icon-btn" title="Back (Alt+Left)" aria-label="Back" disabled data-icon="back"></button>
+      <button id="pop-forward" class="icon-btn" title="Forward (Alt+Right)" aria-label="Forward" disabled data-icon="forward"></button>
+    </span>
+    <button id="pop-reload" class="icon-btn" title="Reload (Ctrl+R)" aria-label="Reload" data-icon="reload"></button>
+    <span id="pop-title" class="story-title"></span>
+    <button id="pop-fullscreen" class="icon-btn push-right" title="Full screen (F11)" aria-label="Full screen"><span class="fs-enter" data-icon="fullscreen"></span><span class="fs-leave" data-icon="fullscreen-exit"></span></button>
+    <button id="pop-dock" class="toggle-btn" title="Put this tab back in the main window (Ctrl+W, or close this window)">Return to main window</button>
+  </header>
+  <main id="pop-stage" class="pop-stage"></main>
+
+  <script type="module" src="popout.js"></script>
+</body>
+</html>

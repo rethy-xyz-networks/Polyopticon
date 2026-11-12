@@ -41,6 +41,7 @@ Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, 
     - [Benchmark](#benchmark)
   - [Bias chart](#bias-chart)
   - [Global Markets](#global-markets)
+  - [Opinion Polls](#opinion-polls)
   - [Map](#map)
   - [Other Tabs](#other-tabs)
     - [Telegram Channel](#telegram-channel)
@@ -57,6 +58,7 @@ Everything it uses is free. No paid APIs. Optional accounts (Telegram, Bluesky, 
   - [Resizing](#resizing)
 - [Tabs](#tabs)
   - [Using Tabs](#using-tabs)
+  - [Popping a Tab Out](#popping-a-tab-out)
   - [Pinned Tabs](#pinned-tabs)
   - [Keyboard](#keyboard)
   - [Tab Search](#tab-search)
@@ -95,7 +97,7 @@ Polyopticon has five main areas, known as views, with the [toolbar](#toolbar) ac
 
 - **[Sources & Filters View](#sources--filters-view)**: The sidebar on the left. It picks which outlets and wires (grouped by country) populate the **Article List View** feed, and holds the include / exclude keywords (bottom of the list).
 - **[Article List View](#article-list-view)**: The article list to the right of the **Sources & Filters View**. It displays incoming articles by newest first (Live), or the articles you opened previously (History).
-- **[Article View](#article-view)**: The centre area, where articles and sites open as separate tabs. An article opens by default as a live page, and supports a saved copy or a clean reader view. The map, Scratchpad, 4chan, Telegram pages, a map card's Wikipedia articles and photos, and the shortcut list also open within this view as separate tabs. The [bias chart](#bias-chart), [Global Markets](#global-markets) and the map are not tabs: each replaces the article area while open.
+- **[Article View](#article-view)**: The centre area, where articles and sites open as separate tabs. An article opens by default as a live page, and supports a saved copy or a clean reader view. The map, Scratchpad, 4chan, Telegram pages, a map card's Wikipedia articles and photos, and the shortcut list also open within this view as separate tabs. The [bias chart](#bias-chart), [Global Markets](#global-markets), [Opinion Polls](#opinion-polls) and the map are not tabs: each replaces the article area while open.
 - **[Live Chat View](#live-chat-view)**: Twitch, Kick, destiny.gg and IRC chats, in a column on the right (Ctrl+J).
 - **[Video Player View](#video-player-view)**: Twitch, Kick, YouTube or direct-link streams below the chat, several at once, each with its own volume and mute (Ctrl+V).
 
@@ -117,6 +119,7 @@ The buttons, from left to right:
 - **Telegram**: Opens a [Telegram channel tab](#telegram-channel) within the **Article View**.
 - **Bias chart** (Ctrl+B): Shows or hides the [bias chart](#bias-chart), plotting each news feed's outlet by political lean and reliability.
 - **Global Markets** (Ctrl+G): Shows or hides [Global Markets](#global-markets), live prices in groups of tickers you make.
+- **Opinion polls** (Ctrl+O): Shows or hides [Opinion Polls](#opinion-polls), national voting intention by country.
 - **Settings** (Ctrl+,): Toggles the [Settings](#settings) panel.
 - **Scratchpad**: Opens the [Scratchpad](#scratchpad) tab within the **Article View**.
 - **4chan**: Opens a [4chan /pol/ tab](#4chan) within the **Article View** (optional, hide it in *Settings -> General*).
@@ -347,6 +350,14 @@ The **Global Markets** button (Ctrl+G), next to the bias button, shows a tile pe
 - **Search.** The box in the header filters the tiles by group, name or ticker symbol. **Refresh** reconnects and fetches the prices at once.
 - Exchanges can delay quotes by up to 15 minutes.
 
+### Opinion Polls
+
+The **Opinion polls** button (Ctrl+O), next to Global Markets, shows national voting intention for a country (Canada for now): a tile per party with its polling average and how far it moved in the last 30 days, a chart of the average with every poll as a dot, and the table of polls, newest first, each linked to the firm's own release. Events between polls (by-elections, new leaders) are dashed lines on the chart and rows in the table; the last election is the starting point. **3M / 6M / 1Y / All** sets how far back the chart and table go.
+
+- **Where the polls come from.** No polling firm or agency publishes an open feed of every poll, so the polls come from the table Wikipedia's editors keep for the next election ([Canada's](https://en.wikipedia.org/wiki/Opinion_polling_for_the_next_Canadian_federal_election)), each row citing the firm's release. It is read through the public MediaWiki API: no key, no login. The text is CC BY-SA 4.0, credited in the view.
+- **The average.** Each day's value is a weighted mean of the polls that ended in the 21 days before it: each firm's latest poll counts once (so a weekly tracker doesn't outweigh a monthly poll), and a poll counts less as it ages.
+- **How often.** The page is fetched when the view opens, at most every 30 minutes (Refresh at most once a minute), and saved in `polls/`, so it shows at once and while offline. It polls only while the view is open. A busy answer (`429` / `503`) waits for Retry-After, a block an hour, and a failure is retried by itself, longer each time.
+
 ### Map
 
 <img src="docs/screenshots/map.png">
@@ -440,7 +451,7 @@ Press the **+** button in the stream bar (it works like the chat's), pick a site
 - **Twitch:** a channel name or link.
 - **Kick:** a channel name or link.
 - **YouTube:** an `@handle` or channel ID. Plays that channel's `/live` page, trimmed to just the video.
-- **Direct:** a link to a video or audio file (`.mp4`, `.webm`, `.mp3` and so on), played in the built-in video player on its own in-memory session.
+- **Direct:** a link to a video or audio file (`.mp4`, `.webm`, `.mp3` and so on), played in the built-in video player on its own in-memory session. An `rtmp://` (or `rtmps://`) stream link works here too, e.g. `rtmp://host/app/stream`: the app fetches the stream itself and plays it, and tries again by itself if the stream ends or isn't live yet (H.264 video with AAC or MP3 audio; no logins or encrypted RTMPE).
 
 ### Stream Tabs
 
@@ -466,8 +477,18 @@ The [Article View](#article-view), [Live Chat View](#live-chat-view) and [Video 
 
 - **Click** a tab to switch to it, and **drag** it to reorder.
 - **Close button** or **middle-click** closes a tab.
-- **Right-click a tab** to pin or unpin it, close it, close the other tabs, or close the tabs to its right. Article tabs also have **Open in browser** and **Copy link**.
+- **Right-click a tab** to pin or unpin it, [pop it out](#popping-a-tab-out) into its own window, close it, close the other tabs, or close the tabs to its right. Article tabs also have **Open in browser** and **Copy link**.
 - **Mouse wheel** over a strip scrolls it sideways. Chat and stream strips always scroll this way, and the article strip does when *Settings -> General -> Scrollable tabs* is on.
+
+### Popping a Tab Out
+
+Right-click a tab -> **Pop out** moves it into a window of its own, which you can put anywhere (another monitor, say). It works for article tabs (the live page, the saved page or the reader view, whichever was showing), 4chan, Telegram and Wikipedia tabs, every chat (IRC rooms too) and every stream. The app's own pages (the Map, Political lean, Global Markets, the Scratchpad, the shortcut list) stay in the main window.
+
+- The window shows the same page on the same browser session, so you stay logged in. A slim bar has Back / Forward / Reload, the title, full screen (F11) and **Return to main window**. Ctrl+R, Alt+Left / Right and the zoom keys work there too.
+- The tab leaves its strip while it floats. **Return to main window**, Ctrl+W or closing the window puts it back, selected. A returned chat or stream opens the chat column if it was hidden.
+- Popped-out chats and streams keep running while the chat column is hidden.
+- Opening something that is already popped out brings its window to the front.
+- Tabs floating when you quit float again at the next start, each window where you left it. Closing the main window closes them with it.
 
 ### Pinned Tabs
 
@@ -516,11 +537,12 @@ The **Settings** button (Ctrl+,) opens the panel. Esc or the close button closes
   - *Translation:* the large NLLB model, and Stop all translation.
   - *Live chat:* Twitch and Kick channels, destiny.gg, and IRC rooms (also set from the chat's **+**).
   - *Article viewer:* default page zoom, Reader text width (a readable column, or the full width of the tab) and the screenshot folder.
+  - *Video* (Linux only): decode video on the graphics card instead of the CPU, through VA-API: Intel, AMD and NVIDIA cards and integrated graphics. Each needs its VA-API driver installed: `intel-media-driver` for Intel (`libva-intel-driver` for chips older than Broadwell), Mesa's driver for AMD (part of `mesa` on Arch, `mesa-va-drivers` on Debian and Ubuntu), `libva-nvidia-driver` for NVIDIA. Without one the CPU decodes as before. Takes effect on restart; the session log then lists the formats the card decodes. Windows already does this.
   - *Polling:* the delay between sources at start (takes effect on restart).
   - *Media bias:* how far the [bias lookups](#bias-chart) have got, and **Recheck**.
   - *Logs:* how many session logs to keep, and debug logging.
 - **Sources:** add, edit, enable and disable sources, grouped like the sidebar.
-- **Accounts:** API keys and logins (Telegram, Bluesky, The Guardian, New York Times, NewsAPI), encrypted with Windows DPAPI.
+- **Accounts:** API keys and logins (Telegram, Bluesky, The Guardian, New York Times, NewsAPI), encrypted with Windows DPAPI. On Linux they are encrypted with a key kept in the desktop's keyring (GNOME Keyring, KWallet or any other Secret Service keyring); without one, they can't be saved.
 - **Storage:** how much is saved, how long saved pages are kept, **Open data folder**, **Clear articles** and **Clear models**.
 
 ### Data Folder
@@ -529,12 +551,12 @@ The **Settings** button (Ctrl+,) opens the panel. Esc or the close button closes
 
 Everything the app stores lives outside the repository, in `%LocalAppData%\Polyopticon\`:
 `polyopticon.db` (items, history, saved text, and each feed's bias lookup), `snapshots/` (saved pages), `models/` (translation models),
-`icons/`, `thumbs/`, `logs/`, `accounts.bin` (encrypted keys and sessions), `scratchpad.bin` (the encrypted Scratchpad note), and `settings.json`, `tags.json`,
+`icons/`, `thumbs/`, `logs/`, `polls/` (the last copy of each country's polls), `accounts.bin` (encrypted keys and sessions), `scratchpad.bin` (the encrypted Scratchpad note), and `settings.json`, `tags.json`,
 `ui.json`, `pinned.json` (the open tabs).
 
 The app reopens the way you left it: window size, position and maximised state, pane widths,
-which views are hidden, unticked sources, Live/History (and its scope), the Group / auto-scroll / case toggles, the map and its
-time window, your Global Markets groups, the chat column (`ui.json`), keyword filters (`tags.json`), and the open tabs (`pinned.json`).
+which views are hidden, unticked sources, popped-out tabs and where their windows were, Live/History (and its scope), the Group / auto-scroll / case toggles, the map and its
+time window, your Global Markets groups, the opinion polls' range, the chat column (`ui.json`), keyword filters (`tags.json`), and the open tabs (`pinned.json`).
 
 To run a separate copy with its own data (e.g. for testing), set `POLYOPTICON_DATA_DIR` to another folder
 before `npm start`.
@@ -575,13 +597,16 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
     │   ├── snapshots.js    MHTML + text capture, background capture, retention
     │   ├── bias.js         political-lean lookups (MediaBias News), one per feed, kept in the database
     │   ├── markets.js      live quotes for Global Markets (Yahoo Finance, batched, with back-off)
+    │   ├── polls.js        opinion polls: Wikipedia's poll tables, parsed and cached
     │   ├── favicons.js     site icons, fetched once and cached
     │   ├── thumbs.js       story pictures from feeds, shrunk and cached for a week
     │   ├── chat.js         chat-panel session and webview lock-down
+    │   ├── popout.js       windows for popped-out tabs
     │   ├── irc.js          anonymous, read-only IRC connections for the chat column
     │   ├── fourchan.js     4chan tabs: own session, middle-click -> new tab
     │   ├── websession.js   site logins and cookie choices kept between launches (session cookies)
     │   ├── perfwatch.js    CPU / hang watchdog for the session log
+    │   ├── rtmp.js         RTMP client: an rtmp:// stream as FLV for the stream player
     │   ├── secrets.js      encrypted API keys and sessions (Windows DPAPI)
     │   ├── blocker.js      ad/tracker blocking (host list + EasyList) for article and 4chan tabs
     │   ├── config.js       default sources (seeded on first run, added on upgrade)
@@ -594,9 +619,11 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
         ├── icons.js        the button icons (generated by scripts/build-icons.js)
         ├── telegram.js     parsing Telegram channel names and t.me links for the Telegram button
         ├── streams.js      Twitch / Kick / YouTube stream names, links and player pages for the split
+        ├── rtmp-player.*   the page that plays an rtmp:// stream (with mpegts.js)
         ├── reorder.js      drag-to-reorder for the tab strips (articles, chats)
+        ├── popouts.js      which tabs are popped out; popout.html / popout.js: the page in a pop-out window
         ├── layout.js       showing / hiding the Sources & Filters and Article List views
-        ├── feed.js, history.js, tabs.js, scratchpad.js, map.js, bias.js, markets.js, chat.js, irc.js, sidebar.js, settings.js, sourcesearch.js
+        ├── feed.js, history.js, tabs.js, scratchpad.js, map.js, bias.js, markets.js, polls.js, chat.js, irc.js, sidebar.js, settings.js, sourcesearch.js
         ├── state.js, ui.js, dom.js
         └── assets/         logo, offline world map, icon licence
 ```
@@ -611,11 +638,13 @@ Polyopticon follows the usage policies of the services it requests data from. Wh
 
 The facts and summaries (Wikidata, Wikipedia) are fetched when the map data is built, not by the app.
 
+The opinion polls are one MediaWiki API request per country, with the same User-Agent, at most every 30 minutes and only while that view is open; a busy or blocked answer is waited out as above.
+
 ## Credits
 
 Place data from [GeoNames](https://www.geonames.org/) (CC BY 4.0) and [Natural Earth](https://www.naturalearthdata.com/) (public domain). US county outlines: [US Census Bureau](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html) (public domain). Canada's census divisions: [GADM](https://gadm.org/) (free for non-commercial use; downloaded by the app, not distributed with it). Place facts: [Wikidata](https://www.wikidata.org/) (CC0). Summaries: [Wikipedia](https://en.wikipedia.org/) (CC BY-SA 4.0). Photos: [Wikimedia Commons](https://commons.wikimedia.org/), each under its own licence, credited on its card.
 
-Political-lean ratings: [MediaBias News](https://mediabias.news), republishing AllSides, Ad Fontes Media and Media Bias/Fact Check. Market prices: Yahoo Finance.
+Political-lean ratings: [MediaBias News](https://mediabias.news), republishing AllSides, Ad Fontes Media and Media Bias/Fact Check. Market prices: Yahoo Finance. Opinion polls: [Wikipedia](https://en.wikipedia.org/wiki/Opinion_polling_for_the_next_Canadian_federal_election) (CC BY-SA 4.0), compiled from each polling firm's published results.
 
 Translation models: Helsinki-NLP Opus-MT and Meta NLLB-200, via Transformers.js.
 

@@ -40,6 +40,9 @@
   --tabstrip: #0A0A0A;                          /* behind the tabs; the active tab is --panel-header, like the bar under it */
   --tab-hover: rgba(255, 255, 255, .06);
   --tab-sep: #333333;
+  --shadow-1: 0 4px 14px rgba(0, 0, 0, .35);    /* bars and notices floating over content, a dragged tab */
+  --shadow-2: 0 6px 24px rgba(0, 0, 0, .4);     /* menus, tooltips, cards */
+  --shadow-3: 0 12px 40px rgba(0, 0, 0, .5);    /* the Settings drawer, the lightbox, the tab search */
   color-scheme: dark;
 }
 :root[data-theme="light"] {
@@ -80,6 +83,9 @@
   --tabstrip: #DEE1E6;
   --tab-hover: rgba(0, 0, 0, .06);
   --tab-sep: #A8ADB4;
+  --shadow-1: 0 4px 14px rgba(0, 0, 0, .12);
+  --shadow-2: 0 6px 24px rgba(0, 0, 0, .16);
+  --shadow-3: 0 12px 40px rgba(0, 0, 0, .22);
   color-scheme: light;
 }
 
@@ -102,7 +108,21 @@
   --ctl-h: 26px;                                               /* buttons and inputs */
   --ctl-h-sm: 22px;                                              /* .small buttons */
   --ctl-hover: var(--badge-bg);                                  /* hover fill for flat buttons */
+  --ctl-press: color-mix(in srgb, var(--text) 14%, var(--ctl-hover));   /* a flat button while the mouse is down on it */
   /* --ctl-on / --ctl-on-text (pressed toggles) are per theme, above. */
+
+  /* Motion — every animation takes its time and curve from here. Only opacity and transform move,
+     so nothing lays out again mid-animation; things leave faster than they arrive.
+     --shadow-1/2/3 (how far something floats above the page) are per theme, above. */
+  --dur-fast: 90ms;                                              /* hover, press */
+  --dur: 140ms;                                                  /* menus, add bars, tooltips, cards */
+  --dur-slow: 200ms;                                             /* Settings drawer, lightbox, backdrop */
+  --dur-out: 100ms;                                              /* anything of --dur closing */
+  --ease-out: cubic-bezier(.2, .8, .3, 1);                       /* arriving */
+  --ease-in: cubic-bezier(.7, 0, .8, .2);                        /* leaving */
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; --dur-out: 0ms; }
 }
 
 * { box-sizing: border-box; }
@@ -136,7 +156,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 10px 8px 8px; }
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   height: var(--ctl-h); padding: 0 8px; border: 0; border-radius: var(--radius);
   background: transparent; color: var(--text-2); white-space: nowrap;
-  cursor: pointer; transition: background .12s, color .12s;
+  cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast), filter var(--dur-fast);
 }
 .icon-btn { min-width: var(--ctl-h); padding: 0 6px; font-size: 14px; }
 .toggle-btn { font-size: var(--fs-sm); font-weight: 600; }
@@ -145,6 +165,12 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 10px 8px 8px; }
 }
 .icon-btn.on, .toggle-btn.on { background: var(--ctl-on); color: var(--ctl-on-text); box-shadow: inset 0 -2px 0 var(--accent); }
 .icon-btn.on:hover:not(:disabled), .toggle-btn.on:hover:not(:disabled) { filter: brightness(1.2); }
+/* Mouse down: flat buttons take a stronger fill than hover; filled ones dim */
+.icon-btn:active:not(.on):not(:disabled), .toggle-btn:active:not(.on):not(:disabled), .segmented button:active:not(.on):not(:disabled) {
+  background: var(--ctl-press); color: var(--text);
+}
+.icon-btn.on:active:not(:disabled), .toggle-btn.on:active:not(:disabled),
+.segmented button.on:active:not(:disabled), .primary-btn:active:not(:disabled) { filter: brightness(.88); }
 .icon-btn.small, .toggle-btn.small { height: var(--ctl-h-sm); min-width: var(--ctl-h-sm); padding: 0 6px; font-size: var(--fs-xs); }
 .icon-btn:disabled, .toggle-btn:disabled, .primary-btn:disabled, .segmented button:disabled { opacity: .4; cursor: default; }
 /* Icons (icons.js): Fluent System Icons, sized by the font-size of where they sit, coloured like its text */
@@ -165,11 +191,35 @@ body.article-fs .panes { grid-template-columns: 1fr; }
 .link-btn { background: none; border: 0; padding: 0 4px; color: var(--accent-text); cursor: pointer; font-size: inherit; text-decoration: underline; }
 .link-btn.danger { color: #E05555; }
 
-.segmented { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--ctl-hover); }
+/* One equal column per button, however many there are */
+.segmented { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); background: var(--ctl-hover); }
 .segmented.compact { display: inline-flex; }
 .segmented button { font-size: var(--fs-sm); }
 .segmented.compact button { padding: 0 10px; }       /* same height as the buttons beside it */
 .segmented button.on { background: var(--accent); color: #fff; }
+
+/* Opening and closing */
+/* Everything that pops up animates from here, off the [hidden] attribute (or being added to the page), with no
+   script: @starting-style is where it comes from, [hidden] / .closing where it goes, and `display` waits for
+   the way out to finish (allow-discrete). Only opacity and translate — never scale or size, which the code
+   that places these boxes measures.
+   .pop: slides in from just above (bars, menus, cards). .fade: in place (tooltips, which follow the mouse). */
+.chat-add, .ctx-menu, .field-history, .tab-search, .map-card, .story-notice,
+.map-peek, .bias-tip, .polls-tip, #thumb-preview, .scratch-lightbox {
+  transition: opacity var(--dur) var(--ease-out), translate var(--dur) var(--ease-out), display var(--dur) allow-discrete;
+}
+@starting-style {
+  .chat-add, .ctx-menu, .field-history, .tab-search, .map-card, .story-notice { opacity: 0; translate: 0 -6px; }
+  .map-peek, .bias-tip, .polls-tip, #thumb-preview, .scratch-lightbox { opacity: 0; }
+}
+.chat-add[hidden], .ctx-menu.closing, .map-card[hidden] { opacity: 0; translate: 0 -6px; }
+.story-notice[hidden], .map-peek[hidden], .bias-tip[hidden], .polls-tip[hidden], #thumb-preview[hidden], .scratch-lightbox[hidden] { opacity: 0; }
+.chat-add[hidden], .ctx-menu.closing, .map-card[hidden],
+.map-peek[hidden], .bias-tip[hidden], .polls-tip[hidden], #thumb-preview[hidden], .scratch-lightbox[hidden] {
+  pointer-events: none; transition-duration: var(--dur-out); transition-timing-function: var(--ease-in);
+}
+/* The lightbox is a whole-pane surface: slower, like the Settings drawer */
+.scratch-lightbox { transition-duration: var(--dur-slow); }
 
 button:focus-visible, input:focus-visible, select:focus-visible, .feed-list:focus-visible {
   outline: 2px solid var(--accent); outline-offset: -2px;
@@ -214,16 +264,25 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus { border-colo
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Pane layout */
+/* Columns: sources | bar | article list | bar | articles [| bar | chat]. A hidden view (layout.js) keeps
+   its place in the grid with a zero-width column, so its pages and scroll positions survive. */
 .panes {
+  --t-side: var(--w-sidebar) 4px;
+  --t-feed: var(--w-feed);
+  --t-story: 4px minmax(260px, 1fr);
+  --t-chat: 0px 0px;
   flex: 1; min-height: 0; display: grid;
-  grid-template-columns: var(--w-sidebar) 4px var(--w-feed) 4px minmax(260px, 1fr);
+  grid-template-columns: var(--t-side) var(--t-feed) var(--t-story) var(--t-chat);
 }
+.panes.no-sidebar { --t-side: 0px 0px; }
+.panes.no-list { --t-feed: 0px; --t-story: 0px minmax(260px, 1fr); }
+.panes.no-sidebar > .sidebar, .panes.no-sidebar > .splitter[data-col="1"],
+.panes.no-list > .feed, .panes.no-list > .splitter[data-col="3"] { visibility: hidden; overflow: hidden; pointer-events: none; }
 .pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-bg); }
 .pane-header {
   flex: 0 0 auto; display: flex; align-items: center; gap: 8px; min-height: var(--tab-h);
   padding: 0 12px; background: var(--panel-header); border-bottom: 1px solid var(--border);
 }
-.pane-title { font-size: var(--fs-lg); font-weight: 600; }
 .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; }
 .splitter { background: var(--splitter); cursor: col-resize; transition: background .15s; }
 .splitter:hover, .splitter.dragging { background: var(--accent); }
@@ -304,9 +363,8 @@ body.no-badges .item .badge { display: none; }
 #thumb-preview {
   position: fixed; z-index: 1000; pointer-events: none; max-width: min(360px, 45vw); max-height: 60vh; width: auto; height: auto;
   object-fit: contain; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+  box-shadow: var(--shadow-2);
 }
-#thumb-preview[hidden] { display: none; }
 .item .thumb { grid-column: 1; grid-row: 1 / span 3; width: var(--thumb-w); aspect-ratio: 3 / 2; height: auto; object-fit: cover; border-radius: var(--radius); background: var(--card); }
 .feed-empty { flex: 1; display: grid; place-items: center; color: var(--text-2); padding: 24px; text-align: center; }
 
@@ -374,15 +432,15 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 /* Settings overlay */
 /* Settings sits above every pane (incl. the map); only context menus (1000+) go higher. */
 .overlay { position: fixed; inset: 44px 0 0 0; z-index: 900; }
-.backdrop { position: absolute; inset: 0; background: var(--backdrop); opacity: 0; transition: opacity .2s; }
+.backdrop { position: absolute; inset: 0; background: var(--backdrop); opacity: 0; transition: opacity var(--dur-slow); }
 .settings-panel {
   position: absolute; top: 0; right: 0; bottom: 0; width: 470px; max-width: 100%;
   display: flex; flex-direction: column;
   background: var(--panel-bg); border-left: 1px solid var(--border);
-  transform: translateX(100%); transition: transform .2s cubic-bezier(.2, .8, .3, 1);
+  transform: translateX(100%); transition: transform var(--dur-slow) var(--ease-out);
 }
 .overlay.open .backdrop { opacity: 1; }
-.overlay.open .settings-panel { transform: none; }
+.overlay.open .settings-panel { transform: none; box-shadow: var(--shadow-3); }
 .settings-panel .close { margin-left: auto; width: 28px; min-width: 0; font-size: 16px; color: var(--text-2); }
 .settings-body { padding: 4px 16px 24px; }
 .settings-body h3 {
@@ -446,6 +504,7 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .settings-tabs button {
   background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px;
   color: var(--text-2); font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
 }
 .settings-tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 .settings-tabs button:hover:not(.on) { color: var(--text); }
@@ -545,7 +604,10 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .story.bias-open .help-view, .story.bias-open .scratch-view,
 .story.markets-open .infobar, .story.markets-open .story-notice, .story.markets-open .webviews,
 .story.markets-open .fallback, .story.markets-open .story-empty, .story.markets-open .load-bar,
-.story.markets-open .help-view, .story.markets-open .scratch-view { display: none !important; }
+.story.markets-open .help-view, .story.markets-open .scratch-view,
+.story.polls-open .infobar, .story.polls-open .story-notice, .story.polls-open .webviews,
+.story.polls-open .fallback, .story.polls-open .story-empty, .story.polls-open .load-bar,
+.story.polls-open .help-view, .story.polls-open .scratch-view { display: none !important; }
 #map-canvas { position: absolute; inset: 0; background: var(--map-ocean); }
 .map-toolbar { position: absolute; top: 10px; left: 56px; z-index: 500; display: flex; gap: 10px; align-items: center;
   padding: 4px 8px; border-radius: var(--radius); background: color-mix(in srgb, var(--panel-bg) 88%, transparent); border: 1px solid var(--border); }
@@ -568,7 +630,7 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .bias-view { position: absolute; inset: 0; display: none; flex-direction: column; background: var(--panel-bg); z-index: 0; }
 .story.bias-open .bias-view { display: flex; }
 .bias-head { flex: none; padding: 10px 16px 0; font-size: var(--fs-lg); }
-.bias-chart { flex: 1 1 auto; min-height: 0; position: relative; font-size: var(--fs-sm); }
+.bias-chart { flex: 1 1 auto; min-height: 0; position: relative; font-size: var(--fs-sm); overflow: hidden auto; }
 .bias-chart svg { display: block; }
 .bias-wash-left  { stop-color: #3b78c4; stop-opacity: .22; }
 .bias-wash-mid   { stop-color: #8a8f98; stop-opacity: .05; }
@@ -577,18 +639,20 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .bias-axis { stroke: var(--text-2); stroke-width: 1; opacity: .55; }
 .bias-tick { fill: var(--text-2); font-size: inherit; }
 .bias-side { fill: var(--text-2); font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
-.bias-name { fill: var(--text); font-size: inherit; pointer-events: none; paint-order: stroke; stroke: var(--panel-bg); stroke-width: 3px; stroke-linejoin: round; }
+.bias-name { fill: var(--text); font-size: inherit; cursor: pointer; paint-order: stroke; stroke: var(--panel-bg); stroke-width: 3px; stroke-linejoin: round; }
 .bias-dot { cursor: pointer; outline: none; }
 .bias-dot circle { stroke: var(--map-pin-edge); stroke-width: 1.2; }
-.bias-dot:hover circle, .bias-dot:focus-visible circle { stroke: var(--text); stroke-width: 2.5; }
+.bias-name.hot { text-decoration: underline; }
+.bias-leader { stroke: var(--text-2); stroke-width: 1; opacity: .5; pointer-events: none; }
+.bias-leader.hot { stroke: var(--text); opacity: 1; stroke-width: 1.5; }
+.bias-dot:hover circle, .bias-dot.hot circle, .bias-dot:focus-visible circle { stroke: var(--text); stroke-width: 2.5; }
 .bias-unrated { flex: none; padding: 0 16px; font-size: var(--fs-sm); color: var(--text-2); display: flex; flex-direction: column; gap: 3px; }
 .bias-unrated:not(:empty) { padding-bottom: 6px; }
 .bias-chip { display: inline-block; margin: 0 4px 2px 0; padding: 0 6px; background: var(--badge-bg); color: var(--text); cursor: help; }
 .bias-foot { flex: none; padding: 6px 16px 8px; font-size: var(--fs-xs); color: var(--text-2); border-top: 1px solid var(--border); }
 .bias-foot a { color: var(--accent-text); }
 .bias-tip { position: absolute; z-index: 5; width: 250px; padding: 8px 10px; pointer-events: none; font-size: var(--fs-sm);
-  background: var(--panel-header); border: 1px solid var(--border); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
-.bias-tip[hidden] { display: none; }
+  background: var(--panel-header); border: 1px solid var(--border); box-shadow: var(--shadow-2); }
 .bias-tip-name { font-weight: 700; font-size: var(--fs-md); }
 .bias-tip-h { margin-top: 6px; font-weight: 600; }
 .bias-rater { display: flex; justify-content: space-between; gap: 10px; color: var(--text-2); }
@@ -639,7 +703,7 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .markets-groups.moving, .markets-groups.moving .mk-tile { cursor: grabbing; user-select: none; }
 .markets-groups.moving .mk-remove { display: none; }
 .mk-tile.dragging { pointer-events: none; opacity: .35; }
-.mk-ghost { position: fixed; left: 0; top: 0; z-index: 10; margin: 0; pointer-events: none; opacity: .92; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); cursor: grabbing; }
+.mk-ghost { position: fixed; left: 0; top: 0; z-index: 10; margin: 0; pointer-events: none; opacity: .92; box-shadow: var(--shadow-2); cursor: grabbing; }
 .mk-add { display: flex; flex-direction: column; justify-content: center; background: transparent; border-style: dashed; border-left-width: 1px; }
 .mk-add-btn { background: none; border: 0; color: var(--text-2); cursor: pointer; font: inherit; font-size: var(--fs-md); height: 100%; min-height: 60px; }
 .mk-add-btn:hover { color: var(--text); }
@@ -652,10 +716,10 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 /* Hover label and place card (map-card.js) */
 #map-canvas.pointing { cursor: pointer; }
 .map-peek { position: absolute; z-index: 800; pointer-events: none; padding: 4px 8px; font-size: var(--fs-sm); white-space: nowrap;
-  background: var(--panel-bg); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0,0,0,.35); display: flex; gap: 6px; align-items: baseline; }
+  background: var(--panel-bg); border: 1px solid var(--border); box-shadow: var(--shadow-2); display: flex; gap: 6px; align-items: baseline; }
 .map-peek .mc-sep, .map-peek .mc-muted { color: var(--text-2); }
 .map-card { position: absolute; z-index: 900; width: min(580px, calc(100% - 16px)); max-height: calc(100% - 16px); overflow-y: auto;
-  background: var(--panel-bg); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0,0,0,.35); font-size: var(--fs-md); }
+  background: var(--panel-bg); border: 1px solid var(--border); box-shadow: var(--shadow-2); font-size: var(--fs-md); }
 .map-card.wide { width: min(860px, calc(100% - 16px)); }
 .map-card.wider { width: min(1100px, calc(100% - 16px)); }
 .map-card.dragging { opacity: .92; }
@@ -721,7 +785,7 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .leaflet-tooltip { white-space: normal; width: max-content; overflow-wrap: anywhere; }
 .leaflet-tooltip-top::before, .leaflet-tooltip-bottom::before { left: calc(50% - var(--tip-shift, 0px)); }
 .leaflet-tooltip-bottom::before { border-bottom-color: var(--border); }
-.map-popup .leaflet-popup-content-wrapper, .map-popup .leaflet-popup-tip { background: var(--panel-bg); color: var(--text); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.map-popup .leaflet-popup-content-wrapper, .map-popup .leaflet-popup-tip { background: var(--panel-bg); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow-2); }
 .map-popup .leaflet-popup-content { margin: 10px 12px; font-size: var(--fs-md); }
 .map-popup a.leaflet-popup-close-button { color: var(--text-2); }
 .map-pop-head { margin-bottom: 6px; }
@@ -743,9 +807,8 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 /* A new Telegram tab: the channel field sits where the title would be */
 .tg-draft { flex: 1; min-width: 0; display: flex; gap: 6px; }
 .tg-draft[hidden] { display: none; }
-.tg-draft input { flex: 1; min-width: 0; height: 26px; }
+.tg-draft input { flex: 1; min-width: 0; }
 .tg-draft input.invalid { border-color: var(--accent); }
-.tg-draft .toggle-btn.small { height: var(--ctl-h); }
 
 /* Tab pinning & reordering */
 .tab { user-select: none; touch-action: none; }
@@ -754,7 +817,7 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .tabs.reordering .tab { cursor: grabbing; }
 .tab.dragging {
   z-index: 2; background: var(--panel-header); color: var(--text);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, .35); opacity: .96;
+  box-shadow: var(--shadow-1); opacity: .96;
 }
 .pin-btn:not(.on) { filter: grayscale(1); opacity: .6; }   /* unpinned: a faded pin */
 
@@ -762,7 +825,7 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .ctx-menu {
   position: fixed; z-index: 1000; min-width: 190px; padding: 4px 0;
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, .35); font-size: var(--fs-sm);
+  box-shadow: var(--shadow-2); font-size: var(--fs-sm);
 }
 .ctx-menu button {
   display: flex; width: 100%; padding: 6px 14px; gap: 16px; border: 0; background: none;
@@ -777,7 +840,7 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .field-history {
   position: fixed; z-index: 1000; max-height: 240px; overflow-y: auto; padding: 4px 0;
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, .35); font-size: var(--fs-sm);
+  box-shadow: var(--shadow-2); font-size: var(--fs-sm);
 }
 .field-history .fh-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; color: var(--text); cursor: pointer; }
 .field-history .fh-row:hover, .field-history .fh-row.on { background: var(--card-hover); }
@@ -811,7 +874,7 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 
 /* Live chat column */
 :root { --w-chat: 340px; }
-.panes.chat-open { grid-template-columns: var(--w-sidebar) 4px var(--w-feed) 4px minmax(260px, 1fr) 4px var(--w-chat); }
+.panes.chat-open { --t-chat: 4px var(--w-chat); }
 .panes:not(.chat-open) .chat-splitter, .panes:not(.chat-open) .chat { display: none; }
 .field input[type="text"] { grid-column: 1 / -1; }
 .chat-head { padding: 0 6px 0 0; gap: 4px; }
@@ -836,6 +899,7 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .irc-line:hover { background: var(--card-hover); }
 .irc-time { color: var(--text-2); font-size: var(--fs-xs); margin-right: 6px; font-variant-numeric: tabular-nums; }
 .irc-nick { font-weight: 600; margin-right: 6px; }
+.irc-link { color: var(--accent-text); }
 .irc-line.action .irc-text { font-style: italic; }
 .irc-line.notice .irc-text, .irc-line.sys, .irc-line.event { color: var(--text-2); }
 .irc-line.event { font-size: var(--fs-xs); }
@@ -848,11 +912,19 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 .chat-add { display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel-header); }
 .chat-types, .chat-add-form { display: flex; gap: 6px; }
 .chat-add-form[hidden] { display: none; }
-.chat-add[hidden] { display: none; }
-.chat-add input { flex: 1; min-width: 0; height: 26px; }
+.chat-add input { flex: 1; min-width: 0; }
 .chat-add input.invalid { border-color: var(--accent); }
-.chat-add .toggle-btn.small { height: var(--ctl-h); }
-#chat-add-btn, #video-add-btn { font-size: 14px; }
+/* The bar floats over the top of the chat / stream under its header and slides down (.pop, below): the page
+   under it is never resized, which would make a live video or chat lay itself out again. With nothing under
+   it yet (.inline: no chats, no stream loaded) it sits in the layout instead, above the hint. */
+.chat, .video-pane { position: relative; }
+.chat-add:not(.inline) { position: absolute; top: var(--tab-h); left: 0; right: 0; z-index: 3; box-shadow: var(--shadow-1); }
+.chat-add.inline { transition: none; }
+/* The second row arrives with a fade (the row it replaces just goes, or both would show for a moment) */
+.chat-add-form { transition: opacity var(--dur) var(--ease-out); }
+@starting-style { .chat-add-form { opacity: 0; } }
+/* One icon size along the chat and stream headers */
+.chat-head .icon-btn.small { font-size: 13px; }
 
 /* Source chips in the search bar (right-click a source to add) */
 .search-bar { flex-wrap: wrap; }
@@ -998,8 +1070,7 @@ body.resizing-corner webview { pointer-events: none; }
 .scratch-status.ok { color: var(--live-dot); }
 .scratch-status.err { color: var(--accent-text); }
 .scratch-lightbox { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--backdrop); padding: 24px; overflow: hidden; touch-action: none; }
-.scratch-lightbox[hidden] { display: none; }
-.scratch-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; will-change: transform; }
+.scratch-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; will-change: transform; box-shadow: var(--shadow-3); }
 .scratch-lightbox-close { position: absolute; top: 10px; right: 10px; border: 1px solid var(--border); background: var(--panel-header); color: var(--text); border-radius: var(--radius); padding: 4px 8px; cursor: pointer; }
 .scratch-lightbox-hint { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; color: var(--text); font-size: var(--fs-sm); text-shadow: 0 1px 3px var(--window-bg); pointer-events: none; }
 
@@ -1007,7 +1078,7 @@ body.resizing-corner webview { pointer-events: none; }
 .tab-search {
   position: fixed; z-index: 1000; display: flex; flex-direction: column; gap: 6px; padding: 8px;
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, .4); font-size: var(--fs-md);
+  box-shadow: var(--shadow-3); font-size: var(--fs-md);
 }
 .tab-search-head { font-size: var(--fs-sm); }
 .tab-search-input { width: 100%; box-sizing: border-box; }
@@ -1024,3 +1095,80 @@ body.resizing-corner webview { pointer-events: none; }
 .tab-search-list .close { flex-shrink: 0; font-size: 9px; opacity: 0; }
 .tab-search-list li:hover .close, .tab-search-list li.on .close { opacity: .7; }
 .tab-search-hint { font-size: var(--fs-xs); }
+
+/* A popped-out tab's window (popout.html) */
+body.popout .pop-bar { gap: 6px; padding: 0 8px; }
+body.popout .pop-bar .story-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.popout .pop-bar .nav-btns { display: inline-flex; }
+.pop-stage { position: relative; flex: 1; min-height: 0; background: var(--panel-bg); }
+.pop-stage webview { position: absolute; inset: 0; width: 100%; height: 100%; }
+#pop-fullscreen .fs-leave, #pop-fullscreen.on .fs-enter { display: none; }
+#pop-fullscreen.on .fs-leave { display: block; }
+body.popout.pop-fs .pop-bar { display: none; }
+
+/* Opinion polls (polls.js). Party colours are each party's own, stepped per theme so that neighbours stay apart
+   for colour-blind readers and against the panel (checked with a palette validator); the lines are labelled at
+   their ends and the table repeats every number, so no colour has to be told apart on its own. */
+.polls-view {
+  --party-ca-LPC: #E8434A; --party-ca-CPC: #5274E8; --party-ca-BQ: #1A9DB2; --party-ca-NDP: #D27A28;
+  --party-ca-GPC: #1D7434; --party-ca-PPC: #9B72E0; --party-ca-Others: #8A8A8A;
+  position: absolute; inset: 0; display: none; flex-direction: column; background: var(--panel-bg); z-index: 0;
+}
+:root[data-theme="light"] .polls-view {
+  --party-ca-LPC: #D02B32; --party-ca-CPC: #244F9E; --party-ca-BQ: #2AA4C4; --party-ca-NDP: #E07A20;
+  --party-ca-GPC: #236E35; --party-ca-PPC: #7046B8; --party-ca-Others: #7A7A7A;
+}
+.story.polls-open .polls-view { display: flex; }
+.polls-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: var(--fs-lg); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.polls-head .muted { font-size: var(--fs-sm); }
+#polls-status[data-state="limited"], #polls-status[data-state="error"] { color: var(--accent-text); }
+.polls-country { font-size: var(--fs-sm); }
+.polls-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.polls-empty { padding: 24px 16px; color: var(--text-2); }
+.polls-empty[hidden], .polls-body[hidden], .polls-tip[hidden] { display: none; }
+.polls-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
+.polls-summary { flex: none; padding: 10px 16px 4px; }
+.pl-lead { font-size: var(--fs-md); color: var(--text-2); margin-bottom: 8px; }
+.pl-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+.pl-tile { display: grid; grid-template-columns: 4px auto auto; grid-template-areas: "sw abbr value" "sw full delta"; column-gap: 8px; align-items: baseline;
+  min-width: 150px; padding: 6px 10px 6px 0; background: var(--badge-bg); }
+.pl-swatch { grid-area: sw; align-self: stretch; border-radius: 0 2px 2px 0; }
+.pl-abbr { grid-area: abbr; font-weight: 700; }
+.pl-full { grid-area: full; font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
+.pl-value { grid-area: value; justify-self: end; font-size: calc(var(--fs-lg) * 1.35); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pl-delta { grid-area: delta; justify-self: end; font-size: var(--fs-xs); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.polls-chart-wrap { flex: none; position: relative; height: clamp(220px, 42vh, 460px); margin: 4px 0; }
+.polls-chart { position: absolute; inset: 0; font-size: var(--fs-sm); }
+.polls-chart svg { display: block; }
+.pl-grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 4; }
+.pl-axis, .pl-mtick { stroke: var(--text-2); stroke-width: 1; opacity: .55; }
+.pl-tick { fill: var(--text-2); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.pl-dot { opacity: .32; }
+.pl-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.pl-end text { fill: var(--text); font-size: var(--fs-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pl-end circle, .pl-elect { stroke: var(--panel-bg); stroke-width: 2; }
+.pl-event-mark line { stroke: var(--text-2); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.pl-event-mark { cursor: help; }
+.pl-event-mark:hover line { opacity: 1; stroke: var(--text); }
+#polls-cross line { stroke: var(--text-2); stroke-width: 1; pointer-events: none; }
+.polls-tip { position: absolute; z-index: 5; min-width: 200px; max-width: 300px; padding: 8px 10px; pointer-events: none; font-size: var(--fs-sm);
+  background: var(--panel-header); border: 1px solid var(--border); box-shadow: var(--shadow-2); }
+.pl-tip-date { font-weight: 700; margin-bottom: 4px; }
+.pl-tip-row { display: grid; grid-template-columns: 10px 1fr auto; gap: 6px; align-items: center; }
+.pl-tip-row b { font-variant-numeric: tabular-nums; }
+.pl-tip-n, .pl-tip-poll { margin-top: 4px; color: var(--text-2); font-size: var(--fs-xs); }
+.pl-tip-poll { margin-top: 2px; }
+.pl-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.polls-table { flex: none; padding: 4px 16px 12px; }
+.polls-table table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.polls-table th { position: sticky; top: 0; background: var(--panel-bg); text-align: left; font-weight: 600; color: var(--text-2); padding: 4px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.polls-table td { padding: 3px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.polls-table .pl-num { text-align: right; font-variant-numeric: tabular-nums; }
+.polls-table .pl-top { font-weight: 700; }
+.polls-table .pl-firm { white-space: normal; }
+.polls-table a { color: var(--accent-text); }
+.pl-event td { white-space: normal; color: var(--text-2); font-style: italic; }
+.pl-event b { font-style: normal; font-weight: 600; }
+.pl-election td { background: var(--badge-bg); font-style: italic; }
+.polls-foot { flex: none; padding: 6px 16px 8px; font-size: var(--fs-xs); color: var(--text-2); border-top: 1px solid var(--border); }
+.polls-foot a { color: var(--accent-text); }

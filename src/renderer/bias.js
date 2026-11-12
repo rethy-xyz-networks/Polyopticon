@@ -4,10 +4,11 @@
 // Positions come from the lookup in the main process (src/main/bias.js): x is the mean of the
 // raters' verdicts (-2 left … 2 right), y the mean of their factuality ratings (1 low … 4 very high).
 // Feeds of one outlet (five SCMP feeds) are one dot. Outlets with no rating, and feeds no outlet was
-// found for, are listed below the chart.
+// found for, are listed below the chart. Every dot is named (bias-layout.js places the names).
 
 import { api, $, h } from './dom.js';
 import { state } from './state.js';
+import { spread, placeLabels } from './bias-layout.js';
 
 const X_MIN = -2.45, X_MAX = 2.45;                // a little beyond Left and Right, so their dots aren't on the edge
 const Y_MIN = 0.55, Y_MAX = 4.45;
@@ -16,6 +17,7 @@ const Y_TICKS = [[4, 'Very high'], [3, 'High'], [2, 'Mixed'], [1, 'Low']];
 const MARGIN = { top: 12, right: 18, bottom: 30, left: 74 };
 const NO_FACT_H = 46;                             // the band below the chart for outlets with no factuality rating
 const DOT = 7;
+const GROW = 0.25, GROW_MAX = 8;                   // when the names don't all fit, the chart grows taller by a quarter at a time and scrolls
 const AXIS_TITLE = 'Reliability ▲';
 
 const LEAN = { left: 'Left', leanLeft: 'Lean left', center: 'Center', centre: 'Center', leanRight: 'Lean right', right: 'Right' };
@@ -40,6 +42,7 @@ export function initBias() {
   document.addEventListener('story:view', e => (e.detail === 'bias' ? openBias() : closeBias()));   // its tab was selected, or another
   new ResizeObserver(() => { if (open) drawSoon(); }).observe($('bias-chart'));
   $('bias-chart').addEventListener('pointerleave', hideTip);
+  $('bias-chart').addEventListener('scroll', hideTip);
 }
 
 function openBias() {
@@ -96,67 +99,38 @@ const textWidth = (text, font) => {
   return measure.measureText(text).width;
 };
 
-/** Dots at the same spot fan out along a spiral until they don't overlap. */
-function spread(dots, r) {
-  const placed = [];
-  const gap = (2 * r + 1.5) ** 2;
-  for (const d of dots) {
-    d.cx = d.px; d.cy = d.py;
-    for (let k = 0; k < 400; k++) {
-      const a = k * 2.39996, dist = k ? r * 1.15 * Math.sqrt(k) : 0;
-      const x = d.px + dist * Math.cos(a), y = d.py + dist * Math.sin(a);
-      if (placed.every(q => (q.cx - x) ** 2 + (q.cy - y) ** 2 >= gap)) { d.cx = x; d.cy = y; break; }
-    }
-    placed.push(d);
-  }
-}
-
-/** Names beside the dots, where there is room; the others show on hover. */
-function placeLabels(dots, box, font) {
-  const taken = dots.map(d => ({ x: d.cx - DOT, y: d.cy - DOT, w: 2 * DOT, h: 2 * DOT }));
-  const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-  for (const d of [...dots].sort((a, b) => b.outlet.stories - a.outlet.stories)) {
-    const w = textWidth(d.name, font) + 4, hgt = 14;
-    const spots = [
-      { x: d.cx + DOT + 3, y: d.cy - hgt / 2, anchor: 'start' },
-      { x: d.cx - DOT - 3 - w, y: d.cy - hgt / 2, anchor: 'end' },
-      { x: d.cx - w / 2, y: d.cy - DOT - hgt - 1, anchor: 'middle' },
-      { x: d.cx - w / 2, y: d.cy + DOT + 1, anchor: 'middle' },
-    ];
-    for (const s of spots) {
-      const r = { x: s.x, y: s.y, w, h: hgt };
-      if (r.x < box.x || r.x + r.w > box.x + box.w || r.y < box.y || r.y + r.h > box.y + box.h) continue;
-      if (taken.some(t => hit(r, t))) continue;
-      taken.push(r);
-      d.label = { x: s.anchor === 'start' ? r.x + 2 : s.anchor === 'end' ? r.x + r.w - 2 : r.x + r.w / 2, y: r.y + hgt - 3, anchor: s.anchor };
-      break;
-    }
-  }
-}
-
 function draw() {
   if (!open) return;
   const host = $('bias-chart');
-  const W = host.clientWidth, H = host.clientHeight;
-  if (W < 120 || H < 120) return;
+  const W = host.clientWidth, baseH = host.clientHeight;
+  if (W < 120 || baseH < 120) return;
 
   const { dots, unrated, unknown, pending } = collect();
   const noFact = dots.some(d => d.outlet.y == null);
   const cs = getComputedStyle(host);
   const font = `${cs.fontSize} ${cs.fontFamily}`;                     // what the names and ticks are drawn in (they inherit it)
+  const lineH = Math.max(14, Math.ceil(parseFloat(cs.fontSize)) + 3);
   // The left margin holds the reliability labels, which grow with the font size setting.
   const left = Math.ceil(Math.max(...[...Y_TICKS.map(t => t[1]), 'Not rated', AXIS_TITLE].map(t => textWidth(t, font)))) + 16;
-  const plot = { x: Math.max(MARGIN.left, left), y: MARGIN.top, w: W - Math.max(MARGIN.left, left) - MARGIN.right, h: H - MARGIN.top - MARGIN.bottom - (noFact ? NO_FACT_H : 0) };
-  const px = x => plot.x + (x - X_MIN) / (X_MAX - X_MIN) * plot.w;
-  const py = y => plot.y + (Y_MAX - y) / (Y_MAX - Y_MIN) * plot.h;
-  const bandY = plot.y + plot.h + NO_FACT_H / 2 + 2;
 
-  const items = dots.map(d => ({
-    ...d, name: d.outlet.name,
-    px: px(d.outlet.x), py: d.outlet.y == null ? bandY : py(d.outlet.y),
-  })).sort((a, b) => a.py - b.py || a.px - b.px);
-  spread(items, DOT);
-  placeLabels(items, { x: plot.x, y: plot.y, w: plot.w, h: plot.h + (noFact ? NO_FACT_H : 0) }, font);
+  // Laid out at the height of the view; if a name finds no place, again on a taller chart (which then scrolls).
+  let H, plot, px, py, bandY, items;
+  for (let k = 0; ; k++) {
+    H = Math.round(baseH * (1 + GROW * k));
+    plot = { x: Math.max(MARGIN.left, left), y: MARGIN.top, w: W - Math.max(MARGIN.left, left) - MARGIN.right, h: H - MARGIN.top - MARGIN.bottom - (noFact ? NO_FACT_H : 0) };
+    const p = plot;
+    px = x => p.x + (x - X_MIN) / (X_MAX - X_MIN) * p.w;
+    py = y => p.y + (Y_MAX - y) / (Y_MAX - Y_MIN) * p.h;
+    bandY = plot.y + plot.h + NO_FACT_H / 2 + 2;
+    items = dots.map(d => ({
+      ...d, name: d.outlet.name,
+      px: px(d.outlet.x), py: d.outlet.y == null ? bandY : py(d.outlet.y),
+    })).sort((a, b) => a.py - b.py || a.px - b.px);
+    spread(items, DOT);
+    const last = k >= GROW_MAX;
+    const missing = placeLabels(items, { x: plot.x, y: plot.y, w: plot.w, h: plot.h + (noFact ? NO_FACT_H : 0) }, DOT, t => textWidth(t, font), lineH, { force: last });
+    if (!missing || last) break;
+  }
 
   const grid = [
     ...X_TICKS.map(([v, t]) => svg('g', {},
@@ -172,24 +146,37 @@ function draw() {
     svg('text', { class: 'bias-side bias-side-right', x: plot.x + plot.w - 8, y: plot.y + 16, 'text-anchor': 'end' }, 'Right ▶'),
   ];
 
-  const marks = items.map(d => {
+  // A dot, its name and the line between them light up together; the name works like the dot.
+  const leaders = [], marks = [], names = [];
+  for (const d of items) {
     const g = svg('g', { class: 'bias-dot', tabindex: 0, role: 'img', 'aria-label': ariaFor(d), transform: `translate(${d.cx.toFixed(1)} ${d.cy.toFixed(1)})` },
       svg('circle', { r: DOT, fill: d.feeds[0].color || '#4A4A4A' }));
-    g.addEventListener('pointerenter', () => showTip(d, g));
-    g.addEventListener('focus', () => showTip(d, g));
-    g.addEventListener('blur', hideTip);
-    g.addEventListener('click', () => api.openExternal(d.outlet.url));
-    g.addEventListener('keydown', e => { if (e.key === 'Enter') api.openExternal(d.outlet.url); });
-    return g;
-  });
-  const names = items.filter(d => d.label).map(d =>
-    svg('text', { class: 'bias-name', x: d.label.x.toFixed(1), y: d.label.y.toFixed(1), 'text-anchor': d.label.anchor }, d.name));
+    const l = d.leader, q = d.label;
+    const line = l && svg('line', { class: 'bias-leader', x1: l.x1.toFixed(1), y1: l.y1.toFixed(1), x2: l.x2.toFixed(1), y2: l.y2.toFixed(1) });
+    const name = q && svg('text', { class: 'bias-name', x: (q.x + 2).toFixed(1), y: (q.y + q.h - 3).toFixed(1), 'aria-hidden': 'true' }, d.name);
+    const parts = [g, line, name].filter(Boolean);
+    const show = () => { showTip(d, g); for (const el of parts) el.classList.add('hot'); };
+    const hide = () => { hideTip(); for (const el of parts) el.classList.remove('hot'); };
+    const visit = () => api.openExternal(d.outlet.url);
+    for (const el of [g, name]) {
+      if (!el) continue;
+      el.addEventListener('pointerenter', show);
+      el.addEventListener('pointerleave', hide);
+      el.addEventListener('click', visit);
+    }
+    g.addEventListener('focus', show);
+    g.addEventListener('blur', hide);
+    g.addEventListener('keydown', e => { if (e.key === 'Enter') visit(); });
+    marks.push(g);
+    if (line) leaders.push(line);
+    if (name) names.push(name);
+  }
 
   const chart = svg('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'group', 'aria-label': 'Political lean against reliability' },
     svg('defs', {}, svg('linearGradient', { id: 'bias-wash', x1: 0, x2: 1, y1: 0, y2: 0 },
       svg('stop', { offset: 0, class: 'bias-wash-left' }), svg('stop', { offset: 0.5, class: 'bias-wash-mid' }), svg('stop', { offset: 1, class: 'bias-wash-right' }))),
     svg('rect', { x: plot.x, y: plot.y, width: plot.w, height: plot.h + (noFact ? NO_FACT_H : 0), fill: 'url(#bias-wash)' }),
-    ...grid, ...marks, ...names);
+    ...grid, ...leaders, ...marks, ...names);
   host.replaceChildren(chart);
   hideTip();
 

@@ -38,7 +38,7 @@ test.beforeEach(() => { hits = []; });
 
 /** Waits until the filter lists are on disk (downloaded or copied in), then lets the app load them. */
 async function listsReady(app, window, dataDir) {
-  await app.evaluate(({ session }, proxy) => Promise.all(['persist:articles', 'chan'].map(p =>
+  await app.evaluate(({ session }, proxy) => Promise.all(['persist:articles', 'persist:chan'].map(p =>
     session.fromPartition(p).setProxy({ proxyRules: proxy }))), `http=${base.replace('http://', '')}`);
   const file = path.join(dataDir, 'adblock-lists.bin');
   try { await expect.poll(() => fs.existsSync(file), { timeout: 60_000 }).toBe(true); }

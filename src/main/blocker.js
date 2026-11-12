@@ -125,4 +125,4 @@ function install(ses) {
   return stats;
 }
 
-module.exports = { install, loadLists, isBlockedHost };
+module.exports = { install, loadLists };

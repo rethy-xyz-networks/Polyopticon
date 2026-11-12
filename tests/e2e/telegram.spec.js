@@ -45,7 +45,7 @@ appTest('✈️ opens a tab with a channel field where the title goes; connectin
   await appExpect(window.locator('#story-title')).toBeVisible();                // …and the title is back
   await appExpect(window.locator('#story-title')).toContainText(/durov/i);
   await appExpect(window.locator('webview')).toHaveAttribute('src', 'https://t.me/s/durov/');
-  await appExpect(window.locator('webview')).toHaveAttribute('partition', 'chan');
+  await appExpect(window.locator('webview')).toHaveAttribute('partition', 'persist:chan');
 
   // Live only (no view modes / translate / save chip) but pinnable, copyable and openable.
   for (const id of ['#view-modes', '#btn-translate', '#save-state']) await appExpect(window.locator(id)).toBeHidden();

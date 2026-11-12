@@ -28,7 +28,7 @@ export function toggleSearchSource(id) {
   else { state.searchSources.add(id); changed(); }
 }
 
-export function removeSearchSource(id) {
+function removeSearchSource(id) {
   if (state.searchSources.delete(id)) changed();
 }
 

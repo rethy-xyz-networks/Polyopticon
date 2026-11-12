@@ -67,6 +67,7 @@
     "@mozilla/readability": "^0.6.0",
     "fast-xml-parser": "^5.11.2",
     "leaflet": "^1.9.4",
+    "mpegts.js": "^1.8.2",
     "telegram": "^2.26.22",
     "undici": "^7.30.0"
   },

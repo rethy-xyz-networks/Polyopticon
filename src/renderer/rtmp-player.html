@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- An rtmp:// stream in the stream area or a popped-out window: main/rtmp.js fetches it, mpegts.js plays it.
+     Served by main.js on the app's own polyopticon-rtmp scheme, in the direct-video session. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src 'self' blob:; style-src 'unsafe-inline'">
+<title>Stream</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  video { width: 100%; height: 100%; object-fit: contain; display: block; }
+  #note { position: fixed; inset: auto 0 12% 0; text-align: center; color: #ddd; font: 14px system-ui, sans-serif; text-shadow: 0 1px 3px #000; pointer-events: none; }
+</style>
+</head>
+<body>
+<video id="video" controls autoplay></video>
+<div id="note">Connecting…</div>
+<script src="/mpegts.js"></script>
+<script src="/rtmp-player.js"></script>
+</body>
+</html>

@@ -122,4 +122,4 @@ function validateSource(s) {
   };
 }
 
-module.exports = { TYPES, PALETTE, colorFor, validateSource };
+module.exports = { TYPES, validateSource };

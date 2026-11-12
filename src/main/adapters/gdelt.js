@@ -119,4 +119,4 @@ class GdeltAdapter extends Adapter {
   }
 }
 
-module.exports = { GdeltAdapter, parseGkg, unzipSingle };
+module.exports = { GdeltAdapter };

@@ -236,4 +236,4 @@ class TelegramAdapter extends Adapter {
   }
 }
 
-module.exports = { TelegramAdapter, telegramService: service, parseWebPreview };
+module.exports = { TelegramAdapter, telegramService: service };

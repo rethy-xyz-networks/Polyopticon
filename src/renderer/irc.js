@@ -30,6 +30,23 @@ export function parseIrcSpec(spec) {
 /** IRC formatting codes (bold, colour, reverse…) stripped. */
 const plain = text => text.replace(/\x03\d{0,2}(?:,\d{1,2})?|[\x02\x0f\x11\x16\x1d\x1e\x1f]/g, '');
 
+const LINK = /\bhttps?:\/\/[^\s<>"]+/gi;
+
+/** Message text with its web links made clickable (a click opens the browser; right-click has more). */
+export function linkify(text) {
+  const out = [];
+  let last = 0;
+  for (const m of text.matchAll(LINK)) {
+    const url = m[0].replace(/[.,;:!?'"]+$/, '').replace(/\)+$/, s => (m[0].includes('(') ? s : ''));   // sentence punctuation isn't part of the link
+    try { new URL(url); } catch { continue; }
+    if (m.index > last) out.push(text.slice(last, m.index));
+    out.push(h('a', { class: 'irc-link', href: url, title: url }, url));
+    last = m.index + url.length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 /** A stable colour per nick. */
 function nickColor(nick) {
   let n = 0;
@@ -61,12 +78,27 @@ export function createIrcView(chat) {
   const status = h('div', { class: 'irc-status' });
   const log = h('div', { class: 'irc-log' });
   const el = h('div', { class: 'irc-view' }, status, log);
+  // A link opens in the system browser, like the links of the other chats.
+  log.addEventListener('click', e => {
+    const a = e.target.closest?.('a.irc-link');
+    if (!a) return;
+    e.preventDefault();
+    api.openExternal(a.href);
+  });
   // Right-click: copy the selection, or select the whole log (it's read-only, so no paste).
+  // On a link: open it as a tab in the article area, or in the browser, or copy its address.
   log.addEventListener('contextmenu', e => {
     e.preventDefault();
     const sel = getSelection();
     const text = sel.toString();                              // taken now: clicking the menu may clear the selection
+    const url = e.target.closest?.('a.irc-link')?.href;
     showMenu(e.clientX, e.clientY, [
+      ...(url ? [
+        { label: 'Open in a tab', onClick: () => api.openLinkTab(url) },
+        { label: 'Open in browser', onClick: () => api.openExternal(url) },
+        { label: 'Copy link address', onClick: () => navigator.clipboard.writeText(url) },
+        'sep',
+      ] : []),
       { label: 'Copy', disabled: !text, onClick: () => navigator.clipboard.writeText(text) },
       { label: 'Select all', onClick: () => { const r = document.createRange(); r.selectNodeContents(log); sel.removeAllRanges(); sel.addRange(r); } },
     ]);
@@ -102,7 +134,7 @@ export function createIrcView(chat) {
           h('span', { class: 'irc-time' }, clock(ev.at)),
           ev.action ? h('span', { class: 'irc-nick', style: `color:${nickColor(ev.nick)}` }, `* ${ev.nick}`)
                     : h('span', { class: 'irc-nick', style: `color:${nickColor(ev.nick)}` }, ev.nick),
-          h('span', { class: 'irc-text' }, plain(ev.text))));
+          h('span', { class: 'irc-text' }, ...linkify(plain(ev.text)))));
         break;
     }
     paintStatus();

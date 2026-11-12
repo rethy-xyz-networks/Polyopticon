@@ -1,15 +1,17 @@
 'use strict';
 
 // 4chan tabs (/pol/ and threads opened from it) in the story pane. They run on
-// their own in-memory session: nothing from them is saved — no offline copies,
-// no cookies or cache on disk. Middle-clicked links (and pop-ups) become new
-// 4chan tabs in the app instead of opening in the system browser.
+// their own session, apart from the article session: no offline copies are saved,
+// but logins, cookies and cache last between launches as in a browser (websession.js).
+// Middle-clicked links (and pop-ups) become new 4chan tabs in the app instead of
+// opening in the system browser.
 
 const { session } = require('electron');
 const blocker = require('./blocker');
 const { BROWSER_UA } = require('./adapters/util');
 
-const CHAN_PARTITION = 'chan';                      // no "persist:" -> memory only
+// Same name as in src/renderer/tabs.js — keep them alike.
+const CHAN_PARTITION = 'persist:chan';
 
 let chanSession = null;
 

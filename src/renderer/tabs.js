@@ -17,6 +17,7 @@ import { makeReorderable } from './reorder.js';
 import { tabEl, cycleIndex, moveIndex } from './tabstrip.js';
 import { telegramChannelOf, telegramUrl, parseTelegramChannel } from './telegram.js';
 import { initScratch, focusScratch, flushScratch, appendToScratch } from './scratchpad.js';
+import { popOut, dropPopout, focusPopout } from './popouts.js';
 
 // Background article pages keep running scripts, ads and video. Only the most
 // recently used few stay alive; older ones are discarded and reload on return.
@@ -38,6 +39,8 @@ export async function openTab(it, { preferSaved = false } = {}) {
   }
   const existing = state.tabs.find(t => !t.kind && t.item.url === it.url);
   if (existing) return activateTab(existing);
+  const floating = [...poppedTabs.values()].find(t => !t.kind && t.item.url === it.url);
+  if (floating) return focusPopout(popKey(floating));        // already open, in a window of its own
 
   const tab = newTab(it);
   state.tabs.push(tab);
@@ -56,7 +59,7 @@ export async function openTab(it, { preferSaved = false } = {}) {
 
 // The app's own pages are tabs like any other (reorder, pin, close): the shortcut list, the
 // Scratchpad (scratchpad.js), one permanent note, and the views that fill the whole article area
-// (map.js, bias.js, markets.js; they show while their tab is selected). No web page, nothing saved
+// (map.js, bias.js, markets.js, polls.js; they show while their tab is selected). No web page, nothing saved
 // with the tab. Each opens at most once: its button or shortcut selects the tab if it's already open.
 const APP_TABS = {
   help:    { id: -1,      title: 'Keyboard shortcuts', icon: 'keyboard' },
@@ -64,8 +67,9 @@ const APP_TABS = {
   map:     { id: -999998, title: 'Map',                icon: 'map' },
   bias:    { id: -999997, title: 'Political lean',     icon: 'bias' },
   markets: { id: -999996, title: 'Global Markets',     icon: 'markets' },
+  polls:   { id: -999995, title: 'Opinion polls',      icon: 'polls' },
 };
-const VIEW_KINDS = new Set(['map', 'bias', 'markets']);
+const VIEW_KINDS = new Set(['map', 'bias', 'markets', 'polls']);
 const isApp = tab => !!APP_TABS[tab?.kind];
 const appTab = kind => ({ ...newTab({ id: APP_TABS[kind].id, title: APP_TABS[kind].title, sourceName: 'Polyopticon' }), kind });
 
@@ -87,7 +91,7 @@ export const openScratchTab = () => openAppTab('scratch');
 
 // 4chan and Telegram channels
 // Not stories: no item in the database, never saved. They run on their own
-// memory-only session (src/main/fourchan.js); a middle-clicked link in one opens
+// session (src/main/fourchan.js), whose logins and cookies last between launches; a middle-clicked link in one opens
 // as another tab of the same kind, so single threads can be watched. Like story
 // tabs they can be reordered, pinned (they reopen at the next start), zoomed, and
 // moved with Back / Forward / Reload.
@@ -97,12 +101,13 @@ let nextChanId = -2;                                           // -1 is the shor
 
 const COMMONS = /^https:\/\/commons\.wikimedia\.org\//;
 const WIKIPEDIA = /^https:\/\/[a-z-]+\.(?:m\.)?wikipedia\.org\//;
-const siteOf = url => (telegramChannelOf(url) ? 'telegram' : COMMONS.test(url) ? 'commons' : WIKIPEDIA.test(url) ? 'wikipedia' : '4chan');
-const SITE_LABEL = { '4chan': '4chan', telegram: 'Telegram', commons: 'Wikimedia Commons', wikipedia: 'Wikipedia' };
-const SITE_ICON  = { '4chan': 'chan', telegram: 'telegram', commons: 'photo', wikipedia: 'wikipedia' };
+// 'web': a link opened from a chat (right-click -> Open in a tab); a page of one of the known sites keeps its own kind.
+const siteOf = (url, web = false) => (telegramChannelOf(url) ? 'telegram' : COMMONS.test(url) ? 'commons' : WIKIPEDIA.test(url) ? 'wikipedia' : web ? 'web' : '4chan');
+const SITE_LABEL = { '4chan': '4chan', telegram: 'Telegram', commons: 'Wikimedia Commons', wikipedia: 'Wikipedia', web: 'Web page' };
+const SITE_ICON  = { '4chan': 'chan', telegram: 'telegram', commons: 'photo', wikipedia: 'wikipedia', web: 'browser' };
 
 /** A readable name until the page sends its title: "/pol/", "/pol/ 123456", "@durov", a photo's file name or an article's. */
-function chanTitle(url) {
+function chanTitle(url, site) {
   const tg = telegramChannelOf(url);
   if (tg) return `@${tg}`;
   if (COMMONS.test(url)) {
@@ -110,6 +115,9 @@ function chanTitle(url) {
   }
   if (WIKIPEDIA.test(url)) {
     try { return decodeURIComponent(new URL(url).pathname.split('/').pop()).replace(/_/g, ' '); } catch { return 'Wikipedia'; }
+  }
+  if (site === 'web') {
+    try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
   }
   try {
     const [board, kind, no] = new URL(url).pathname.split('/').filter(Boolean);
@@ -160,11 +168,13 @@ function connectDraft(tab, name) {
 }
 
 /** A tab for this page (4chan, Telegram, Wikimedia Commons or Wikipedia); in the background it's only added to the strip. */
-export function openChanTab(url, { background = false, home = false } = {}) {
+export function openChanTab(url, { background = false, home = false, web = false } = {}) {
   const existing = state.tabs.find(t => t.kind === 'chan' && t.item.url === url);
   if (existing) return background ? undefined : activateTab(existing);
-  const site = siteOf(url);
-  const tab = { ...newTab({ id: nextChanId--, title: chanTitle(url), url, sourceName: SITE_LABEL[site] }), kind: 'chan', site, home };
+  const floating = [...poppedTabs.values()].find(t => t.kind === 'chan' && t.item.url === url);
+  if (floating) return background ? undefined : focusPopout(popKey(floating));
+  const site = siteOf(url, web);
+  const tab = { ...newTab({ id: nextChanId--, title: chanTitle(url, site), url, sourceName: SITE_LABEL[site] }), kind: 'chan', site, home };
   state.tabs.push(tab);
   api.setState('app.story_tabs', state.tabs.length);
   saveTabs();
@@ -185,14 +195,14 @@ export function openInBrowser(it) {
 const MAX_CLOSED = 25;
 const closedTabs = [];
 
-export function closeTab(tab) {
+export function closeTab(tab, { reopenable = true } = {}) {
   const idx = state.tabs.indexOf(tab);
   if (idx < 0) return;
   if (tab.kind === 'scratch') flushScratch();
   state.tabs.splice(idx, 1);
   clearTimeout(tab.captureTimer);
   tab.view?.remove();
-  if (!tab.draft) {
+  if (!tab.draft && reopenable) {
     closedTabs.push({ tab, idx });
     if (closedTabs.length > MAX_CLOSED) closedTabs.shift();
   }
@@ -220,6 +230,40 @@ export function reopenClosedTab() {
     activateTab(tab);
     return;
   }
+}
+
+// Popping out
+// Right-click -> Pop out: the tab leaves the strip and its page opens in a window of its own
+// (popouts.js, main/popout.js), in the view it had (live, saved page or reader). Closing that
+// window puts the tab back, selected. Popped-out tabs are saved with the others (`popped`) and
+// float again at the next start. The app's own pages and an unconnected Telegram tab stay put.
+
+const poppedTabs = new Map();      // pop-out key -> tab
+const popKey = tab => `story:${tab.kind === 'chan' ? 'page' : 'item'}:${tab.item.url}`;
+const canPopOut = tab => !isApp(tab) && !tab.draft && !!srcFor(tab);
+
+function popOutTab(tab) {
+  if (!canPopOut(tab)) return;
+  const key = popKey(tab);
+  const url = srcFor(tab);                                    // before the view goes
+  closeTab(tab, { reopenable: false });
+  Object.assign(tab, { view: null, ready: false, failed: null, captureTimer: null, capturing: null });
+  poppedTabs.set(key, tab);
+  saveTabs();
+  popOut({ key, title: tab.item.title, area: 'story', kind: 'web', url, partition: tab.kind === 'chan' ? 'persist:chan' : 'persist:articles' },
+    () => returnTab(key));
+}
+
+/** The tab's window was closed: back into the strip (pinned ones after the other pinned tabs), selected. */
+function returnTab(key) {
+  const tab = poppedTabs.get(key);
+  if (!poppedTabs.delete(key)) return;
+  const dup = state.tabs.find(t => t.kind === tab.kind && t.item.url === tab.item.url);
+  if (dup) return activateTab(dup);
+  const firstUnpinned = state.tabs.filter(t => t.pinned).length;
+  state.tabs.splice(tab.pinned ? firstUnpinned : state.tabs.length, 0, tab);
+  api.setState('app.story_tabs', state.tabs.length);
+  activateTab(tab);
 }
 
 /** Close several tabs at once (context menu); pinned tabs are kept. */
@@ -253,14 +297,15 @@ function saveTabs() {
   saveTimer = setTimeout(writeTabs, 300);
 }
 
-const tabEntries = () => state.tabs.map(t => ({
+const tabEntries = () => [...state.tabs.map(tabEntry), ...[...poppedTabs.values()].map(t => ({ ...tabEntry(t), popped: true }))];
+const tabEntry = t => ({
   ...(isApp(t) ? { id: t.id, mode: 'live', app: t.kind }                                  // the shortcut list, the Scratchpad
     : t.kind === 'chan'
-      ? { id: t.id, mode: 'live', chan: true, ...(t.draft ? { draft: true } : {}), url: t.item.url, title: t.item.title }   // no database item: remember the page itself
+      ? { id: t.id, mode: 'live', chan: true, ...(t.draft ? { draft: true } : {}), ...(t.site === 'web' ? { web: true } : {}), url: t.item.url, title: t.item.title }   // no database item: remember the page itself
       : { id: t.id, mode: t.mode }),
   pinned: !!t.pinned,
   ...(t.id === state.activeTabId ? { active: true } : {}),
-}));
+});
 
 function writeTabs(sync = false) {
   clearTimeout(saveTimer);
@@ -283,6 +328,8 @@ async function restoreSaved(saved) {
   const storyIds = saved.filter(p => !p.chan && !p.app).map(p => p.id);
   const items = new Map((storyIds.length ? await api.items(storyIds) : []).map(it => [it.id, it]));
   const restored = [];
+  const floating = [];                                      // popped out when the app closed: they float again
+  const keep = (p, tab) => (p.popped ? floating : restored).push(tab);
   let selected = null;                                      // the tab that was selected when the app closed
   const mark = (p, tab) => { if (p.active) selected = tab; };
   for (const p of saved) {
@@ -304,11 +351,11 @@ async function restoreSaved(saved) {
     }
     if (p.chan) {                                            // a 4chan / Telegram page
       if (!/^https?:\/\//i.test(p.url) || state.tabs.some(t => t.kind === 'chan' && t.item.url === p.url)) continue;
-      const site = siteOf(p.url);
-      const tab = { ...newTab({ id: nextChanId--, title: p.title || chanTitle(p.url), url: p.url, sourceName: SITE_LABEL[site] }), kind: 'chan', site, home: false };
+      const site = siteOf(p.url, !!p.web);
+      const tab = { ...newTab({ id: nextChanId--, title: p.title || chanTitle(p.url, site), url: p.url, sourceName: SITE_LABEL[site] }), kind: 'chan', site, home: false };
       tab.pinned = p.pinned;
       mark(p, tab);
-      restored.push(tab);
+      keep(p, tab);
       continue;
     }
     const it = items.get(p.id);
@@ -317,9 +364,9 @@ async function restoreSaved(saved) {
     tab.pinned = p.pinned;
     mark(p, tab);
     tab.mode = p.mode === 'page' || p.mode === 'reader' ? p.mode : 'live';
-    restored.push(tab);
+    keep(p, tab);
   }
-  await Promise.all(restored.filter(t => !t.kind).map(async tab => {
+  await Promise.all([...restored, ...floating].filter(t => !t.kind).map(async tab => {
     tab.snap = await api.snapshot(tab.id);
     const can = { live: true, page: !!tab.snap.pageUrl, reader: !!tab.snap.hasText };
     if (!can[tab.mode]) tab.mode = 'live';
@@ -327,12 +374,13 @@ async function restoreSaved(saved) {
   }));
   state.tabs.unshift(...restored);
   api.setState('app.story_tabs', state.tabs.length);
+  for (const tab of floating) if (!poppedTabs.has(popKey(tab))) popOutTab(tab);
   renderTabs();
   if (selected && state.activeTabId == null) activateTab(selected);   // unless a tab was opened meanwhile
   if (restored.length) api.log('info', `Tabs: restored ${restored.length} tab(s)`);
 }
 
-export function activateTab(tab) {
+function activateTab(tab) {
   if (tab.id !== state.activeTabId) flushScratch();          // leaving the Scratchpad saves it
   state.activeTabId = tab.id;
   saveTabs();
@@ -484,6 +532,7 @@ function tabMenu(tab, x, y) {
   const right = state.tabs.slice(idx + 1).filter(t => !t.pinned);
   showMenu(x, y, [
     { label: tab.pinned ? 'Unpin tab' : 'Pin tab', onClick: () => setPinned(tab, !tab.pinned) },
+    ...(canPopOut(tab) ? [{ label: 'Pop out', onClick: () => popOutTab(tab) }] : []),
     ...(isApp(tab) || tab.draft ? [] : [
       { label: 'Open in browser', onClick: () => openInBrowser(tab.item) },
       { label: 'Copy link', onClick: () => api.copy(tab.item.url) },
@@ -521,7 +570,7 @@ function srcFor(tab) {
 
 function createView(tab) {
   const wv = document.createElement('webview');
-  wv.setAttribute('partition', tab.kind === 'chan' ? 'chan' : 'persist:articles');
+  wv.setAttribute('partition', tab.kind === 'chan' ? 'persist:chan' : 'persist:articles');   // chan: same name as CHAN_PARTITION in main/fourchan.js
   wv.setAttribute('src', srcFor(tab));
   wv.addEventListener('dom-ready', () => {
     tab.ready = true;
@@ -766,7 +815,7 @@ function reloadView(tab) {
 
 export function renderStory() {
   const tab = activeTab();
-  // The map, bias chart and markets show while their tab is selected (they listen for this).
+  // The map, bias chart, markets and polls show while their tab is selected (they listen for this).
   document.dispatchEvent(new CustomEvent('story:view', { detail: VIEW_KINDS.has(tab?.kind) ? tab.kind : null }));
   for (const t of state.tabs) {
     t.view?.classList.toggle('inactive', t !== tab);

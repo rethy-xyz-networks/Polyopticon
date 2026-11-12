@@ -45,6 +45,8 @@ export function syncSettingControl(key) {
 }
 
 function bindGeneral() {
+  // Windows and macOS decode video on the graphics card already; the switch is only needed on Linux.
+  if (navigator.platform.startsWith('Linux')) for (const el of document.querySelectorAll('[data-linux]')) el.hidden = false;
   for (const ctl of document.querySelectorAll('[data-setting]')) {
     const key = ctl.dataset.setting;
     if (ctl.classList.contains('segmented'))
@@ -212,7 +214,7 @@ let tgPrompt = null;   // { what, hint } while the login is waiting for input
 let tgError = null;
 let tgBusy = false;
 
-export function renderAccounts() {
+function renderAccounts() {
   const acc = state.accounts;
   const page = $('accounts-page');
   const link = (url, text) => h('button', { class: 'link-btn', onclick: () => api.openExternal(url) }, text);

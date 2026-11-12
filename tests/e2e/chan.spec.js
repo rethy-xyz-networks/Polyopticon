@@ -46,7 +46,7 @@ test('the 🍀 button sits left of the theme button and opens /pol/ as one tab',
   await expect(tabs(window)).toHaveCount(2);                          // with the start page's map
   await expect(window.locator('#tabs .tab.active .tab-mode').locator('svg')).toHaveAttribute('data-icon', 'chan');
   await expect(activeView(window)).toHaveAttribute('src', 'https://boards.4chan.org/pol/');
-  await expect(activeView(window)).toHaveAttribute('partition', 'chan');
+  await expect(activeView(window)).toHaveAttribute('partition', 'persist:chan');
 
   // Live only: Back / Reload / Forward, no saving, view modes or translation — but it can be pinned.
   await expect(window.locator('#btn-reload')).toBeVisible();
@@ -73,7 +73,7 @@ test('middle-clicking any link in a 4chan tab opens it as a new background tab',
   await expect(tabs(window)).toHaveCount(4);
 
   await tabs(window).nth(2).click();
-  await expect(activeView(window)).toHaveAttribute('partition', 'chan');
+  await expect(activeView(window)).toHaveAttribute('partition', 'persist:chan');
   await expect(activeLabel(window)).toHaveText('Page /pol/thread/123/test-thread');
 });
 
@@ -89,12 +89,12 @@ test('4chan pages are never saved', async ({ window, dataDir }) => {
   expect(await window.evaluate(id => window.polyopticon.captureTab(-2, id), id)).toBeNull();
 });
 
-test('4chan tabs run on a memory-only session (no cookies or cache on disk)', async ({ app, window }) => {
+test('4chan tabs run on their own lasting session, apart from articles (logins survive restarts)', async ({ app, window, dataDir }) => {
   await openChan(window, `${base}/pol/`);
   await expect(activeLabel(window)).toHaveText('Page /pol/');
   const opened = await app.evaluate(({ webContents }) =>
     webContents.getAllWebContents().filter(w => w.getType() === 'webview').map(w => w.session.getStoragePath()));
-  expect(opened).toEqual([null]);
+  expect(opened).toEqual([path.join(dataDir, 'browser', 'Partitions', 'chan')]);
 });
 
 test('the 🍀 button can be turned off in Settings -> General, and the choice is saved', async ({ window, dataDir }) => {

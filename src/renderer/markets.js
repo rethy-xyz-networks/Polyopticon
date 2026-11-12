@@ -35,7 +35,7 @@ export const groups = () => (Array.isArray(ui.marketsGroups) ? ui.marketsGroups 
 
 const saveGroups = list => { saveUi({ marketsGroups: list }); rebuild(); };
 
-export const allSymbols = () => groups().flatMap(g => g.items.map(i => i.symbol));
+const allSymbols = () => groups().flatMap(g => g.items.map(i => i.symbol));
 
 const isShown = symbol => allSymbols().includes(symbol);
 

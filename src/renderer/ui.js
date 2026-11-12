@@ -4,6 +4,9 @@
 //   mode           'live' | 'history'
 //   historyScope   'opened' | 'all'
 //   autoScroll, caseSensitive   booleans
+//   sidebarHidden, listHidden  booleans: the Sources & Filters / Article List View hidden (layout.js)
+//   chatPopped, streamPopped  [key]       chats / streams floating in windows of their own (popouts.js)
+//   popouts        { [key]: bounds }      where each pop-out window was (kept by main)
 //   mapWindow      '1h' | '6h' | '24h' | 'All'
 //   fieldHistory   { [field key]: [value, …] }   past entries of the chat / stream fields (fieldhistory.js)
 // The window's size and position are kept by main itself.

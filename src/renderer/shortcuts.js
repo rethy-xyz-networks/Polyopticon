@@ -26,6 +26,9 @@ export const SHORTCUTS = [
     { id: 'map',     combos: ['ctrl+m'], keys: [['Ctrl', 'M']], does: 'The map: opens its tab, or selects it if it’s open' },
     { id: 'bias',    combos: ['ctrl+b'], keys: [['Ctrl', 'B']], does: 'The bias chart (political lean of the news feeds): opens its tab, or selects it' },
     { id: 'markets', combos: ['ctrl+g'], keys: [['Ctrl', 'G']], does: 'Global Markets (live indices, energy, metals, currencies, crypto): opens its tab, or selects it' },
+    { id: 'polls',   combos: ['ctrl+o'], keys: [['Ctrl', 'O']], does: 'Opinion polls (national voting intention, by country): opens its tab, or selects it' },
+    { id: 'sidebar', combos: ['ctrl+shift+f'], keys: [['Ctrl', 'Shift', 'F']], does: 'Show or hide the Sources & Filters View' },
+    { id: 'list',    combos: ['ctrl+shift+e'], keys: [['Ctrl', 'Shift', 'E']], does: 'Show or hide the Article List View (Ctrl+F or Ctrl+H shows it again)' },
     { id: 'chat',    combos: ['ctrl+j'], keys: [['Ctrl', 'J']], does: 'Show or hide the live chat' },
     // Ctrl+V is paste: ignored in text boxes and pages, so pasting still works there.
     { id: 'video',   combos: ['ctrl+v'], keys: [['Ctrl', 'V']], does: 'Show or hide the video player (not while typing or in a page)', typing: false, inPages: false },
@@ -68,7 +71,7 @@ export const SHORTCUTS = [
     { keys: [['Ctrl', 'Wheel']], does: 'Over a page: zoom in / out (all tabs)' },
     { keys: [['Right-click']], does: 'On a source or a story’s source badge: search only that source (again to remove)' },
     { keys: [['Middle-click']], does: 'On a tab: close it (pinned tabs stay open)' },
-    { keys: [['Right-click']], does: 'On a tab: pin, open in browser, close others / to the right' },
+    { keys: [['Right-click']], does: 'On a tab: pin, pop out into its own window, open in browser, close others / to the right' },
     { keys: [['Drag']], does: 'A tab: reorder it' },
     { keys: [['Drag']], does: 'A Global Markets tile: move it, within its group or to another' },
   ] },

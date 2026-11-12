@@ -6,6 +6,7 @@ import { ingest, refreshRows, scheduleRender, bindFeedScroll, trimToMax, rebuild
 import { initMap, onVisibleItems, applyMapAppearance, refreshMapFilter } from './map.js';
 import { initBias, refreshBias } from './bias.js';
 import { initMarkets } from './markets.js';
+import { initPolls } from './polls.js';
 import { renderSources, renderTags, bindTagForms, bindSourceFilter, setStatus, repaintCounts } from './sidebar.js';
 import { renderStory, renderTabs, activeTab, closeTab, reopenClosedTab, setPinned, cycleTab, moveTab, selectUnpinnedTab, openAppTab, openHelpTab, openScratchTab, openChanHome, openChanTab, openTelegramDraft, navigate, reload as reloadTab, showMode, onSnapshotSaved, applyZoom, applyReaderWidth, bindStoryButtons, bindTabDrag, restoreTabs, storyTabList, selectTabById, closeTabById, onArticleTranslateProgress, takeScreenshot } from './tabs.js';
 import { initHistory, reload as reloadHistory, setHistoryQuery } from './history.js';
@@ -16,8 +17,9 @@ import { initSourceSearch, renderSourceChips, clearSearchSources, pruneSearchSou
 import { initSettings, openSettings, toggleSettings, closeSettings, setSetting, syncSettingControl, refreshSettingsPage, renderScreenshotFolder, renderBiasStatus } from './settings.js';
 import { comboName, runShortcut, registerShortcuts, pageCombos } from './shortcuts.js';
 import { bindTabScroll } from './tabscroll.js';
-import { startPerfWatch } from './perfwatch.js';
+import { startPerfWatch, logVideoDecode } from './perfwatch.js';
 import { applyIcons, setIcon } from './icons.js';
+import { initLayout, togglePane, revealList } from './layout.js';
 
 const DENSITY_PAD = ['5px', '9px', '14px'];
 
@@ -224,13 +226,18 @@ function bindShortcuts() {
     help:     () => openHelpTab(),
     refresh:  () => manualRefresh(),
     search:   () => {                                                  // the Global Markets view has its own search bar
-      const search = $(document.querySelector('.story').classList.contains('markets-open') ? 'markets-search' : 'search');
+      const markets = document.querySelector('.story').classList.contains('markets-open');
+      if (!markets) revealList();                                      // the story search lives in the article list
+      const search = $(markets ? 'markets-search' : 'search');
       search.focus(); search.select();
     },
-    mode:     () => setMode(state.mode === 'live' ? 'history' : 'live'),
+    mode:     () => { revealList(); setMode(state.mode === 'live' ? 'history' : 'live'); },
     map:      () => openAppTab('map'),
     bias:     () => openAppTab('bias'),
     markets:  () => openAppTab('markets'),
+    polls:    () => openAppTab('polls'),
+    sidebar:  () => togglePane('sidebar'),
+    list:     () => togglePane('list'),
     chat:     () => toggleChat(),
     video:    () => toggleVideo(),
     settings: () => toggleSettings(),
@@ -291,10 +298,12 @@ function bindToolbar() {
     paintFullScreen();
   });
   $('btn-scratch').addEventListener('click', () => openScratchTab());
-  for (const kind of ['map', 'bias', 'markets']) $(`btn-${kind}`).addEventListener('click', () => openAppTab(kind));
+  for (const kind of ['map', 'bias', 'markets', 'polls']) $(`btn-${kind}`).addEventListener('click', () => openAppTab(kind));
   $('btn-chan').addEventListener('click', () => openChanHome());
   $('btn-telegram').addEventListener('click', () => openTelegramDraft());
   $('btn-settings').addEventListener('click', () => toggleSettings());
+  $('btn-sidebar').addEventListener('click', () => togglePane('sidebar'));
+  $('btn-list').addEventListener('click', () => togglePane('list'));
   $('btn-sources').addEventListener('click', () => toggleSettings('sources'));
   $('btn-group').addEventListener('click', () => setSetting('GroupStories', !state.settings.GroupStories));
   $('place-chip-clear').addEventListener('click', () => setPlaceFilter(null));
@@ -351,6 +360,7 @@ function bindToolbar() {
   // Ctrl + wheel over a page zooms every page, like a browser.
   api.onZoom(dir => zoomStep(dir === 'in' ? 1 : -1));
   api.onChanOpen((url, background) => openChanTab(url, { background }));
+  api.onLinkOpen(url => openChanTab(url, { web: true }));            // a chat link: right-click -> Open in a tab
   bindShortcuts();
 
   window.addEventListener('online', renderOnline);
@@ -439,6 +449,7 @@ window.addEventListener('unhandledrejection', e => api.log('error', `Renderer: u
   state.autoScroll = !!ui.autoScroll;
   state.caseSensitive = !!ui.caseSensitive;
   state.settings = init.settings;
+  if (state.settings.HardwareVideoDecode && navigator.platform.startsWith('Linux')) logVideoDecode();
   state.picturesDir = init.picturesDir;
   state.types    = init.types;
   state.accounts = init.accounts;
@@ -452,6 +463,7 @@ window.addEventListener('unhandledrejection', e => api.log('error', `Renderer: u
   guard('map', () => initMap({ onFilter: setPlaceFilter }));
   guard('bias', initBias);
   guard('markets', initMarkets);
+  guard('polls', initPolls);
   guard('chat', () => initChat({ openSettings: () => openSettings('general') }));
   setVisibleListener(onVisibleItems);
   for (const key of Object.keys(state.settings)) guard(`setting ${key}`, () => { applySetting(key); syncSettingControl(key); });
@@ -467,6 +479,7 @@ window.addEventListener('unhandledrejection', e => api.log('error', `Renderer: u
   initHistory();
   bindToolbar();
   bindSplitters();
+  initLayout();
   bindLogo(init.logos ?? []);
   guard('stop-translation button', bindStopTranslation);
   paintToggles();

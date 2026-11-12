@@ -204,8 +204,8 @@ function enricherOver(db) {
     { items: 10_000, iters: 3, warmup: 0, setup: () => { const f = freshDb(10_000); f.db.raw.exec('UPDATE items SET places = NULL, cluster_id = NULL, lang = NULL'); f.db.setMeta('geotagVersion', GEOTAG_VERSION); return { e: enricherOver(f.db), db: f.db }; } });
   run('enrich', 'init(): index 20000 stored, already grouped and tagged (warm start)', ({ e }) => e.init(),
     { items: 20_000, iters: 3, warmup: 1, setup: () => { const f = freshDb(20_000); f.db.setMeta('geotagVersion', GEOTAG_VERSION); return { e: enricherOver(f.db), db: f.db }; } });
-  run('enrich', 'retag(): first chunk of 500 items', ({ e }) => { const real = global.setImmediate; global.setImmediate = () => {}; try { e.retag(); } finally { global.setImmediate = real; } },
-    { items: 500, iters: 2, warmup: 0, setup: () => { const f = freshDb(10_000); f.db.raw.exec(`UPDATE items SET places = '[]'`); f.db.setMeta('geotagVersion', 1); return { e: enricherOver(f.db), db: f.db }; } });
+  run('enrich', 'retag(): 10000 stored items, every chunk', ({ e }) => { const real = global.setImmediate; global.setImmediate = fn => fn(); try { e.retag(); } finally { global.setImmediate = real; } },
+    { items: 10_000, iters: 2, warmup: 0, setup: () => { const f = freshDb(10_000); f.db.raw.exec(`UPDATE items SET places = '[]'`); f.db.setMeta('geotagVersion', 1); return { e: enricherOver(f.db), db: f.db }; } });
 }
 
 // Summary

@@ -35,8 +35,11 @@
       <button id="btn-map" class="icon-btn" title="Map of where the stories in the live list are happening (Ctrl+M)" aria-label="Map" data-icon="map"></button>
       <button id="btn-bias" class="icon-btn" title="Political lean of the news feeds, plotted against reliability (Ctrl+B)" aria-label="Bias chart" data-icon="bias"></button>
       <button id="btn-markets" class="icon-btn" title="Global markets: live prices in groups you make (Ctrl+G)" aria-label="Global Markets" data-icon="markets"></button>
+      <button id="btn-polls" class="icon-btn" title="Opinion polls: national voting intention, by country (Ctrl+O)" aria-label="Opinion polls" data-icon="polls"></button>
       <span class="tool-sep" aria-hidden="true"></span>
       <button id="btn-refresh" class="icon-btn" title="Refresh all sources (Shift+R)" data-icon="refresh"></button>
+      <button id="btn-sidebar" class="icon-btn on" title="Hide the Sources &amp; Filters (Ctrl+Shift+F)" aria-label="Sources &amp; Filters View" aria-pressed="true" data-icon="sidebar"></button>
+      <button id="btn-list" class="icon-btn on" title="Hide the Article List (Ctrl+Shift+E)" aria-label="Article List View" aria-pressed="true" data-icon="article-list"></button>
       <button id="btn-chat" class="icon-btn" title="Live chat (Ctrl+J)" data-icon="chat"></button>
       <button id="chat-video-btn" class="icon-btn" title="Split the chat: show a Twitch, Kick or YouTube stream below it (opens the chat if it is hidden) (Ctrl+V)" data-icon="stream"></button>
       <button id="btn-telegram" class="icon-btn" title="Open a public Telegram channel as a tab" aria-label="Telegram channel" data-icon="telegram"></button>
@@ -137,7 +140,7 @@
         <form id="tg-draft" class="tg-draft" hidden>
           <input type="text" id="tg-channel" list="tg-channels" placeholder="Telegram channel: name or t.me link" spellcheck="false" autocomplete="off">
           <datalist id="tg-channels"></datalist>
-          <button type="submit" class="toggle-btn small">Connect</button>
+          <button type="submit" class="toggle-btn">Connect</button>
         </form>
         <div id="view-modes" class="segmented compact"></div>
         <button id="btn-translate" class="toggle-btn">Translate</button>
@@ -191,6 +194,30 @@
           <div id="markets-empty" class="markets-empty" hidden>Nothing matches. Try a group, a name or a ticker symbol.</div>
           <div class="markets-foot">Price and change since the previous close, from Yahoo Finance. Exchanges can delay quotes by up to 15 minutes. Updates every second while this view is open.</div>
         </div>
+        <div id="polls-view" class="polls-view">
+          <div class="polls-head">
+            <b>Opinion polls</b>
+            <select id="polls-country" class="polls-country" aria-label="Country"></select>
+            <span class="muted">national voting intention</span>
+            <span id="polls-status" class="muted" role="status" aria-live="off"></span>
+            <span class="polls-tools">
+              <div class="segmented compact" id="polls-range" title="How far back the chart and the table go">
+                <button data-r="3m">3M</button><button data-r="6m">6M</button><button data-r="1y">1Y</button><button data-r="all">All</button>
+              </div>
+              <button id="polls-refresh" class="toggle-btn" title="Check Wikipedia for new polls now">Refresh</button>
+            </span>
+          </div>
+          <div id="polls-empty" class="polls-empty"></div>
+          <div id="polls-body" class="polls-body" hidden>
+            <div id="polls-summary" class="polls-summary"></div>
+            <div class="polls-chart-wrap">
+              <div id="polls-chart" class="polls-chart"></div>
+              <div id="polls-tip" class="polls-tip" role="tooltip" hidden></div>
+            </div>
+            <div id="polls-table" class="polls-table"></div>
+          </div>
+          <div id="polls-foot" class="polls-foot"></div>
+        </div>
         <div id="story-empty" class="story-empty">
           <div class="glyph">◎</div>
           <div>Middle-click or double-click a story to open it</div>
@@ -210,24 +237,24 @@
       <div id="chat-add" class="chat-add" hidden>
         <!-- Row 1: what kind of chat. Row 2: the details that kind needs (none for destiny.gg). -->
         <div class="chat-types">
-          <button type="button" id="chat-type-twitch" class="toggle-btn small" title="Add a Twitch channel's chat">Twitch</button>
-          <button type="button" id="chat-type-kick" class="toggle-btn small" title="Add a Kick channel's chat">Kick</button>
-          <button type="button" id="chat-type-dgg" class="toggle-btn small" title="Show / hide the destiny.gg chat">destiny.gg</button>
-          <button type="button" id="chat-type-irc" class="toggle-btn small" title="Join an IRC room anonymously">IRC</button>
+          <button type="button" id="chat-type-twitch" class="toggle-btn" title="Add a Twitch channel's chat">Twitch</button>
+          <button type="button" id="chat-type-kick" class="toggle-btn" title="Add a Kick channel's chat">Kick</button>
+          <button type="button" id="chat-type-dgg" class="toggle-btn" title="Show / hide the destiny.gg chat">destiny.gg</button>
+          <button type="button" id="chat-type-irc" class="toggle-btn" title="Join an IRC room anonymously">IRC</button>
         </div>
         <form id="chat-add-twitch" class="chat-add-form" hidden>
           <input type="text" id="chat-add-input" placeholder="Twitch channel: name or link" spellcheck="false" autocomplete="off">
-          <button type="submit" class="toggle-btn small">Add</button>
+          <button type="submit" class="toggle-btn">Add</button>
         </form>
         <form id="chat-add-kick" class="chat-add-form" hidden>
           <input type="text" id="chat-add-kick-input" placeholder="Kick channel: name or link" spellcheck="false" autocomplete="off">
-          <button type="submit" class="toggle-btn small">Add</button>
+          <button type="submit" class="toggle-btn">Add</button>
         </form>
         <form id="chat-add-irc" class="chat-add-form" hidden>
           <input type="text" id="chat-irc-server" placeholder="Server: irc.libera.chat" spellcheck="false" autocomplete="off"
                  title="Host name, optionally with a port (irc.example.org:6697). Encrypted by default; irc://host:6667 for plain text.">
           <input type="text" id="chat-irc-room" placeholder="Room: #linux" spellcheck="false" autocomplete="off">
-          <button type="submit" class="toggle-btn small" title="Connect anonymously, without logging in">Connect</button>
+          <button type="submit" class="toggle-btn" title="Connect anonymously, without logging in">Connect</button>
         </form>
       </div>
       <div id="chat-views" class="chat-views">
@@ -249,14 +276,14 @@
         <!-- Same as the chat's plus: row 1 is the site, row 2 the channel -->
         <div id="video-add" class="chat-add" hidden>
           <div class="chat-types">
-            <button type="button" class="toggle-btn small" data-site="twitch" title="Watch a Twitch channel">Twitch</button>
-            <button type="button" class="toggle-btn small" data-site="kick" title="Watch a Kick channel">Kick</button>
-            <button type="button" class="toggle-btn small" data-site="youtube" title="Watch a YouTube channel's live stream">YouTube</button>
-            <button type="button" class="toggle-btn small" data-site="direct" title="Play a direct link to a video file (.mp4, .webm …) in the built-in video player">Direct</button>
+            <button type="button" class="toggle-btn" data-site="twitch" title="Watch a Twitch channel">Twitch</button>
+            <button type="button" class="toggle-btn" data-site="kick" title="Watch a Kick channel">Kick</button>
+            <button type="button" class="toggle-btn" data-site="youtube" title="Watch a YouTube channel's live stream">YouTube</button>
+            <button type="button" class="toggle-btn" data-site="direct" title="Play a direct link to a video file (.mp4, .webm …) in the built-in video player">Direct</button>
           </div>
           <form id="video-form" class="chat-add-form" hidden>
             <input type="text" id="video-channel" spellcheck="false" autocomplete="off">
-            <button type="submit" class="toggle-btn small">Watch</button>
+            <button type="submit" class="toggle-btn">Watch</button>
           </form>
         </div>
         <div id="video-view" class="video-view">
@@ -386,6 +413,12 @@
             <button type="button" id="btn-screenshot-folder-reset" class="link-btn" title="Save to your Pictures folder">Use Pictures</button>
           </span>
         </div>
+
+        <h3 data-linux hidden>Video</h3>
+        <label class="field switch" data-linux hidden>Decode video on the graphics card
+          <small>Streams and videos use far less CPU (VP9 and AV1 most of all), for about 300 MB of graphics memory per playing video. Works with Intel, AMD and NVIDIA cards and integrated graphics through VA-API. Each needs its driver package: <code>intel-media-driver</code> for Intel (<code>libva-intel-driver</code> before Broadwell), Mesa's driver for AMD (in <code>mesa</code> on Arch, <code>mesa-va-drivers</code> on Debian and Ubuntu), <code>libva-nvidia-driver</code> for NVIDIA. Without one the CPU decodes as before. Takes effect the next time the app starts, and the session log then says which video formats the card decodes.</small>
+          <input type="checkbox" data-setting="HardwareVideoDecode"><span class="track"></span>
+        </label>
 
         <h3>Polling</h3>
         <label class="field range">Source stagger delay <output data-for="SourceStaggerMs"></output>

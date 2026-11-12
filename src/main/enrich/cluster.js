@@ -109,4 +109,4 @@ class Clusterer {
   }
 }
 
-module.exports = { Clusterer, WINDOW_MS, THRESHOLD };
+module.exports = { Clusterer, WINDOW_MS };

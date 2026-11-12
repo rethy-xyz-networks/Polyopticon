@@ -27,7 +27,7 @@ const KIND_LABEL = { post: 'POST', message: 'MSG' };
  * the Story descriptions setting (characters; 0 = none). Feeds often repeat the
  * headline as the description, so that part is dropped.
  */
-export function descriptionOf(it, max = state.settings.DescriptionLength) {
+function descriptionOf(it, max = state.settings.DescriptionLength) {
   if (!max || !it.summary) return null;
   let text = (it.kind === 'article' ? it.summary : it.summary.split('\n').slice(1).join(' ')).replace(/\s+/g, ' ').trim();
   const title = it.title.trim();
@@ -305,7 +305,7 @@ function setGroupChip(row, clusterId, members) {
     `+${others.length}`);
 }
 
-export function toggleGroup(clusterId) {
+function toggleGroup(clusterId) {
   if (expanded.has(clusterId)) expanded.delete(clusterId); else expanded.add(clusterId);
   scheduleRender();
 }

@@ -50,6 +50,6 @@ test('4000 stories, then 60 batches of new ones with auto-scroll', async ({ wind
   });
   console.log('PERF burst', JSON.stringify(result));
   expect(result.rows).toBeLessThanOrEqual(300);                       // only the first rows are in the page
-  expect(Number(result.count.split(' / ').pop())).toBeGreaterThan(4000);
+  expect(Number(result.count.split(' · ').pop())).toBeGreaterThan(4000);
   expect(result.scrollTop).toBe(0);
 });

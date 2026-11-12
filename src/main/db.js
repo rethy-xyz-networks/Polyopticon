@@ -394,4 +394,4 @@ function wrap(db) {
   return api;
 }
 
-module.exports = { open, ftsQuery };
+module.exports = { open };

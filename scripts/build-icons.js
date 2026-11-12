@@ -42,6 +42,7 @@ const ICONS = {
   map:              'map',
   bias:             'data_scatter',
   markets:          'globe',
+  polls:            'poll',
   back:             'arrow_left',
   forward:          'arrow_right',
   reload:           'arrow_clockwise',
@@ -65,6 +66,8 @@ const ICONS = {
   photo:            'image',
   wikipedia:        'book_globe',
   power:            'power',
+  sidebar:          'panel_left',
+  'article-list':   'text_bullet_list_ltr',
 };
 
 async function get(url) {

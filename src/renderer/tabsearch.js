@@ -85,7 +85,7 @@ export function openTabSearch({ anchor, title, tabs, select, close }) {
   input.focus();
 }
 
-export function closeTabSearch() {
+function closeTabSearch() {
   const b = box;
   box = null;
   b?.remove();

@@ -17,7 +17,7 @@ export const geo = {
   landsOf: new Map(), countryName: new Map(), stateByCode: new Map(), statesOf: new Map(), nationByCode: new Map(), hasSubs: new Set(),
 };
 
-export const merc = (lon, lat) => {
+const merc = (lon, lat) => {
   const s = Math.sin(Math.max(-85.05, Math.min(85.05, lat)) * Math.PI / 180);
   return [(lon + 180) / 360 * 256, (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256];
 };
@@ -55,7 +55,7 @@ function pathOf(sh, lod) {
 
 // Heavy preparation runs in short slices between frames, so the app never stalls on it
 const idle = fn => window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 300 }) : setTimeout(fn, 16);
-export function inSlices(items, fn) {
+function inSlices(items, fn) {
   return new Promise(done => {
     let i = 0;
     const run = () => {
@@ -168,7 +168,7 @@ export function readColors() {
   colors.accent = css('--accent'); colors.text = css('--text');
   colors.font = `600 ${css('--fs-xs')} ${css('--font')}`;
 }
-export const cityR = c => c.gpop >= 5e6 ? 5 : c.gpop >= 1e6 ? 4 : c.gpop >= 250e3 ? 3.2 : 2.6;
+const cityR = c => c.gpop >= 5e6 ? 5 : c.gpop >= 1e6 ? 4 : c.gpop >= 250e3 ? 3.2 : 2.6;
 
 /** A Leaflet canvas renderer that, instead of drawing Leaflet layers, calls paint(ctx, view). */
 const Painter = L.Canvas.extend({
@@ -233,13 +233,21 @@ export function createDrawing(map, { shadeOf, marks, cityName }) {
     const end = performance.now() + 8;                   // a slice per frame, then let the browser paint
     while (tileQueue.length && performance.now() < end) {
       const { tile, coords, done } = tileQueue.shift();
+      tile._queued = false;
       if (tile.isConnected) drawTile(tile, coords);      // skip tiles already zoomed or panned away
       done?.(null, tile);
     }
     tilesPending = tileQueue.length > 0;
     if (tilesPending) requestAnimationFrame(drawTiles);
   }
-  const queueTile = job => { tileQueue.push(job); if (!tilesPending) { tilesPending = true; requestAnimationFrame(drawTiles); } };
+  /** A tile still waiting to be drawn isn't queued again: it will be drawn with the newest data anyway
+   *  (each data set that loads at start-up asks for every tile to be redrawn). */
+  const queueTile = job => {
+    if (job.tile._queued) return;
+    job.tile._queued = true;
+    tileQueue.push(job);
+    if (!tilesPending) { tilesPending = true; requestAnimationFrame(drawTiles); }
+  };
   const Outlines = L.GridLayer.extend({
     createTile(coords, done) {
       const tile = document.createElement('canvas'), r = window.devicePixelRatio || 1;
@@ -334,7 +342,7 @@ export function createDrawing(map, { shadeOf, marks, cityName }) {
 }
 
 /** A city as a target, with the county, state and nation it's in. */
-export function cityTarget(c) {
+function cityTarget(c) {
   if (!c._t) {
     const county = containingIn(grids.sub, c.x, c.y, f => f.properties.iso === c.iso);
     const st = (county && geo.stateByCode.get(county.properties.parent)) || containingIn(grids.state, c.x, c.y, f => f.properties.iso === c.iso);

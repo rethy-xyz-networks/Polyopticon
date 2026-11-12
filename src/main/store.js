@@ -10,7 +10,7 @@ const path = require('path');
 const log  = require('./logger');
 
 // The app's own pages that can be open as tabs (src/renderer/tabs.js APP_TABS).
-const APP_PAGES = new Set(['help', 'scratch', 'map', 'bias', 'markets']);
+const APP_PAGES = new Set(['help', 'scratch', 'map', 'bias', 'markets', 'polls']);
 
 const DEFAULT_SETTINGS = Object.freeze({
   FontFamily: 'Segoe UI',
@@ -37,6 +37,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   ChatDestiny: false,           // destiny.gg chat: off until switched on in the chat panel or Settings
   ScrollableTabs: true,        // story tabs keep a readable width and the strip scrolls, instead of shrinking to fit
   ShowChanButton: true,       // the 🍀 4chan /pol/ button in the toolbar
+  HardwareVideoDecode: false,  // Linux: decode video on the graphics card (VA-API); read at start-up, see main.js
   ScreenshotFolder: '',        // where 📸 screenshots are saved; '' = the user's Pictures folder
 });
 
@@ -123,6 +124,7 @@ module.exports = {
         id: p.id, mode: String(p.mode || 'live'), pinned: p.pinned !== false, ...(p.active ? { active: true } : {}),
         ...(p.chan && typeof p.url === 'string' ? { chan: true, url: p.url, title: String(p.title || ''), ...(p.draft ? { draft: true } : {}) } : {}),   // 4chan / Telegram page
         ...(APP_PAGES.has(p.app) ? { app: p.app } : {}),
+        ...(p.popped && !p.app ? { popped: true } : {}),                                   // floating in a window of its own (popout.js)
       }));
     } catch (e) {
       log.warn(`Pinned tabs load failed: ${e.message}`);

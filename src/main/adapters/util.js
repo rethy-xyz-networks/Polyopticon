@@ -180,6 +180,6 @@ function parseDate(raw) {
 const sanePublished = ms => Math.min(ms, Date.now());
 
 module.exports = {
-  USER_AGENT, BROWSER_UA, SourceError, parseRetryAfter, request, feedText, getJson, splitCredentials,
+  BROWSER_UA, SourceError, parseRetryAfter, request, feedText, getJson, splitCredentials,
   decodeEntities, text, cleanText, cleanHtml, trunc, headline, hash, parseDate, sanePublished,
 };
