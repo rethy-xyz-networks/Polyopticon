@@ -352,21 +352,31 @@ The **Global Markets** button (Ctrl+G), next to the bias button, shows a tile pe
 
 ### Opinion Polls
 
-The **Opinion polls** button (Ctrl+O), next to Global Markets, shows the opinion polls Wikipedia lists for a country (Canada for now), one question at a time: a tile per answer with its polling average and how far it moved in the last 30 days, a chart of the average with every poll as a dot, and the table of polls, newest first, each linked to the firm's own release. Events between polls (by-elections, new leaders) are dashed lines on the chart and rows in the table; the last election is the starting point. **3M / 6M / 1Y / All** sets how far back the chart and table go.
+The **Opinion polls** button (Ctrl+O), next to Global Markets, shows the opinion polls Wikipedia lists for a country, one question at a time: a tile per answer with its polling average and how far it moved in the last 30 days, a chart of the average with every poll as a dot, and the table of polls, newest first, each linked to the firm's own release. Events between polls (by-elections, new leaders) are dashed lines on the chart and rows in the table; the last election is the starting point. **3M / 6M / 1Y / All** sets how far back the chart and table go. An approval question leads with the net (approve minus disapprove), and a seat projection counts seats rather than percentages. Clicking a party or person (its tile, its column heading in the table, or its label at the end of its line) opens its Wikipedia article as a tab, as the map's place cards do.
 
-The list beside the country chooses the question, and is remembered:
+The first list chooses the country, the second the question; both are remembered:
 
-| Group | Questions |
+| Country | Questions |
 |---|---|
-| Federal | Voting intention · Preferred prime minister · Government approval · Voting intention by province, by riding, and with another party leader |
-| Provincial voting intention | Each province's next election |
-| Questions | Quebec independence (all voters, French-speaking, others, and by party supported) · Alberta separation (the 2026 referendum question, and separating in general) · Canada joining the United States (asked of Canadians, and of Americans) |
+| Canada | Voting intention · Preferred prime minister · Government approval · By province, by riding, and with another party leader · Each province's next election · Quebec independence · Alberta separation · Canada joining the United States |
+| Germany | Voting intention (Union and CDU/CSU apart, East/West, by state, other scenarios) · Preferred chancellor · Preferred coalition |
+| United Kingdom | Voting intention (Great Britain, and by nation or region) · Leader approval · Party approval · Other politicians · Hypothetical leaders · Scottish independence (and its timing) · Rejoining the EU (with the euro, and the relationship wanted) |
+| Ireland | Voting intention |
+| France | Presidential first round · Second-round match-ups · A rerun of 2022 |
+| European Union | Parliament vote by group · Seats by group |
+| United States | Trump job approval (polls, averages, by state, by group) · Approval of his policies and officials · 2028 head-to-heads, nationwide and by state |
+| Australia | Voting intention (primary and two-party preferred) · By electorate · Right direction / wrong track |
+| New Zealand | Party vote · By electorate · By group of voters · Preferred prime minister · Leader approval · Government direction |
+| Poland | Voting intention · Other scenarios · By city · Candidates |
+| Netherlands | Seats · Vote share |
+| Ukraine | Presidential first round · Second-round match-ups (now and before 2022) |
+| Japan | Voting intention · Party identification · Cabinet approval · Preferred prime minister · Preferred coalition |
 
-A question made of several tables (a province, a riding, a hypothetical leader) gets a second list for which one to show. A question is listed only while Wikipedia has polls for it, so a province with none yet is absent, and a table with a single poll shows as that poll.
+A question made of several tables (a province, a riding, a leader, a match-up) gets a third list for which one to show. A question is listed only while Wikipedia has polls for it, so a province with none yet is absent, and a table with a single poll shows as that poll. The pages and tables each question comes from are listed in `src/main/poll-countries.js`; a table Wikipedia reshapes beyond reading keeps its last good copy.
 
-- **Where the polls come from.** No polling firm or agency publishes an open feed of every poll, so the polls come from the tables Wikipedia's editors keep ([the next federal election's](https://en.wikipedia.org/wiki/Opinion_polling_for_the_next_Canadian_federal_election), each province's next election, and the articles on the standing questions), each row citing the firm's release. They are read through the public MediaWiki API: no key, no login. The text is CC BY-SA 4.0, credited in the view with a link to the table shown. The titles asked for are Wikipedia's "next election" redirects, so a new election's page is followed without an update.
+- **Where the polls come from.** No polling firm or agency publishes an open feed of every poll, so the polls come from the tables Wikipedia's editors keep (each country's next election, such as [Canada's](https://en.wikipedia.org/wiki/Opinion_polling_for_the_next_Canadian_federal_election), and the articles on standing questions), each row citing the firm's release. They are read through the public MediaWiki API: no key, no login. The text is CC BY-SA 4.0, credited in the view with a link to the table shown. The titles asked for are Wikipedia's "next election" redirects, so a new election's page is followed without an update.
 - **The average.** Each day's value is a weighted mean of the polls that ended in the window before it: each firm's latest poll counts once (so a weekly tracker doesn't outweigh a monthly poll), and a poll counts less as it ages. The window is 21 days where polls are frequent and longer where they are rare (three times the usual gap between polls, up to 120 days); the view says which.
-- **How often.** The pages are checked when the view opens, at most every 30 minutes (Refresh at most once a minute), and saved in `polls/`, so they show at once and while offline. A check is one small request for every page's revision number, and a second for the text of the pages edited since (usually one or none). It checks only while the view is open. A busy answer (`429` / `503`) waits for Retry-After, a block an hour, and a failure is retried by itself, longer each time.
+- **How often.** The pages are checked when the view opens, at most every 30 minutes (Refresh at most once a minute), and saved in `polls/`, so they show at once and while offline. A check is one small request for every page's revision number, and a second for the text of the pages edited since (usually one or none). It checks only while the view is open, and only the country shown, so Wikipedia's rate limit is never approached. A busy answer (`429` / `503`) waits for Retry-After, a block an hour, and a failure is retried by itself, longer each time.
 
 ### Map
 
@@ -446,7 +456,7 @@ Twitch and destiny.gg chats run on their own browser session and open links in y
 
 ### Chat Tabs
 
-Each chat is a tab, and they work like every other tab strip (see [Tabs](#tabs)). **Reload** (the button beside **+**, or Ctrl+R) reloads the chat that's showing. The order and pins are remembered.
+Each chat is a tab, and they work like every other tab strip (see [Tabs](#tabs)). A tab leads with its site's icon (Twitch, Kick, destiny.gg), fetched once and cached like a feed's; an IRC room has a chat glyph instead. **Reload** (the button beside **+**, or Ctrl+R) reloads the chat that's showing. The order and pins are remembered.
 
 ## Video Player View
 
@@ -465,7 +475,7 @@ Press the **+** button in the stream bar (it works like the chat's), pick a site
 
 ### Stream Tabs
 
-Each stream is a tab, and they work like every other tab strip (see [Tabs](#tabs)). Add as many as you like. **Reload** (the button beside **+**, or Ctrl+R) reloads the stream that's showing.
+Each stream is a tab, and they work like every other tab strip (see [Tabs](#tabs)), leading with its site's icon (a direct link has a video glyph). Add as many as you like. **Reload** (the button beside **+**, or Ctrl+R) reloads the stream that's showing.
 
 ### Volume and Mute
 
@@ -608,6 +618,7 @@ Article and 4chan pages block ads and trackers: a built-in list of ad/tracker ho
     │   ├── bias.js         political-lean lookups (MediaBias News), one per feed, kept in the database
     │   ├── markets.js      live quotes for Global Markets (Yahoo Finance, batched, with back-off)
     │   ├── polls.js        opinion polls: Wikipedia's poll tables, parsed and cached
+    │   ├── poll-countries.js  each country's poll questions and the Wikipedia tables they come from
     │   ├── favicons.js     site icons, fetched once and cached
     │   ├── thumbs.js       story pictures from feeds, shrunk and cached for a week
     │   ├── chat.js         chat-panel session and webview lock-down
@@ -648,13 +659,13 @@ Polyopticon follows the usage policies of the services it requests data from. Wh
 
 The facts and summaries (Wikidata, Wikipedia) are fetched when the map data is built, not by the app.
 
-The opinion polls are one MediaWiki API request per country, with the same User-Agent, at most every 30 minutes and only while that view is open; a busy or blocked answer is waited out as above.
+The opinion polls are at most two MediaWiki API requests per check (revision numbers, then the text of pages edited since), for the country shown only, with the same User-Agent, at most every 30 minutes and only while that view is open; a busy or blocked answer is waited out as above.
 
 ## Credits
 
 Place data from [GeoNames](https://www.geonames.org/) (CC BY 4.0) and [Natural Earth](https://www.naturalearthdata.com/) (public domain). US county outlines: [US Census Bureau](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html) (public domain). Canada's census divisions: [GADM](https://gadm.org/) (free for non-commercial use; downloaded by the app, not distributed with it). Place facts: [Wikidata](https://www.wikidata.org/) (CC0). Summaries: [Wikipedia](https://en.wikipedia.org/) (CC BY-SA 4.0). Photos: [Wikimedia Commons](https://commons.wikimedia.org/), each under its own licence, credited on its card.
 
-Political-lean ratings: [MediaBias News](https://mediabias.news), republishing AllSides, Ad Fontes Media and Media Bias/Fact Check. Market prices: Yahoo Finance. Opinion polls: [Wikipedia](https://en.wikipedia.org/wiki/Opinion_polling_for_the_next_Canadian_federal_election) (CC BY-SA 4.0), compiled from each polling firm's published results.
+Political-lean ratings: [MediaBias News](https://mediabias.news), republishing AllSides, Ad Fontes Media and Media Bias/Fact Check. Market prices: Yahoo Finance. Opinion polls: [Wikipedia](https://en.wikipedia.org/wiki/Category:Opinion_polling_for_elections) (CC BY-SA 4.0), compiled from each polling firm's published results.
 
 Translation models: Helsinki-NLP Opus-MT and Meta NLLB-200, via Transformers.js.
 
