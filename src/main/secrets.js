@@ -3,7 +3,7 @@
 // API keys and account sessions, encrypted with Electron safeStorage
 // (DPAPI on Windows — only this Windows user can decrypt the file).
 //
-// Shape: { guardianKey, nytKey, newsapiKey,
+// Shape: { guardianKey, newsapiKey,
 //          bluesky: { handle, appPassword },
 //          telegram: { apiId, apiHash, session, user } }
 
@@ -43,7 +43,6 @@ const get = () => data;
 function summary() {
   return {
     guardianKey: !!data.guardianKey,
-    nytKey: !!data.nytKey,
     newsapiKey: !!data.newsapiKey,
     bluesky: data.bluesky?.handle ? { handle: data.bluesky.handle } : null,
     telegram: {

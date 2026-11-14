@@ -206,7 +206,6 @@ function renderSourceEditor(page) {
 
 const KEY_SERVICES = [
   ['guardianKey', 'The Guardian', 'https://open-platform.theguardian.com/access/', 'Free developer key, 500 calls/day.'],
-  ['nytKey', 'New York Times', 'https://developer.nytimes.com/get-started', 'Free key; enable “Times Newswire” and “Top Stories” for your app.'],
   ['newsapiKey', 'NewsAPI.org', 'https://newsapi.org/register', 'Free developer plan: 100 requests/day, articles delayed 24h.'],
 ];
 

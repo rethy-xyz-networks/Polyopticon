@@ -163,7 +163,6 @@ A source's group is the "Group" field in its editor. A new group name counts as 
 | Bluesky | optional (app password) | Keyword search or one account's posts |
 | Telegram | optional (your own api_id) | Public channels via t.me web preview. Logging in adds instant delivery and channels without previews |
 | The Guardian | free key | open-platform.theguardian.com |
-| New York Times | free key | developer.nytimes.com (Times Newswire / Top Stories) |
 | NewsAPI.org | free key | 100 requests/day, articles delayed 24h on the free plan |
 
 Add and edit sources in **Settings -> Sources**. Keys and logins go in **Settings -> Accounts** (encrypted with Windows DPAPI). To read a Telegram channel without adding it as a source, use a [Telegram channel tab](#telegram-channel).
@@ -562,7 +561,7 @@ The **Settings** button (Ctrl+,) opens the panel. Esc or the close button closes
   - *Media bias:* how far the [bias lookups](#bias-chart) have got, and **Recheck**.
   - *Logs:* how many session logs to keep, and debug logging.
 - **Sources:** add, edit, enable and disable sources, grouped like the sidebar.
-- **Accounts:** API keys and logins (Telegram, Bluesky, The Guardian, New York Times, NewsAPI), encrypted with Windows DPAPI. On Linux they are encrypted with a key kept in the desktop's keyring (GNOME Keyring, KWallet or any other Secret Service keyring); without one, they can't be saved.
+- **Accounts:** API keys and logins (Telegram, Bluesky, The Guardian, NewsAPI), encrypted with Windows DPAPI. On Linux they are encrypted with a key kept in the desktop's keyring (GNOME Keyring, KWallet or any other Secret Service keyring); without one, they can't be saved.
 - **Storage:** how much is saved, how long saved pages are kept, **Open data folder**, **Clear articles** and **Clear models**.
 
 ### Data Folder

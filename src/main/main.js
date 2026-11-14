@@ -149,6 +149,10 @@ function seedSources() {
         if ((s.since ?? 1) > rev && !names.has(s.name.toLowerCase())) { db.addSource({ ...strip(s), grp: g.grp }); added.push(s.name); }
     if (added.length) log.info(`Added ${added.length} new default sources: ${added.join(', ')}`);
     for (const r of RETIRED.filter(r => r.since > rev)) {
+      if (r.type) {                                         // a whole source type withdrawn: every source of it goes
+        for (const s of db.listSources().filter(x => x.type === r.type)) { db.deleteSource(s.id); log.info(`Removed source of retired type ${r.type}: ${s.name} (and its stories)`); }
+        continue;
+      }
       const s = db.listSources().find(x => x.name === r.name && (r.channel ? x.config?.channel === r.channel : x.config?.url === r.url));
       if (s) { db.deleteSource(s.id); log.info(`Removed retired default source: ${r.name} (and its stories)`); }
     }
@@ -582,7 +586,7 @@ function registerIpc() {
   // Accounts
   ipcMain.handle('accounts:save', (_e, patch) => {
     const acc = { ...secrets.get() };
-    for (const k of ['guardianKey', 'nytKey', 'newsapiKey'])
+    for (const k of ['guardianKey', 'newsapiKey'])
       if (k in patch) { if (patch[k]) acc[k] = String(patch[k]).trim(); else delete acc[k]; }
     if ('bluesky' in patch)
       acc.bluesky = patch.bluesky?.handle && patch.bluesky?.appPassword
@@ -872,6 +876,7 @@ app.whenReady().then(async () => {
   setupMarkets();
   setupPolls();
   secrets.load(DATA_DIR);
+  if ('nytKey' in secrets.get()) { const { nytKey, ...rest } = secrets.get(); secrets.save(rest); }   // the NYT API source type was withdrawn
   scratchpad.load(DATA_DIR);
 
   const articles = session.fromPartition(ARTICLE_PARTITION);

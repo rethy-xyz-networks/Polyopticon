@@ -1,6 +1,6 @@
 'use strict';
 
-// Publisher / aggregator APIs with free keys: The Guardian, NYT, NewsAPI.org.
+// Publisher / aggregator APIs with free keys: The Guardian, NewsAPI.org.
 
 const { Adapter } = require('./base');
 const { SourceError, getJson, cleanHtml, cleanText, trunc, parseDate, sanePublished } = require('./util');
@@ -28,26 +28,6 @@ class GuardianAdapter extends Adapter {
   }
 }
 
-class NytAdapter extends Adapter {
-  async fetchItems(signal) {
-    const key = this.ctx.credentials.nytKey;
-    if (!key) throw new SourceError('NO KEY', 'Add a free NYT API key under Settings -> Accounts');
-    const section = encodeURIComponent(this.config.section || 'all');
-    const url = this.config.feed === 'topstories'
-      ? `https://api.nytimes.com/svc/topstories/v2/${section === 'all' ? 'home' : section}.json?api-key=${key}`
-      : `https://api.nytimes.com/svc/news/v3/content/all/${section}.json?limit=50&api-key=${key}`;
-    const res = await getJson(url, { signal });
-    return (res.results || []).filter(r => r.url && r.title).map(r => ({
-      extId: r.uri || r.url,
-      title: cleanText(r.title),
-      summary: cleanText(r.abstract),
-      url: r.url,
-      author: cleanText(r.byline)?.replace(/^By /, '') || r.section || null,
-      publishedAt: sanePublished(parseDate(r.published_date || r.first_published_date) ?? Date.now()),
-    }));
-  }
-}
-
 class NewsApiAdapter extends Adapter {
   async fetchItems(signal) {
     const key = this.ctx.credentials.newsapiKey;
@@ -66,4 +46,4 @@ class NewsApiAdapter extends Adapter {
   }
 }
 
-module.exports = { GuardianAdapter, NytAdapter, NewsApiAdapter };
+module.exports = { GuardianAdapter, NewsApiAdapter };

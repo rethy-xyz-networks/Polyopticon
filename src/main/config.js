@@ -346,6 +346,8 @@ const RETIRED = [
   { since: 16, name: 'NYT Politics', url: 'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml' },
   { since: 16, name: 'NYT World', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml' },
   { since: 16, name: 'Hungary Today', url: 'https://hungarytoday.hu/feed/' },
+  // The New York Times API source type, withdrawn in revision 16: every source of that type is removed.
+  { since: 16, type: 'nyt' },
 ];
 
 // Default sources renamed later, renamed once in existing databases at the given

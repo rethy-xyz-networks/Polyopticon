@@ -15,7 +15,7 @@ const SCOPE_TIPS = [
   'Scope: Title only; click to switch to Description',
   'Scope: Description only; click to switch to Both',
 ];
-const TYPE_ICON = { rss: '', googlenews: 'G', gdelt: '◍', bluesky: '🦋', telegram: '✈', guardian: 'API', nyt: 'API', newsapi: 'API' };
+const TYPE_ICON = { rss: '', googlenews: 'G', gdelt: '◍', bluesky: '🦋', telegram: '✈', guardian: 'API', newsapi: 'API' };
 
 const statEls = new Map();                         // source id -> status element
 
@@ -144,7 +144,7 @@ export function bindSourceFilter() {
 
 // Source icons
 
-const FIXED_SITE = { gdelt: 'gdeltproject.org', googlenews: 'news.google.com', guardian: 'theguardian.com', nyt: 'nytimes.com', newsapi: 'newsapi.org' };
+const FIXED_SITE = { gdelt: 'gdeltproject.org', googlenews: 'news.google.com', guardian: 'theguardian.com', newsapi: 'newsapi.org' };
 
 /** The site a source's stories come from — feed hosts like feeds.bbci.co.uk rarely have an icon. */
 function sourceSite(s) {

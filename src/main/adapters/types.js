@@ -61,15 +61,6 @@ const TYPES = {
       { key: 'section', label: 'Section (optional)', type: 'text', placeholder: 'world' },
     ],
   },
-  nyt: {
-    label: 'New York Times API',
-    help: 'Times Newswire (everything as it publishes) or Top Stories. Needs a free key from developer.nytimes.com (Accounts).',
-    defaultInterval: 300, minInterval: 180, credential: 'nytKey',
-    fields: [
-      { key: 'feed',    label: 'Feed', type: 'select', options: [['newswire', 'Times Newswire'], ['topstories', 'Top Stories']], default: 'newswire' },
-      { key: 'section', label: 'Section', type: 'text', placeholder: 'all / world / us / business', default: 'all' },
-    ],
-  },
   newsapi: {
     label: 'NewsAPI.org',
     help: 'Searches 80,000+ outlets. The free plan allows 100 requests/day and delays articles by 24 hours. Needs a free key (Accounts).',
