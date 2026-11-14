@@ -336,7 +336,7 @@ Ratings come from the [MediaBias News API](https://mediabias.news), which republ
 
 - **One lookup per feed.** Each RSS feed is looked up once, shortly after start-up (or when you add it), and the answer is remembered in the database, whether or not an outlet was found. **Settings -> General -> Media bias -> Recheck** forgets every answer and asks again.
 - **Matching** uses the website's domain, from the feed address and from the links of its stories, and accepts an outlet only if its domains include it, so look-alike names don't match.
-- **Not plotted:** feeds the database doesn't know (NYT, The Guardian …), and outlets no rater has rated (RT …). They're listed under the chart.
+- **Not plotted:** feeds the database doesn't know (The Guardian …), and outlets no rater has rated (RT …). They're listed under the chart.
 - The API allows about 120 requests a minute; lookups are paced under that and wait out a refusal.
 
 ### Global Markets
