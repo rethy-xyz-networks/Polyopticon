@@ -14,16 +14,11 @@ const SEED_GROUPS = [
     sources: [
       rss('NBC News',   'US', 'https://feeds.nbcnews.com/nbcnews/public/news', '#1565C0'),
       rss('ABC News',   'US', 'https://abcnews.go.com/abcnews/topstories', '#A93226'),
-      rss('NYT',        'US', 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', '#2C3E50'),
       rss('NPR',        'US', 'https://feeds.npr.org/1001/rss.xml', '#2471A3'),
       rss('PBS',        'US', 'https://www.pbs.org/newshour/feeds/rss/headlines', '#145A32'),
       rss('NBC World',  'US', 'https://feeds.nbcnews.com/nbcnews/public/world', '#1A6BA0'),
       rss('Al-Monitor', 'US', 'https://www.al-monitor.com/rss', '#7E5109'),
       // Archive of Donald Trump's Truth Social posts; untitled reposts are titled from their text (rss.js itemTitle).
-      // NYT section feeds (since 11).
-      { ...rss('NYT US',       'US', 'https://rss.nytimes.com/services/xml/rss/nyt/US.xml', '#34495E'), since: 11 },
-      { ...rss('NYT Politics', 'US', 'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml', '#3D566E'), since: 11 },
-      { ...rss('NYT World',    'US', 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', '#46627C'), since: 11 },
       { ...rss('Trump-Truth Social', 'US', 'https://www.trumpstruth.org/feed', '#8B1E2D'), since: 9 },
       // Added in revision 12.
       { ...rss('CBS World',     'US', 'https://www.cbsnews.com/latest/rss/world', '#1B4F72'), since: 12 },
@@ -260,7 +255,6 @@ const SEED_GROUPS = [
   {
     grp: 'Hungary',
     sources: [
-      { ...rss('Hungary Today',  'HU', 'https://hungarytoday.hu/feed/', '#196F3D'), since: 14 },
       { ...rss('Budapest Times', 'HU', 'https://www.budapesttimes.hu/feed/', '#7E5109'), since: 14 },
     ],
   },
@@ -346,6 +340,12 @@ const RETIRED = [
   { since: 15, name: "Al Jazeera Arabic", channel: 'ajanews' },
   { since: 15, name: "WarFront Witness", channel: 'wfwitness' },
   { since: 15, name: "Intel Slava", channel: 'intelslava' },
+  // Dropped in revision 16.
+  { since: 16, name: 'NYT', url: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml' },
+  { since: 16, name: 'NYT US', url: 'https://rss.nytimes.com/services/xml/rss/nyt/US.xml' },
+  { since: 16, name: 'NYT Politics', url: 'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml' },
+  { since: 16, name: 'NYT World', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml' },
+  { since: 16, name: 'Hungary Today', url: 'https://hungarytoday.hu/feed/' },
 ];
 
 // Default sources renamed later, renamed once in existing databases at the given
@@ -356,6 +356,6 @@ const RENAMED = [
 ];
 
 /** Bump when SEED_GROUPS gains sources marked `since: <n>`, or RETIRED / RENAMED gain entries. */
-const SEED_REVISION = 15;
+const SEED_REVISION = 16;
 
 module.exports = { SEED_GROUPS, SEED_REVISION, RETIRED, RENAMED };
