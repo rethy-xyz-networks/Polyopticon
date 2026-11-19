@@ -301,8 +301,13 @@ let workerStartedAt = 0;
 
 function startFeeds() {
   if (!worker) {
-    const w = worker = utilityProcess.fork(path.join(__dirname, 'feed-worker.js'), [], { serviceName: 'Polyopticon Feeds' });
+    // stderr is kept: an error before the worker's own handlers are set (a module that can't be loaded,
+    // say after the app's folder was moved while it ran) shows only there, and otherwise every restart
+    // would fail with nothing in the log but "code 1".
+    const w = worker = utilityProcess.fork(path.join(__dirname, 'feed-worker.js'), [],
+      { serviceName: 'Polyopticon Feeds', stdio: ['ignore', 'inherit', 'pipe'] });
     workerStartedAt = Date.now();
+    w.stderr?.on('data', d => { const s = String(d).trim(); if (s) log.error(`Feed worker stderr: ${s.slice(0, 2000)}`); });
     w.on('message', onWorkerMessage);
     w.on('exit', code => {
       if (worker !== w) return;
@@ -463,6 +468,21 @@ function registerIpc() {
   ipcMain.on('settings:save', (_e, next) => applySettings(next));
   ipcMain.on('tags:save', (_e, tags) => store.saveTags(tags));
   ipcMain.on('shortcuts:pages', (_e, combos) => { pageShortcuts = new Set(combos); });
+  // An item picked in a page's right-click menu; only the window holding that page may pick.
+  // An item picked in a page's right-click menu; only the window holding that page may pick.
+  ipcMain.on('page:menu-pick', (e, id, action) => {
+    const page = webContents.fromId(id);
+    const menu = pageMenus.get(id);
+    pageMenus.delete(id);
+    if (!menu || !page || page.isDestroyed() || page.hostWebContents !== e.sender) return;
+    const run = {
+      cut: () => page.cut(), copy: () => page.copy(), paste: () => page.paste(), selectAll: () => page.selectAll(),
+      copyLink: () => menu.link && clipboard.writeText(menu.link),
+      openTab: () => menu.canOpen && openLinkTab(menu.link, page.hostWebContents),
+      openBrowser: () => menu.canOpen && openExternal(menu.link),
+    }[action];
+    run?.();                                                   // the window focused the page first
+  });
   ipcMain.on('window:toggle-fullscreen', e => { const w = BrowserWindow.fromWebContents(e.sender) ?? win; w?.setFullScreen(!w.isFullScreen()); });   // the main window, or a pop-out
   ipcMain.on('tabs:pinned', (_e, list) => store.savePinned(list));
   ipcMain.on('tabs:pinned-sync', (e, list) => { store.savePinned(list); e.returnValue = true; });   // as the window closes
@@ -771,6 +791,8 @@ function isAllowedViewUrl(u) {
 // App shortcuts pressed inside an article or chat page never reach the app window, so
 // they're caught here and passed on. The renderer sends the list (src/renderer/shortcuts.js).
 let pageShortcuts = new Set();
+// The right-click menu last shown for each page (by webContents id): the link it was on.
+const pageMenus = new Map();
 // Same naming as comboName in src/renderer/shortcuts.js — keep them alike.
 function comboName(i) {
   if (i.meta || !i.key || ['Control', 'Alt', 'Shift', 'Meta', 'AltGraph'].includes(i.key)) return null;
@@ -787,20 +809,21 @@ app.on('web-contents-created', (_e, contents) => {
     e.preventDefault();
     toHost(contents, 'app:shortcut', combo, contents.id);   // the renderer finds the page's area (article, chat, stream) by it
   });
-  // Right-click in an article or chat page: a Copy / Paste menu (the pages have none of their own).
+  // Right-click in an article or chat page: the pages have no menu of their own. The window draws
+  // the app's one (textMenuItems in src/renderer/dom.js, the same as the IRC chat's) from what was
+  // clicked, and sends back the action picked (page:menu-pick), which runs here.
+  const id = contents.id;
+  contents.once('destroyed', () => pageMenus.delete(id));
   contents.on('context-menu', (_e, params) => {
+    const link = params.linkURL || '';
+    // Only a chat's web links open as a tab in the article area (an article's own links act on their page).
+    const canOpen = isWebUrl(link) && chat.isChatContents(contents);
+    pageMenus.set(id, { link, canOpen });
     const f = params.editFlags;
-    const items = [];
-    // A link in a chat: it can open as a tab in the article area (a click sends it to the system browser).
-    if (isWebUrl(params.linkURL) && chat.isChatContents(contents)) items.push(
-      { label: 'Open in a tab', click: () => openLinkTab(params.linkURL, contents.hostWebContents) },
-      { label: 'Open in browser', click: () => openExternal(params.linkURL) });
-    if (params.linkURL) items.push({ label: 'Copy link address', click: () => clipboard.writeText(params.linkURL) });
-    if (params.isEditable) items.push({ role: 'cut', enabled: f.canCut }, { role: 'copy', enabled: f.canCopy }, { role: 'paste', enabled: f.canPaste });
-    else if (params.selectionText) items.push({ role: 'copy' });
-    if (params.isEditable || params.selectionText) items.push({ type: 'separator' }, { role: 'selectAll' });
-    else if (!params.linkURL) items.push({ role: 'selectAll' });
-    Menu.buildFromTemplate(items).popup();
+    toHost(contents, 'page:menu', id, params.x, params.y, {
+      link, canOpen, editable: params.isEditable, selected: !!params.selectionText,
+      can: { cut: f.canCut, copy: f.canCopy, paste: f.canPaste },
+    });
   });
   // Ctrl + mouse wheel over a page: the renderer steps the one shared zoom (the Zoom setting).
   // One wheel input can be reported twice, a fraction of a millisecond apart; repeats inside 20 ms are dropped.

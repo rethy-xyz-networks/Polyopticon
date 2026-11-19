@@ -2,7 +2,7 @@
 // (main/irc.js makes the anonymous, read-only connection). One view per room;
 // the backlog stays while the column is hidden.
 
-import { api, h, showMenu } from './dom.js';
+import { api, h, showMenu, textMenuItems } from './dom.js';
 
 const MAX_LINES = 500;
 const views = new Map();           // chat key -> view
@@ -92,16 +92,14 @@ export function createIrcView(chat) {
     const sel = getSelection();
     const text = sel.toString();                              // taken now: clicking the menu may clear the selection
     const url = e.target.closest?.('a.irc-link')?.href;
-    showMenu(e.clientX, e.clientY, [
-      ...(url ? [
-        { label: 'Open in a tab', onClick: () => api.openLinkTab(url) },
-        { label: 'Open in browser', onClick: () => api.openExternal(url) },
-        { label: 'Copy link address', onClick: () => navigator.clipboard.writeText(url) },
-        'sep',
-      ] : []),
-      { label: 'Copy', disabled: !text, onClick: () => navigator.clipboard.writeText(text) },
-      { label: 'Select all', onClick: () => { const r = document.createRange(); r.selectNodeContents(log); sel.removeAllRanges(); sel.addRange(r); } },
-    ]);
+    const run = {
+      openTab: () => api.openLinkTab(url),
+      openBrowser: () => api.openExternal(url),
+      copyLink: () => navigator.clipboard.writeText(url),
+      copy: () => navigator.clipboard.writeText(text),
+      selectAll: () => { const r = document.createRange(); r.selectNodeContents(log); sel.removeAllRanges(); sel.addRange(r); },
+    };
+    showMenu(e.clientX, e.clientY, textMenuItems({ link: url ?? '', canOpen: !!url, selected: !!text }, name => run[name]()));
   });
   const v = { el, topic: '', users: null, state: 'connecting', text: '' };
 

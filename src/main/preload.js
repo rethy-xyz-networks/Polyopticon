@@ -108,6 +108,8 @@ contextBridge.exposeInMainWorld('polyopticon', {
   onTelegramDone:   on('telegram:done'),
   onShortcut:       on('app:shortcut'),
   onZoom:           on('app:zoom'),
+  onPageMenu:       on('page:menu'),
+  pageMenuPick:     (id, index)    => ipcRenderer.send('page:menu-pick', id, index),
   onFullScreen:     on('window:fullscreen'),
   onChanOpen:       on('chan:open'),
   onLinkOpen:       on('link:open'),

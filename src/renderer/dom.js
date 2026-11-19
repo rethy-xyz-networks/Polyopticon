@@ -96,6 +96,42 @@ export function showMenu(x, y, items) {
   });
 }
 
+/** The items of every right-click menu on text: the IRC chat's log and the article and chat pages.
+ *  link: the link right-clicked ('' if none); canOpen: it can open as a tab or in the browser;
+ *  editable: a text field (with can: { cut, copy, paste }); selected: text is selected.
+ *  act(name) runs an item: openTab, openBrowser, copyLink, cut, copy, paste, selectAll. */
+export function textMenuItems({ link = '', canOpen = false, editable = false, can = {}, selected = false }, act) {
+  const item = (label, name, disabled = false) => ({ label, disabled, onClick: () => act(name) });
+  return [
+    ...(canOpen ? [item('Open in a tab', 'openTab'), item('Open in browser', 'openBrowser')] : []),
+    ...(link ? [item('Copy link address', 'copyLink'), 'sep'] : []),
+    ...(editable ? [item('Cut', 'cut', !can.cut), item('Copy', 'copy', !can.copy), item('Paste', 'paste', !can.paste)]
+                 : [item('Copy', 'copy', !selected)]),
+    item('Select all', 'selectAll'),
+  ];
+}
+
+/** Right-clicks inside article and chat pages (<webview>s): main sends what was clicked, this window
+ *  draws the menu like every other one, and main runs the action picked. */
+export function bindPageMenus() {
+  api.onPageMenu((id, x, y, info) => {
+    const wv = [...document.querySelectorAll('webview')].find(w => {
+      try { return w.getWebContentsId() === id; } catch { return false; }   // not attached yet
+    });
+    if (!wv) return;
+    // A mouse right-click comes in this window's coordinates; one that would land outside the page
+    // is taken as relative to the page instead (Electron reports some that way).
+    const r = wv.getBoundingClientRect();
+    const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    if (!inside) { x += r.left; y += r.top; }
+    showMenu(x, y, textMenuItems(info, name => { wv.focus(); api.pageMenuPick(id, name); }));
+    // Focus moves out of the page onto the menu, so a click back into the page (a window blur) or Escape closes it.
+    const menu = document.querySelector('.ctx-menu:not(.closing)');
+    menu.tabIndex = -1;
+    menu.focus({ preventScroll: true });
+  });
+}
+
 function closeMenu() {
   // Fades out (.closing, styles.css) and is then taken off the page; a new menu can open meanwhile.
   const menu = document.querySelector('.ctx-menu:not(.closing)');

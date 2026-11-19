@@ -76,6 +76,7 @@ function append(rows) {
   list.append(frag);
   const n = hist.items.size;
   $('feed-count').textContent = `${n}${hist.done ? '' : '+'}`;
+  $('feed-count').title = `${n}${hist.done ? '' : '+'} articles`;
   $('history-empty').hidden = n > 0;
   $('history-empty').textContent = hist.query ? 'Nothing matches that search.'
     : hist.scope === 'opened' ? 'Articles you open are recorded here, with a saved copy for offline reading.'

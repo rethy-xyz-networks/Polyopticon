@@ -1,7 +1,7 @@
 // Live feed: ingestion, filtering, minimal-diff rendering, and list interaction
 // (shared with the History list).
 
-import { api, $, h, formatStamp } from './dom.js';
+import { api, $, h, formatStamp, formatTime, dayLabel } from './dom.js';
 import { toggleSearchSource } from './sourcesearch.js';
 import { state, sourceColor } from './state.js';
 import { openTab, openInBrowser } from './tabs.js';
@@ -52,9 +52,11 @@ export function buildRow(it, { extraMeta = null } = {}) {
                          title: it.summary && it.kind === 'article' ? it.summary.slice(0, 400) : null },
     h('div', { class: 'meta' },
       siteIcon(it),
-      h('span', { class: 'badge', style: `background:${sourceColor(it.sourceId)}` }, it.sourceName),
+      h('span', { class: 'badge', style: `background:${sourceColor(it.sourceId)}`, title: it.sourceName }, it.sourceName),
       KIND_LABEL[it.kind] && h('span', { class: 'kind' }, KIND_LABEL[it.kind]),
-      h('span', { class: 'time' }, formatStamp(it.publishedAt)),
+      // The date part drops out in a narrow list (styles.css); the day headings above show it.
+      h('span', { class: 'time', title: formatStamp(it.publishedAt) },
+        h('span', { class: 'date' }, `${formatStamp(it.publishedAt).split(' ')[0]} `), formatTime(it.publishedAt)),
       langTag(it),
       it.author && h('span', { class: 'author' }, it.author),
       extraMeta,
@@ -321,6 +323,29 @@ function reconcile(list, rows) {
   }
 }
 
+// A heading over each day's stories ("Today", "Yesterday", "Friday, November 13, 2026"), the same
+// as History's. The same element is kept for a day across updates, so reconcile leaves it in place.
+const dayHeads = new Map();
+function withDayHeads(rows, dayOf) {
+  const out = [], used = new Set();
+  let last = null;
+  for (const row of rows) {
+    const t = dayOf.get(row);
+    if (t != null) {
+      const day = dayLabel(t);
+      if (day !== last) {
+        if (!dayHeads.has(day)) dayHeads.set(day, h('div', { class: 'day-head', dataset: { day } }, day));
+        out.push(dayHeads.get(day));
+        used.add(day);
+        last = day;
+      }
+    }
+    out.push(row);
+  }
+  for (const day of dayHeads.keys()) if (!used.has(day)) dayHeads.delete(day);
+  return out;
+}
+
 const renderFeed = () => measure(
   () => `story list update (${$('feed-list').childElementCount} rows, ${state.items.length} stories)`, renderFeedNow);
 
@@ -334,6 +359,7 @@ function renderFeedNow() {
 
   if (atTop) rowLimit = ROWS_STEP;
   let rows, stories = visible.length;
+  const dayOf = new Map();                                     // story row -> its time (a group's members have none)
   if (state.settings.GroupStories) {
     // One row per story (its newest report); expanded groups list the rest underneath.
     const groups = new Map();
@@ -353,18 +379,25 @@ function renderFeedNow() {
       const lead = rowFor(members[0]);
       setGroupChip(lead, cid, members);
       rows.push(lead);
+      dayOf.set(lead, list[0].publishedAt);                   // where the group sits
       if (members.length > 1 && expanded.has(cid)) for (const m of members.slice(1)) rows.push(memberRowFor(m));
     }
     stories = groups.size;
   } else {
-    rows = visible.slice(0, rowLimit).map(it => { const r = rowFor(it); setGroupChip(r, null, null); return r; });
+    rows = visible.slice(0, rowLimit).map(it => { const r = rowFor(it); setGroupChip(r, null, null); dayOf.set(r, it.publishedAt); return r; });
   }
-  reconcile(list, rows);
+  reconcile(list, withDayHeads(rows, dayOf));
 
   if (state.mode === 'live') {
     const total = state.items.length;
-    const shown = visible.length === total ? `${total}` : `${visible.length} / ${total}`;
-    $('feed-count').textContent = state.settings.GroupStories && stories !== visible.length ? `${stories} stories · ${shown}` : shown;
+    // Parts drop out as the column narrows (styles.css: the feed pane's container queries); the tooltip has it all.
+    const grouped = state.settings.GroupStories && stories !== visible.length;
+    const count = $('feed-count');
+    count.replaceChildren(
+      ...(grouped ? [h('span', { class: 'cnt-stories' }, `${stories} stories · `)] : []),
+      `${visible.length}`,
+      ...(visible.length === total ? [] : [` / ${total}`]));
+    count.title = [grouped && `${stories} stories`, `${visible.length} of ${total} articles shown`].filter(Boolean).join(' · ');
     $('feed-empty').hidden = visible.length > 0;
     $('feed-empty').textContent = total ? 'No stories match the current filters.' : 'Waiting for stories…';
   }

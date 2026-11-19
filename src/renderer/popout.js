@@ -4,7 +4,7 @@
 // closing the window returns the tab too. The tab shortcuts that make sense here work, also from
 // inside the page (main forwards them): Ctrl+R, Alt+Left / Right, Ctrl+W (return), F11, zoom.
 
-import { api, $ } from './dom.js';
+import { api, $, bindPageMenus } from './dom.js';
 import { applyIcons } from './icons.js';
 import { comboName } from './shortcuts.js';
 import { YOUTUBE_CSS } from './streams.js';
@@ -106,3 +106,4 @@ window.addEventListener('keydown', e => {
 });
 api.onShortcut(combo => KEYS[combo]?.());                      // pressed inside the page
 api.onZoom(dir => zoomTo(zoom + (dir === 'in' ? 0.1 : -0.1)));   // Ctrl + wheel over the page
+bindPageMenus();                                                 // right-click inside the page

@@ -1,6 +1,6 @@
 // Entry point: boot, toolbar, mode switch, countdown, keyboard, splitters.
 
-import { api, $, maxAgeLabel } from './dom.js';
+import { api, $, maxAgeLabel, bindPageMenus } from './dom.js';
 import { state, setSources, setBias } from './state.js';
 import { ingest, refreshRows, scheduleRender, bindFeedScroll, trimToMax, rebuildTagCache, bindList, pruneSources, setCountsListener, updateItems, setItemImages, setVisibleListener } from './feed.js';
 import { initMap, onVisibleItems, applyMapAppearance, refreshMapFilter } from './map.js';
@@ -359,6 +359,7 @@ function bindToolbar() {
   });
   // Ctrl + wheel over a page zooms every page, like a browser.
   api.onZoom(dir => zoomStep(dir === 'in' ? 1 : -1));
+  bindPageMenus();                                                   // right-click inside an article or chat page
   api.onChanOpen((url, background) => openChanTab(url, { background }));
   api.onLinkOpen(url => openChanTab(url, { web: true }));            // a chat link: right-click -> Open in a tab
   bindShortcuts();

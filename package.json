@@ -69,7 +69,7 @@
     "leaflet": "^1.9.4",
     "mpegts.js": "^1.8.2",
     "telegram": "^2.26.22",
-    "undici": "^7.30.0"
+    "undici": "^8.12.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
