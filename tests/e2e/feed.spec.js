@@ -50,3 +50,30 @@ test('a window freeze is written to the session log', async ({ window, dataDir }
   const sessionLog = () => fs.readdirSync(logs).filter(f => f.startsWith('session_')).map(f => fs.readFileSync(path.join(logs, f), 'utf8')).join('');
   await expect.poll(sessionLog, { timeout: 10_000 }).toMatch(/Perf: window froze for (4[0-9]{2}|[5-9][0-9]{2}) ms — script .* via TimerHandler:setTimeout took 4[0-9]{2} ms/);
 });
+
+test('the live list has a heading over each day, like History', async ({ window }) => {
+  await expect(window.locator('#source-groups .source').first()).toBeVisible();
+  const expected = await window.evaluate(async () => {
+    const feed = await import('./feed.js');
+    const { state } = await import('./state.js');
+    const { dayLabel } = await import('./dom.js');
+    const s = state.sources[0];
+    const midnight = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+    const times = [Date.now(), midnight - 2 * 3600e3, midnight - 3 * 86400e3 + 3600e3];
+    feed.ingest(times.map((t, i) => ({
+      id: 9e8 + i, sourceId: s.id, sourceName: s.name, kind: 'article', title: `Day story ${i}`,
+      summary: '', url: `https://example.com/day/${i}`, publishedAt: t, places: [],
+    })), { fresh: false });
+    return times.map(dayLabel);
+  });
+  expect(expected.slice(0, 2)).toEqual(['Today', 'Yesterday']);
+  for (let i = 0; i < 3; i++) {
+    const row = window.locator('#feed-list .item', { hasText: `Day story ${i}` });
+    await expect(row).toBeVisible();
+    // The nearest heading above the row names its day.
+    expect(await row.evaluate(el => { let p = el.previousElementSibling; while (p && !p.matches('.day-head')) p = p.previousElementSibling; return p?.textContent; })).toBe(expected[i]);
+  }
+  const heads = await window.locator('#feed-list .day-head').allTextContents();
+  expect(new Set(heads).size).toBe(heads.length);                    // one heading per day
+  await expect(window.locator('#feed-list > :first-child')).toHaveClass(/day-head/);
+});

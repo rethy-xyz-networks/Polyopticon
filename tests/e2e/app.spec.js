@@ -140,30 +140,41 @@ test('map draws its own outlines: no tile server or tiles setting', async ({ win
 });
 
 test('buttons sitting side by side share one height', async ({ window }) => {
-  // Feed header: Live/History next to Group and Auto-Scroll, as tall as the toolbar's buttons.
-  const heights = await window.locator('.feed .pane-header').locator('button:visible')
-    .evaluateAll(els => els.map(el => [el.textContent.trim() || el.getAttribute('aria-label'), el.getBoundingClientRect().height]));
-  expect(heights.length).toBeGreaterThanOrEqual(4);
-  for (const [label, h] of heights) expect(h, label).toBe(heights[0][1]);
+  // Feed header: Live / History, as tall as the toolbar's buttons. Search bar: the search
+  // field's buttons (aa, Auto-scroll, Group), all one height.
+  for (const row of ['.feed .pane-header', '.feed .search-bar']) {
+    const heights = await window.locator(row).locator('button:visible')
+      .evaluateAll(els => els.map(el => [el.textContent.trim() || el.getAttribute('aria-label'), el.getBoundingClientRect().height]));
+    expect(heights.length, row).toBeGreaterThanOrEqual(2);
+    for (const [label, h] of heights) expect(h, label).toBe(heights[0][1]);
+  }
 
   // Every other compact button group matches the standard toggle height.
   const sizes = await window.evaluate(() => {
     const h = sel => document.querySelector(sel).getBoundingClientRect().height;
-    return { feed: h('#btn-group'), tools: h('#btn-refresh'), map: h('#map-window button'), sources: h('#btn-sources'), toggle: h('#btn-case') };
+    return { feed: h('#mode-switch button'), tools: h('#btn-refresh'), group: h('#btn-group'), map: h('#map-window button'), sources: h('#btn-sources'), toggle: h('#btn-case') };
   });
   expect(sizes.feed, 'feed header vs toolbar').toBe(sizes.tools);
+  expect(sizes.group, 'Group vs the search bar\'s aa').toBe(sizes.toggle);
   expect(sizes.map).toBe(sizes.toggle);
   expect(sizes.sources, "Manage sources").toBe(sizes.toggle);
 });
 
-test('a narrow feed column wraps its header instead of cutting off Group', async ({ window }) => {
-  await window.click('#mode-switch [data-mode="history"]');                // the widest header
+test('at its narrowest the feed column keeps its header and search bar on one row each, nothing cut off', async ({ window }) => {
   await window.evaluate(() => document.documentElement.style.setProperty('--w-feed', '260px'));
-  const { group, header } = await window.evaluate(() => ({
-    group: document.getElementById('btn-group').getBoundingClientRect().right,
-    header: document.querySelector('.feed .pane-header').getBoundingClientRect().right,
-  }));
-  expect(group).toBeLessThanOrEqual(header);
+  for (const mode of ['live', 'history']) {                                   // history: the widest header
+    await window.click(`#mode-switch [data-mode="${mode}"]`);
+    const rows = await window.evaluate(() => ['.feed .pane-header', '.feed .search-bar'].map(sel => {
+      const row = document.querySelector(sel), box = row.getBoundingClientRect();
+      const kids = [...row.querySelectorAll('button, input, .count')].filter(el => el.offsetParent).map(el => el.getBoundingClientRect());
+      return { sel, oneRow: Math.max(...kids.map(k => k.top)) < Math.min(...kids.map(k => k.bottom)), right: Math.max(...kids.map(k => k.right)), edge: box.right };
+    }));
+    for (const r of rows) {
+      expect(r.oneRow, `${mode} ${r.sel}: one row`).toBe(true);
+      expect(r.right, `${mode} ${r.sel}: inside`).toBeLessThanOrEqual(r.edge);
+    }
+  }
+  expect(await window.locator('#history-scope [data-scope="all"]').evaluate(el => el.innerText.trim())).toBe('All');   // "All stored", shortened
 });
 
 test('the logo is Polyopticon.png',async ({ window }) => {
