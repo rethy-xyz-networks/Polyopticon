@@ -320,19 +320,26 @@ body.resizing webview { pointer-events: none; }
 
 /* Feed list */
 /* Same size and spacing as the toolbar's buttons: 30px tall, 2px apart, square icons. */
-/* Wraps onto a second line when the column is too narrow, so Group is never cut off. */
-.feed .pane-header { flex-wrap: wrap; padding: 2px 8px 2px 12px; gap: 2px; --ctl-h: 30px; }
+/* One row at any width: Group and Auto-scroll sit in the search bar below, and the count
+   and "All stored" shorten as the column narrows (the container queries below). */
+.pane.feed { container: feed / inline-size; }
+.feed .pane-header { flex-wrap: nowrap; padding: 2px 8px 2px 12px; gap: 2px; --ctl-h: 30px; }
+.feed .pane-header > * { flex-shrink: 0; }
 .feed .pane-header .segmented { gap: 2px; background: none; }
 .feed .pane-header .segmented button:not(.on) { background: var(--ctl-hover); }
-.feed .pane-header .segmented button, .feed .pane-header .toggle-btn { min-width: var(--ctl-h); padding: 0 10px; }
+.feed .pane-header .segmented button, .feed .pane-header .toggle-btn,
+.feed .search-bar #btn-group, .feed .search-bar #btn-autoscroll { min-width: var(--ctl-h); padding: 0 10px; }
+.feed .search-bar #btn-autoscroll { padding: 0; }
 .feed .pane-header .segmented button[data-mode="live"] { padding: 0; }
-.feed .count { margin: 0 6px 0 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.feed .pane-header .count { flex: 0 1 auto; margin: 0 2px 0 auto; padding-left: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .live-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--live-dot); animation: pulse 1.2s steps(5) infinite alternate; vertical-align: 1px; }
 #mode-switch .live-dot { margin: 0; }
 /* Used with steps(): a few visible changes a second cost far less than a smooth fade, which has the whole window drawing every frame. */
 @keyframes pulse { to { opacity: .15; } }
 .search-bar { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .search-bar input { flex: 1; }
+@container feed (width < 330px) { .feed .wide-only { display: none; } }
+@container feed (width < 310px) { .feed .cnt-stories { display: none; } }
 
 .feed-list { flex: 1; overflow-y: auto; overflow-x: hidden; outline: none; overflow-anchor: auto; container-type: inline-size; }
 .item {
@@ -353,6 +360,11 @@ body.no-badges .item .badge { display: none; }
    small when the story list is at (or near) its narrowest (260px, see app.js), normal otherwise. */
 .item { --thumb-w: 96px; --thumb-gap: 10px; }
 @container (max-width: 300px) { .item { --thumb-w: 44px; --thumb-gap: 6px; } }
+/* A narrow row keeps the group chip (the one control on the line) whole: the source name gives way
+   first (cut with "…", full on hover), and the date goes (the day headings show it). */
+.item .meta { min-width: 0; }
+.item .meta .badge { flex-shrink: 1; min-width: 3.5em; overflow: hidden; text-overflow: ellipsis; }
+@container (max-width: 330px) { .item .time .date { display: none; } }
 .item.has-thumb {
   display: grid; grid-template-columns: var(--thumb-w) minmax(0, 1fr); grid-template-rows: auto auto 1fr;
   column-gap: var(--thumb-gap);
@@ -931,6 +943,7 @@ body.tabs-scroll .tab .label { flex: 0 1 auto; min-width: 8ch; }
 /* Source chips in the search bar (right-click a source to add) */
 .search-bar { flex-wrap: wrap; }
 .search-bar input { min-width: 140px; }
+@container feed (width < 330px) { .search-bar input { min-width: 80px; } }
 .source-chips { display: contents; }
 .source-chips[hidden] { display: none; }
 .source-chip {

@@ -102,17 +102,17 @@
         </div>
         <div class="segmented compact" id="history-scope" hidden>
           <button data-scope="opened" class="on" title="Articles you opened">Opened</button>
-          <button data-scope="all" title="Everything ever received">All stored</button>
+          <button data-scope="all" title="Everything ever received">All<span class="wide-only"> stored</span></button>
         </div>
         <span id="feed-count" class="muted count"></span>
-        <button id="btn-autoscroll" class="icon-btn" title="Auto-scroll to top when new articles arrive" aria-label="Auto-scroll" data-icon="autoscroll"></button>
-        <button id="btn-group" class="toggle-btn" title="Group reports of the same story from different sources">Group</button>
       </div>
       <div class="search-bar">
         <span id="place-chip" class="place-chip" hidden title="Only stories mentioning this place; click the close button to clear"><span id="place-chip-name"></span><button id="place-chip-clear" aria-label="Clear place filter" data-icon="close"></button></span>
         <span id="source-chips" class="source-chips" hidden title="Right-click a source in the sidebar to add or remove it"></span>
         <input id="search" type="search" placeholder="Search titles…  (Ctrl+F)">
         <button id="btn-case" class="toggle-btn" title="Toggle case-sensitive search">aa</button>
+        <button id="btn-autoscroll" class="icon-btn" title="Auto-scroll to top when new articles arrive" aria-label="Auto-scroll" data-icon="autoscroll"></button>
+        <button id="btn-group" class="toggle-btn" title="Group reports of the same story from different sources">Group</button>
       </div>
       <div id="feed-list" class="feed-list" tabindex="0" role="listbox" aria-label="Stories"></div>
       <div id="feed-empty" class="feed-empty" hidden>Waiting for stories…</div>
